@@ -51,10 +51,11 @@ class DepartureMappersTest {
     }
 
     @Test
-    fun uxRestriction_unavailable_isUnknown() {
-        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(UxRestrictionState.unavailable()))
-        // 출처가 UNAVAILABLE 이면 DO 값과 무관하게 UNKNOWN (제한 없음으로 보지 않는다)
-        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(ux(false, 0x0, UxRestrictionSource.UNAVAILABLE)))
+    fun uxRestriction_unavailable_isRestricted_regardlessOfConfig() {
+        // 연결 실패는 UNKNOWN 이 아니라 RESTRICTED — treatUnknownDrivingAsRestricted = false 여도 조작이 열리지 않는다
+        assertEquals(DrivingRestriction.RESTRICTED, DepartureMappers.drivingRestriction(UxRestrictionState.unavailable()))
+        // 출처가 UNAVAILABLE 이면 DO 값과 무관하게 RESTRICTED
+        assertEquals(DrivingRestriction.RESTRICTED, DepartureMappers.drivingRestriction(ux(false, 0x0, UxRestrictionSource.UNAVAILABLE)))
     }
 
     @Test

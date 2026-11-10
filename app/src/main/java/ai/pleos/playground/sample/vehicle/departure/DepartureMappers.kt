@@ -41,7 +41,9 @@ internal object DepartureMappers {
      * 1번 uxRestriction(AAOS CarUxRestrictions) → 2번 주행 규제.
      * - car service 실제 값(CAR_SERVICE): requiresDistractionOptimization true → RESTRICTED, false → UNRESTRICTED
      *   (에뮬레이터 실측: Park = false/0x0, Drive = true/0x50 — api-notes/vehicle-state.md §13.3)
-     * - null(아직 못 읽음)·UNAVAILABLE(연결 실패·오류) → UNKNOWN. 기본 설정(treatUnknownDrivingAsRestricted = true)은 UNKNOWN 을 제한으로 본다.
+     * - UNAVAILABLE(연결 실패·미지원 기기·오류) → RESTRICTED. 실패는 설정(treatUnknownDrivingAsRestricted)과 무관하게 제한이다
+     *   (api-notes/vehicle-state.md §13.4 "실패 → 제한", 검토 #14b MAJOR-2 (a)).
+     * - null(아직 첫 값을 못 읽음 — 연결 대기 중) → UNKNOWN. 기본 설정(treatUnknownDrivingAsRestricted = true)은 UNKNOWN 을 제한으로 본다.
      * - MOCK(injectMockUxRestriction): **UNRESTRICTED 를 내지 않는다**(지어낸 값으로 조작을 열지 않기 위해).
      *   true → RESTRICTED(안전 쪽이라 그대로), false → UNKNOWN.
      * 1번 drivingState(수동 setDrivingState)는 더 이상 쓰지 않는다.
@@ -51,7 +53,8 @@ internal object DepartureMappers {
             if (state.requiresDistractionOptimization) DrivingRestriction.RESTRICTED else DrivingRestriction.UNRESTRICTED
         UxRestrictionSource.MOCK ->
             if (state.requiresDistractionOptimization) DrivingRestriction.RESTRICTED else DrivingRestriction.UNKNOWN
-        UxRestrictionSource.UNAVAILABLE, null -> DrivingRestriction.UNKNOWN
+        UxRestrictionSource.UNAVAILABLE -> DrivingRestriction.RESTRICTED
+        null -> DrivingRestriction.UNKNOWN
     }
 
     /**

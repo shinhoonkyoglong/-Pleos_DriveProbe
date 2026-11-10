@@ -50,7 +50,7 @@ data class WindowControlCommand(
  */
 enum class UxRestrictionSource {
     CAR_SERVICE,    // car service(CarUxRestrictionsManager)에서 읽은 실제 값
-    UNAVAILABLE,    // car service 연결 실패·미지원 기기·오류 → 제한 쪽 값으로 채움(지어낸 "제한 없음" 아님)
+    UNAVAILABLE,    // car service 연결 실패·미지원 기기·오류 → 제한 값으로 채움(지어낸 "제한 없음" 아님). 2번 어댑터는 RESTRICTED 로 본다
     MOCK            // injectMockUxRestriction() 으로 넣은 테스트 값
 }
 

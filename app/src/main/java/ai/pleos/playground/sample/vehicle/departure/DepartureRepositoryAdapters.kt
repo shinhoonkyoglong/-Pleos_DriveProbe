@@ -33,7 +33,8 @@ import com.pleos.departure.port.VehicleRepository as DepartureVehicleRepository
 
 /**
  * 주행 규제 포트 ← 1번 VehicleRepository.uxRestriction(AAOS CarUxRestrictions).
- * car service 값 DO true → RESTRICTED, false → UNRESTRICTED, null·연결 실패 → UNKNOWN, Mock 은 UNRESTRICTED 로 내지 않음
+ * car service 값 DO true → RESTRICTED, false → UNRESTRICTED, 연결 실패(UNAVAILABLE) → RESTRICTED, 첫 값 전(null) → UNKNOWN,
+ * Mock 은 UNRESTRICTED 로 내지 않음
  * (DepartureMappers.drivingRestriction KDoc 참고). StateFlow 라 구독 즉시 현재 값(첫 값 전이면 UNKNOWN)을 내보낸다.
  * 1번 drivingState(수동 설정)는 쓰지 않는다.
  */
