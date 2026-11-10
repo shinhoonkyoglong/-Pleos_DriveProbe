@@ -15,6 +15,9 @@
 | `app/.../data/model/NaviModels.kt` | 모델 추가: `NaviLocation`, `NaviDestinationInfo`, `NaviMode`, `NaviRouteState`, `NaviTripInfo`, `NaviHelperException`(실패 사유 구분) |
 | `app/.../departure/` (신규 패키지) | 2번 core 포트 ↔ 1번 Repository 어댑터, 조립 코드 `DriveProbeDeparture`, 변환 규칙 `DepartureMappers` |
 | `app/src/test/.../departure/DepartureMappersTest.kt` | 변환 규칙 단위 테스트 16건(기존 `testImplementation(libs.junit)`만 사용) |
+| `app/.../data/local/entity/DriverConditionEntity.kt`, `dao/DriverConditionDao.kt` (작업 #15) | 운전자 조건 Room 테이블 `driver_conditions`(단일 행, `updatedAt`·`isSynced` 포함). `AppDatabase` v1 → v2, `MIGRATION_1_2` |
+| `app/.../departure/RoomDriverConditionRepository.kt`, `DriverConditionEntityMapper.kt` (작업 #15) | 2번 `DriverConditionRepository` 포트의 Room 구현 + Entity ↔ `DriverCondition` 변환. 단위 테스트 17건(`DriverConditionEntityMapperTest` 12, `RoomDriverConditionRepositoryTest` 5) |
+| `app/src/androidTest/.../data/local/AppDatabaseMigrationTest.kt` (작업 #15) | v1 DB → v2 마이그레이션 계측 테스트(기존 데이터 유지 확인) |
 | `DriveProbeApplication.departureFeature` | 진입점(lazy) |
 
 ## 2. 사용법
@@ -57,9 +60,11 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `data/model/NaviModels.kt` | 파일 끝에 모델 6개 | 추가 |
 | `data/repository/NaviHelperRepository.kt` | 인터페이스 끝에 멤버 8개 | 추가 |
 | `data/repository/NaviHelperRepositoryImpl.kt` | 생성자에 `context: Context? = null, enableMockFallback: Boolean = true`(기본값이라 기존 `NaviHelperRepositoryImpl()` 호출도 그대로 컴파일됨), 클래스 끝에 조회 구현 + `releaseNaviHelper()` | 추가(기존 메서드·목업 변경 없음) |
-| `DriveProbeApplication.kt` | `val departureFeature by lazy { ... }` 추가, `NaviHelperRepositoryImpl()` → `NaviHelperRepositoryImpl(this)`(SDK 연결에 context 필요) | 추가 + 인자 1개 |
+| `DriveProbeApplication.kt` | `val departureFeature by lazy { ... }` 추가(작업 #15부터 `RoomDriverConditionRepository(appDatabase.driverConditionDao(), clock)`를 넘김), `NaviHelperRepositoryImpl()` → `NaviHelperRepositoryImpl(this)`(SDK 연결에 context 필요) | 추가 + 인자 1개 |
+| `data/local/AppDatabase.kt` (작업 #15) | 엔티티 `DriverConditionEntity`·`driverConditionDao()` 추가, `version 1 → 2`, `MIGRATION_1_2` + `.addMigrations(MIGRATION_1_2)`. `fallbackToDestructiveMigration()`은 그대로 | 추가 + 값 변경 1곳 |
+| `data/repository/NaviHelperRepository(.kt / Impl.kt)` `searchConditionAdaptedRoute` (작업 #15) | KDoc만 추가(실측 한계 명시). 시그니처·동작 변경 없음 | 주석 |
 
-**건드리지 않은 것**: `searchConditionAdaptedRoute`·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`, Room(`AppDatabase`·엔티티·DAO), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
+**건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`, Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
 
 ### minSdk 23 → 28 이유
 1. Pleos 요구: "API 28 이상 — 차량 사이버 보안 요건(사이닝 키 로테이션·리니지 지원)" (Pleos Connect Emulator 설치 및 실행 문서, 2번 `api-notes/sdk-setup.md`).
@@ -96,14 +101,19 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `NaviRepository.requestTrip(place)` | `requestTrip(lat, lng, poiName, poiId)` | eta(남은 초) → Duration, 출처 SDK_MEASURED |
 | `NaviRepository.getCurrentLocation()` | `getCurrentLocation()` | (0,0) → 확인 불가 |
 | `NaviRepository.observeRemainingTrip()` | `currentDestination` | 2번 core는 지금 쓰지 않음 |
-| `DriverConditionRepository` | (없음) → `InMemoryDriverConditionRepository` | 아래 한계 2 |
+| `DriverConditionRepository` | `AppDatabase.driverConditionDao()` → `RoomDriverConditionRepository` | 아래 한계 2. 인메모리 구현(`InMemoryDriverConditionRepository`)은 테스트 전용으로 남김 |
 | `TtsRepository` / `SttRepository` | (없음) → 항상 Unavailable | 2번은 TTS/STT를 쓰지 않음 |
 
 ## 6. 알려진 한계
 
 1. **주행 상태 매핑 때문에 화면 조작이 늘 숨겨진다.** 1번 `drivingState`는 `setDrivingState()`(수동·목업)로만 바뀌고 기본값이 IDLE이라, IDLE을 "제한 없음"으로 보면 실차 주행 중에도 조작이 열린다(안전 문제). 그래서 IDLE/STOPPED는 UNKNOWN으로 매핑했고, 기본 설정(`treatUnknownDrivingAsRestricted = true`)은 UNKNOWN을 제한으로 본다 → `controlsEnabled`가 늘 false. Pleos 주행 규제 개발 가이드는 "플랫폼이 제공하는 CarUxRestrictions 상태를 기준으로 주행 중 UX 제한을 적용해야 합니다"라고 요구한다(앱 전체 요구 — 3·4번 화면 포함). **1번에 `CarUxRestrictions` 기반 상태(`UNRESTRICTED/RESTRICTED/UNKNOWN`, 기본 UNKNOWN) 제공을 요청한다.** 에뮬레이터는 Virtual Console 기어 Park/Drive로 전환된다.
-2. **운전자 조건은 인메모리다.** 앱을 다시 시작하면 사라지고, 처음에는 "조건 미설정"이라 판정을 하지 않는다. 1번 Room 스키마는 건드리지 않았다. 운전자 조건 테이블(+ 서버 GET/PUT `/v1/drivers/me/driver-condition`, 2번 `docs/pleos/contracts/driver-condition-api.md`)이 생기면 `InMemoryDriverConditionRepository`를 바꾼다. 1번 `DrivingConditions`와 2번 `DriverCondition`(무료도로 선호·허용 반경 포함, 최고속도·편안한 경로 없음) 두 모델의 원본을 하나로 정해야 한다.
-3. **1번 `searchConditionAdaptedRoute`는 실측 결과와 맞지 않는다**(수정하지 않았다 — 1번 판단에 맡김. 2번 어댑터는 부르지 않는다):
+2. **운전자 조건은 Room 에 저장된다(작업 #15, 서버 동기화는 아직 없음).** 앱을 다시 시작해도 남는다. 처음 설치 시에는 행이 없어 "조건 미설정"이라 판정을 하지 않는다(조건 입력 화면은 아직 없음).
+   - 테이블 `driver_conditions`: 단일 행(`id = 1`). 집합은 enum 이름을 쉼표로 이은 문자열(오름차순), 반경 중심은 위도·경도 두 열(둘 다 null 이거나 둘 다 값), `updatedAt`(epoch ms), `isSynced`. 필드는 2번 `DriverCondition`·`docs/pleos/contracts/driver-condition-api.md` §4 그대로.
+   - 포트 규칙(계약 §5.4): 행 없음 → `observeCondition()` = `Available(null)`, `getCondition()` = `Unavailable(NO_DATA)`. 해제 저장(빈 조건) → 행이 남아 `Available(DriverCondition())`. DB 오류·모르는 enum·범위 밖 값 → `Unavailable(SERVICE_ERROR)`(건너뛰거나 null 로 내보내지 않음).
+   - **DB 버전 1 → 2.** `MIGRATION_1_2`는 `driver_conditions` 테이블만 만든다 → 기존 `reaction_scores`·`intervention_histories` 기록은 유지된다. `fallbackToDestructiveMigration()`은 그대로라 **마이그레이션이 없는 버전 조합(예: 다음에 v3를 만들면서 2→3 마이그레이션을 빠뜨림)에서는 전부 지워진다.** 스키마를 바꿀 때는 `Migration`을 추가하고, SQL은 빌드 후 `app/build/generated/ksp/debug/java/.../AppDatabase_Impl.java`의 `CREATE TABLE`과 같게 맞춘다(`AppDatabaseMigrationTest`가 검증).
+   - 서버 동기화(GET/PUT `/v1/drivers/me/driver-condition`)는 1번 몫이다. 붙일 때 `RoomDriverConditionRepository`의 `TODO(1번-동기화)`(미전송 우선, `markAsSynced(updatedAt)`, 404 + `CONDITION_NOT_SET`만 미설정)를 참고한다.
+   - 1번 `DrivingConditions`(최고속도·편안한 경로 포함)와 2번 `DriverCondition`(무료도로 선호·허용 반경 포함)은 아직 별개다. 운전자 조건의 원본은 이 테이블(2번 모델)로 한다(사용자 결정, 작업 #15). `DrivingConditions`는 `searchConditionAdaptedRoute` 인자로만 남아 있다.
+3. **1번 `searchConditionAdaptedRoute`는 실측 결과와 맞지 않는다**(동작은 수정하지 않고 작업 #15에서 아래 내용을 인터페이스·구현 KDoc에 적었다. 2번 어댑터는 부르지 않는다):
    1. 경로 옵션이 적용되지 않는다. `requestRoute(RouteInfo(routeOption = FREE))`, `changeRouteOption(FREE)` 모두 무시됐다(적용 옵션 RECOMMENDED 그대로, 통행료 700원 그대로, `onRouteOptionChanged` 없음). 무료도로가 되는 방법은 **사람이 내비 "경로 설정"에서 "유료도로 우회"를 켜는 것**뿐이었고, 확인은 `getRouteStateInfo().routeOption == FREE`로 한다.
    2. 고속도로 회피 옵션은 SDK에 없다(RouteOption 7개, 회피 값 없음). "유료도로 우회"를 켜도 통행료 없는 고속도로가 남았다. `avoidHighways`·`maxSpeedLimitKmh`는 경로로 보장할 수 없다.
    3. 안내 중 `requestRoute`는 확인 없이 기존 안내를 덮어쓴다(약 7초 뒤 새 안내 시작). 출발 전 "탐색"용으로 부르면 사용자가 설정한 목적지와 유료도로 우회 설정이 사라질 수 있다.
@@ -125,7 +135,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 테스트: `app/src/androidTest/java/ai/pleos/playground/sample/vehicle/departure/NaviHelperQuerySmokeTest.kt` (logcat 태그 `NaviQuerySmoke`)
 - 실행: 에뮬레이터(Pleos Connect v2.1.0)와 내비 앱이 떠 있는 상태에서 `./gradlew :app:connectedDebugAndroidTest`
   - **실제 내비 상태를 바꾼다**(서울역 목적지 설정 → 끝에 `cancelRoute`로 취소). 개발 기기·에뮬레이터에서만 돌린다.
-- 결과: 2회 연속 전 항목 통과(실패 0건). 관측값:
+- 결과: 2회 연속 전 항목 통과(실패 0건). 작업 #15 이후 재실행(2026-11-10): `NaviHelperQuerySmokeTest`·`AppDatabaseMigrationTest` 2건 통과. 관측값:
 
 | 항목 | 결과 | 관측값 |
 |---|---|---|
