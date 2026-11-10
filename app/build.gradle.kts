@@ -13,10 +13,6 @@ val sampleVersionPatch = 0
 android {
     namespace = "ai.pleos.playground.sample.vehicle"
     compileSdk = targetAndroidSdk
-    // AAOS android.car(CarUxRestrictions) 스텁 연결 — 주행 중 UX 제한 상태용. 추가 의존성 없음.
-    // 없으면 import android.car.* 컴파일 실패(MyApplication/docs/pleos/api-notes/vehicle-state.md §13.1)
-    useLibrary("android.car")
-
     defaultConfig {
         applicationId = "ai.pleos.playground.sample.vehicle.diagnostic"
         // 23 → 28: Pleos SDK 요구(API 28 이상) + 2번 :departure-core 의 java.time(API 26+) 사용
@@ -63,6 +59,21 @@ buildTypes {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // [컨디션 판단] 속도·기어는 AAOS 표준 Car API(CarPropertyManager)로 받는다 (Pleos SDK에 없음)
+    // [출발 전] 주행 중 UX 제한(CarUxRestrictionsManager)도 같은 android.car 스텁을 쓴다(MyApplication/docs/pleos/api-notes/vehicle-state.md §13.1)
+    useLibrary("android.car")
+
+    // [컨디션 판단] 단위 테스트 옵션
+    //  -PwriteDemo=true      : 시연 파일(assets/condition/*.json)을 생성기로 다시 만든다
+    //  -PshowTestOutput=true : 테스트의 println(결과 표)을 콘솔에 출력한다
+    testOptions {
+        unitTests.all {
+            it.systemProperty("conditionAssetsDir", file("src/main/assets/condition").absolutePath)
+            it.systemProperty("writeDemo", project.findProperty("writeDemo") ?: "false")
+            it.testLogging { showStandardStreams = project.findProperty("showTestOutput") == "true" }
         }
     }
 }

@@ -84,11 +84,11 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `DriveProbeApplication.kt` | `val departureFeature by lazy { ... }` 추가(작업 #15부터 `RoomDriverConditionRepository(appDatabase.driverConditionDao(), clock)`를 넘김), `NaviHelperRepositoryImpl()` → `NaviHelperRepositoryImpl(this)`(SDK 연결에 context 필요) | 추가 + 인자 1개 |
 | `data/local/AppDatabase.kt` (작업 #15) | 엔티티 `DriverConditionEntity`·`driverConditionDao()` 추가, `version 1 → 2`, `MIGRATION_1_2` + `.addMigrations(MIGRATION_1_2)`. `fallbackToDestructiveMigration()`은 그대로 | 추가 + 값 변경 1곳 |
 | `data/repository/NaviHelperRepository(.kt / Impl.kt)` `searchConditionAdaptedRoute` (작업 #15) | KDoc만 추가(실측 한계 명시). 시그니처·동작 변경 없음 | 주석 |
-| `app/build.gradle.kts` (작업 #14b) | android 블록에 `useLibrary("android.car")` 1줄(AGP 8.8.2 DSL 그대로 동작, compileSdk 35의 `optional/android.car.jar` 스텁 연결. APK에 포함되지 않음) | 추가 |
+| `app/build.gradle.kts` (작업 #14b → 작업 #18 main 병합) | `useLibrary("android.car")`는 main(피로 점수 PR #2)이 `CarPropertySource`용으로 같은 줄을 넣어서 **그 줄을 그대로 쓰고** 2번이 넣었던 줄은 뺐다(주석 1줄만 덧붙임). compileSdk 35의 `optional/android.car.jar` 스텁 연결, APK에 포함되지 않음 | 주석 |
 | `app/src/main/AndroidManifest.xml` (작업 #14b) | `<application>` 안에 `<uses-library android:name="android.car" android:required="false"/>`. 권한 추가 없음 | 추가 |
-| `data/model/VehicleModels.kt` (작업 #14b) | 파일 끝에 `UxRestrictionSource`(CAR_SERVICE/UNAVAILABLE/MOCK), `UxRestrictionState` | 추가 |
-| `data/repository/VehicleRepository.kt` (작업 #14b) | `val uxRestriction: StateFlow<UxRestrictionState?>`, `fun injectMockUxRestriction(...)`. 기존 `drivingState`·`setDrivingState` 그대로 | 추가 |
-| `data/repository/VehicleRepositoryImpl.kt` + 새 파일 `CarUxRestrictionsMonitor.kt` (작업 #14b) | `initialize()` 맨 앞에서 CarUxRestrictions 구독 시작, `release()`에서 해제. android.car 호출은 `CarUxRestrictionsMonitor`에만 둠 | 추가 |
+| `data/model/VehicleModels.kt` (작업 #14b) | 파일 끝(main의 `GearPosition`·`TurnSignalState`·`VehicleSignalEvent` 뒤)에 `UxRestrictionSource`(CAR_SERVICE/UNAVAILABLE/MOCK), `UxRestrictionState` | 추가 |
+| `data/repository/VehicleRepository.kt` (작업 #14b) | `val uxRestriction: StateFlow<UxRestrictionState?>`(main의 `startCarPropertyUpdates()` 뒤), `fun injectMockUxRestriction(...)`(main의 `injectMockBrake` 뒤). 기존 `drivingState`·`setDrivingState`와 main의 `gear`·`turnSignal`·`brakePressed`·`hasSpeedSignal`·`signalEvents` 그대로 | 추가 |
+| `data/repository/VehicleRepositoryImpl.kt` + 새 파일 `CarUxRestrictionsMonitor.kt` (작업 #14b) | `initialize()` 맨 앞에서 CarUxRestrictions 구독 시작(그다음 main의 `startCarPropertyUpdates()`), `release()` 맨 앞에서 해제(main의 `carProperties.stop()`은 그대로). android.car 호출은 `CarUxRestrictionsMonitor`에만 둠. main의 `CarPropertySource`(CarPropertyManager: 속도·기어)와는 서비스가 달라(CarUxRestrictionsManager) Car 연결을 따로 둔다 — main 코드는 바꾸지 않음 | 추가 |
 
 | `ui/data/MainUiState.kt` (작업 #17) | `AppPage`에 `DRIVER_CONDITION_SETTINGS` 1개 | 추가 |
 | `MainViewModel.kt` (작업 #17) | `showDriverConditionSettings()`·`closeDriverConditionSettings()`(`page`만 바꿈, 다른 상태 유지) | 추가 |
@@ -96,6 +96,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `ui/screen/ApiCatalogScreen.kt` (작업 #17) | 인자 `onOpenDriverCondition`(기본값 있음)을 `CatalogHeader`까지 전달, 머리 오른쪽 끝에 [운전 조건 설정] 버튼(`DriverConditionEntryButton`) 1개. 기존 배치·스타일 변경 없음 | 추가 |
 | `MainActivity.kt` (작업 #17) | `DriverConditionSettingsViewModel by viewModels()`, `SampleApp`에 위 두 인자 전달 | 추가 |
 | `DriveProbeApplication.kt` (작업 #17) | `departureConfig`·`driverConditionRepository`(lazy)로 꺼내 `departureFeature`와 설정 화면이 같이 씀. 동작 변경 없음 | 정리 |
+| `DriveProbeApplication.kt` (작업 #18 main 병합) | `onCreate()`는 main 순서 그대로(Room → Vehicle → NaviHelper → `ConditionModule.init(...)`), NaviHelper 줄만 `NaviHelperRepositoryImpl(this)` 유지 | 병합 |
 
 **건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`의 기존 멤버(Vehicle SDK·HVAC·창문·`drivingState`·Mock 주입 — 작업 #14b는 멤버 추가만), Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 기존 화면의 배치·스타일·테마(작업 #17은 위 표의 진입 버튼·분기만 추가), 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
 
@@ -138,7 +139,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 
 | 2번 포트 (`com.pleos.departure.port`) | 1번 Repository | 비고 |
 |---|---|---|
-| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.uxRestriction` (작업 #14b부터. `drivingState`는 쓰지 않음) | CAR_SERVICE: DO true → RESTRICTED, false → UNRESTRICTED. UNAVAILABLE(연결 실패) → RESTRICTED. null(첫 값 전) → UNKNOWN. MOCK: true → RESTRICTED, false → UNKNOWN(지어낸 값으로 조작을 열지 않음) |
+| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.uxRestriction` (작업 #14b부터. `drivingState`·main의 `gear`(GEAR_SELECTION)는 쓰지 않음 — Pleos 주행 규제 가이드가 CarUxRestrictions 기준을 요구) | CAR_SERVICE: DO true → RESTRICTED, false → UNRESTRICTED. UNAVAILABLE(연결 실패) → RESTRICTED. null(첫 값 전) → UNKNOWN. MOCK: true → RESTRICTED, false → UNKNOWN(지어낸 값으로 조작을 열지 않음) |
 | `NaviRepository.getDestination()` | `NaviHelperRepository.getDestinationInfo()` | null·(0,0) → NotSet, displayName = name → address → "내비 목적지" |
 | `NaviRepository.getRouteState()` | `getRouteStateInfo()` | ROUTE/SIMULATION_GUIDING → Guiding, SAFE_GUIDING → NotGuiding, NOT_WORKING → 확인 불가 |
 | `NaviRepository.requestTrip(place)` | `requestTrip(lat, lng, poiName, poiId)` | eta(남은 초) → Duration, 출처 SDK_MEASURED |

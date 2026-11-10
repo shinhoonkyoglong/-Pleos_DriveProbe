@@ -1,0 +1,11 @@
+{
+  "format": "condition-baseline-v1",
+  "trips": [
+    {"endTimeMs":1,"small":28.00,"large":0.00,"std":1.135},
+    {"endTimeMs":2,"small":26.00,"large":0.00,"std":0.982},
+    {"endTimeMs":3,"small":24.00,"large":0.00,"std":0.953},
+    {"endTimeMs":4,"small":26.00,"large":0.00,"std":1.040},
+    {"endTimeMs":5,"small":27.00,"large":0.00,"std":1.072},
+    {"endTimeMs":6,"small":25.00,"large":0.00,"std":1.093}
+  ]
+}
