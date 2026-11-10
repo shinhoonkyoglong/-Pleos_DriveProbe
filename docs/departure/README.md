@@ -69,6 +69,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 ### 권한
 - `NAVI_ROUTE`만 선언했다: `getDestinationInfo`·`getRouteStateInfo`·`getCurrentLocationInfo`·`requestTrip`용(보호 수준 normal, 설치 시 자동 허용).
 - `NAVI_ROUTE_SEARCH`(requestRoute·cancelRoute·changeRouteOption 등)는 SDK로 부르는 곳이 없어 넣지 않았다. Pleos 정책: 승인되지 않은 권한 선언은 심사 탈락 사유 → 필요한 권한만 선언. 1번이 `searchConditionAdaptedRoute`를 실제 SDK로 구현할 때 함께 추가하면 된다.
+- 예외: `app/src/debug/AndroidManifest.xml`(debug 빌드 전용)에 `NAVI_ROUTE_SEARCH`를 선언했다. 에뮬레이터 스모크 테스트(8절)가 테스트 안에서 목적지를 설정·취소하기 위해서다. 계측 테스트는 앱 uid로 돌기 때문에 androidTest 매니페스트로는 안 된다(미선언 시 `SecurityException: Permission [pleos.car.permission.NAVI_ROUTE_SEARCH] is required` 실측). release 매니페스트에는 들어가지 않는다.
 
 ## 4. NaviHelperRepository 조회 계열 동작
 
@@ -111,10 +112,32 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
    6. `RouteInfo.containsHighway`, `isNightDrivingExpected`는 SDK가 주는 값이 아니라 화면에 쓰면 거짓 안내가 된다. 야간(일몰) 판정은 2번 core(`DepartureDeadlineUseCase`)가 일몰 + ETA로 한다.
    - 원문: 2번 저장소 `docs/pleos/integration/part1-gap-analysis.md` 8절 B.
 4. 에뮬레이터 내비 위치는 기본 위치(성남 수정구)에 고정되고 `geo fix`/`geo nmea`를 따르지 않는다. 시연 수치를 원하는 값으로 만들기 어렵다.
-5. 이 PR의 NaviHelper 연동 코드는 에뮬레이터에서 아직 실행하지 않았다(2번 프로브 앱으로 같은 SDK 호출 순서를 실행 확인한 것이 근거). 빌드 검증 방법은 PR 본문 참고.
+5. NaviHelper 조회 계열은 에뮬레이터 스모크 테스트로 확인했다(8절). 실차·다른 내비 버전, 경로 교체 중·탐색 실패 경로는 이 테스트에서 다루지 않는다.
 6. `NaviHelperRepositoryImpl.releaseNaviHelper()`는 어디서도 부르지 않는다(`onTerminate`는 실기기에서 호출되지 않음). 필요하면 1번이 수명 관리 위치를 정한다. 부를 때는 메인 스레드에서, 진행 중인 조회가 없을 때 부른다(Mutex 밖에서 실행됨).
 7. 연결된 뒤 서비스가 조용히 죽으면(끊김 콜백 없음) 감지하지 못해 조회가 타임아웃으로 끝날 수 있다. `onFailed`가 늦게 오거나 SDK 호출이 예외를 던질 때만 연결을 끊고 다시 연결한다.
 
 ## 7. 2번 core 를 고칠 때
 - 원본은 병합 전까지 2번 저장소(`MyApplication/departure-core`)다. 이 저장소의 `departure-core/`를 직접 고치면 2번 저장소에도 반영해야 한다.
 - 이식하면서 바꾼 core 코드: `model/Trip.kt` `TripEstimate.isFresh` 한 줄(`Duration.isPositive`는 Java 18 / Android API 34부터라 JDK 17·minSdk 28에서 쓸 수 없어 비교 연산으로 바꿈. 동작 동일). 2번 저장소에도 같은 수정이 역반영되어 지금 두 저장소의 core 는 같다.
+
+## 8. 검증 (에뮬레이터 스모크 테스트, 2026-11-10)
+
+- 테스트: `app/src/androidTest/java/ai/pleos/playground/sample/vehicle/departure/NaviHelperQuerySmokeTest.kt` (logcat 태그 `NaviQuerySmoke`)
+- 실행: 에뮬레이터(Pleos Connect v2.1.0)와 내비 앱이 떠 있는 상태에서 `./gradlew :app:connectedDebugAndroidTest`
+  - **실제 내비 상태를 바꾼다**(서울역 목적지 설정 → 끝에 `cancelRoute`로 취소). 개발 기기·에뮬레이터에서만 돌린다.
+- 결과: 2회 연속 전 항목 통과(실패 0건). 관측값:
+
+| 항목 | 결과 | 관측값 |
+|---|---|---|
+| 1. 목적지 없음 | 통과 | `getDestinationInfo` = `success(null)`, `getRouteStateInfo` = `SAFE_GUIDING`/`RECOMMENDED`, `isMock=false` |
+| 2. 안내 시작 대기 | 통과 | `requestRoute(서울역)` 후 약 10.9초에 `ROUTE_GUIDING` + 목적지 확인 |
+| 2. 목적지 | 통과 | (37.5547, 126.9707), name=서울역, address=용산구 동자동, 23,000m / 2,700초, `isMock=false` |
+| 2. 경로 상태 | 통과 | `ROUTE_GUIDING`, `routeOption=RECOMMENDED`, `tollFare=700`(`onRouteStarted` 값과 같음) |
+| 2. requestTrip | 통과 | 23,799m, eta 2,745~2,763초, `routeOption=RECOMMENDED` |
+| 2. 현재 위치 | 통과 | (37.4127212, 127.094681) 수정구 시흥동, `isMock=false` |
+| 3. 어댑터 경유 출발 전 확인 | 통과 | `Checked`: 목적지 Present(서울역), 마감 `Deadline`(CAUTION, 일몰 17:25 기준 마감 16:00, ETA 출처 ESTIMATED — 무료도로 선호 + RECOMMENDED 보정), 반경 `Checked`(19.2km, 50km 안), 경로 `NeedsUserAction[TURN_ON_TOLL_AVOIDANCE]` |
+| 4. 정리 | 통과 | `cancelRoute` → `onRouteCancelled` 0.3초, 이후 목적지 `success(null)`, `SAFE_GUIDING` |
+
+- 부수 관측: 테스트 전용 NaviHelper 와 `NaviHelperRepositoryImpl` 의 리스너가 **둘 다** `onRouteStarted`를 받았다. 푸시 콜백은 등록된 모든 클라이언트에 간다 → 4절 "인스턴스 하나만" 원칙의 근거.
+- 3번은 Application 의 `departureFeature` 대신 같은 조립 함수 `DriveProbeDeparture.createFeature`에 테스트의 Repository 와 운전자 조건을 넘겨 만든다(앱 쪽 Repository 로 두 번째 연결을 만들지 않기 위해, 그리고 인메모리 조건이 비어 있으면 `ConditionNotSet`으로 끝나기 때문).
+- 로그 발췌는 2번 저장소 `docs/pleos/api-notes/evidence/2026-11-10/task13/`.
