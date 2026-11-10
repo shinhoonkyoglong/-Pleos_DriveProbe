@@ -47,6 +47,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 한 번 계산만 필요하면 `feature.departureCheck` 등 유스케이스를 직접 호출해도 된다.
 - 화면 문구(한국어)는 core 에 없다. `CheckOutcome.Checked.snapshot`(출발 마감·반경·경로 결과)을 화면 쪽에서 문구·아이콘으로 바꾼다. 2번 저장소의 `:departure-ui`(`DepartureDisplayMapper`)를 참고하거나 가져올 수 있다.
 - 동작 수치(출발 여유 30분, 기본 반경 10km, 경고 임계값, 콜백 타임아웃 등)는 `DepartureConfig` 하나에 있다. 바꾸려면 `DriveProbeDeparture.createFeature(..., config = DepartureConfig().copy(...))`.
+- **`createFeature`의 `driverConditionRepository` 인자는 필수다(작업 #15에서 기본값 제거 — 공개 시그니처 변경, 감독관 승인).** 인메모리 저장소가 조용히 쓰여 조건이 앱 재시작마다 사라지는 일을 막기 위해서다. 앱은 `RoomDriverConditionRepository`, 테스트는 `InMemoryDriverConditionRepository`를 넘긴다(호출처: `DriveProbeApplication`, `NaviHelperQuerySmokeTest`).
 
 ## 3. 1번 파일에 한 변경 (추가 위주)
 
@@ -98,9 +99,10 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 
 ### 주행 중 UX 제한 — `VehicleRepository.uxRestriction` (작업 #14b)
 - 출처: AAOS `CarUxRestrictionsManager`(Pleos SDK 아님). Pleos 주행 규제 개발 가이드가 "플랫폼이 제공하는 CarUxRestrictions 상태를 기준으로" UX 제한을 하라고 요구한다 → 3·4번 화면도 이 값을 쓰면 된다.
-- 동작: `initialize()`에서 `Car.createCar(context, 메인 Handler, 10초, 수명주기 리스너)` → `getCarManager(CAR_UX_RESTRICTION_SERVICE)` → **`getCurrentCarUxRestrictions()`로 현재 값 1회 읽기**(리스너 등록 직후 초기값 콜백이 오지 않음, 실측) → `registerListener`로 변경 수신. `release()`에서 `unregisterListener()` + `disconnect()`.
+- 동작: `initialize()`에서 `Car.createCar(context, 메인 Handler, CAR_WAIT_TIMEOUT_DO_NOT_WAIT, 수명주기 리스너)`(연결을 기다리지 않음 — 메인 스레드 ANR 방지, 재작업 1회차) → 연결되면 수명주기 리스너 `ready=true`에서 `getCarManager(CAR_UX_RESTRICTION_SERVICE)` → **`getCurrentCarUxRestrictions()`로 현재 값 1회 읽기**(리스너 등록 직후 초기값 콜백이 오지 않음, 실측) → `registerListener`로 변경 수신. `release()`에서 `unregisterListener()` + `disconnect()`.
 - 값: `null` = 아직 못 읽음. car service 값은 `source = CAR_SERVICE`. 에뮬레이터 실측 Park = `false / 0x0`, Drive = `true / 0x50`(변경 후 약 16~36ms에 리스너 호출).
-- 실패(자동차 아닌 기기, android.car 클래스 없음, manager null, 예외, 연결 끊김 `ready=false`) → `source = UNAVAILABLE`, `requiresDistractionOptimization = true`, `0x1ff`. **`enableMockFallback`이어도 "제한 없음" Mock 값을 지어내지 않는다.**
+- 실패(자동차 아닌 기기, android.car 클래스 없음, manager null, 예외, 연결 끊김 `ready=false`) → `source = UNAVAILABLE`, `requiresDistractionOptimization = true`, `0x1ff`. **`enableMockFallback`이어도 "제한 없음" Mock 값을 지어내지 않는다.** 2번 어댑터는 UNAVAILABLE을 설정과 무관하게 RESTRICTED로 본다.
+- 연결 전(첫 값 전)에는 `uxRestriction = null` → 2번 어댑터는 UNKNOWN(기본 설정에서 제한).
 - `injectMockUxRestriction(requiresDO, active)` → `source = MOCK`. 실제 값이 바뀌면 덮어써진다.
 - 권한: 선언하지 않았다(에뮬레이터에서는 권한 없이 동작, 실측). 실차 이미지도 같은지는 [미확인].
 - 근거: 2번 저장소 `docs/pleos/api-notes/vehicle-state.md` §13, `evidence/2026-11-10/task14/`.
@@ -109,7 +111,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 
 | 2번 포트 (`com.pleos.departure.port`) | 1번 Repository | 비고 |
 |---|---|---|
-| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.uxRestriction` (작업 #14b부터. `drivingState`는 쓰지 않음) | CAR_SERVICE: DO true → RESTRICTED, false → UNRESTRICTED. null·UNAVAILABLE → UNKNOWN. MOCK: true → RESTRICTED, false → UNKNOWN(지어낸 값으로 조작을 열지 않음) |
+| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.uxRestriction` (작업 #14b부터. `drivingState`는 쓰지 않음) | CAR_SERVICE: DO true → RESTRICTED, false → UNRESTRICTED. UNAVAILABLE(연결 실패) → RESTRICTED. null(첫 값 전) → UNKNOWN. MOCK: true → RESTRICTED, false → UNKNOWN(지어낸 값으로 조작을 열지 않음) |
 | `NaviRepository.getDestination()` | `NaviHelperRepository.getDestinationInfo()` | null·(0,0) → NotSet, displayName = name → address → "내비 목적지" |
 | `NaviRepository.getRouteState()` | `getRouteStateInfo()` | ROUTE/SIMULATION_GUIDING → Guiding, SAFE_GUIDING → NotGuiding, NOT_WORKING → 확인 불가 |
 | `NaviRepository.requestTrip(place)` | `requestTrip(lat, lng, poiName, poiId)` | eta(남은 초) → Duration, 출처 SDK_MEASURED |
@@ -121,9 +123,10 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 ## 6. 알려진 한계
 
 1. **주행 규제는 CarUxRestrictions 기준이다(작업 #14b에서 해결 — 이전에는 `drivingState` 매핑 때문에 조작이 늘 숨겨졌다).** 주차 중이면 UNRESTRICTED가 나와 조작이 보인다. 남은 한계:
-   - 연결 실패·첫 값 전에는 UNKNOWN → 기본 설정(`treatUnknownDrivingAsRestricted = true`)에서 조작이 숨겨진다(의도된 안전 쪽 동작).
+   - 연결 실패(UNAVAILABLE)는 설정과 무관하게 RESTRICTED. 첫 값 전(null)은 UNKNOWN → 기본 설정(`treatUnknownDrivingAsRestricted = true`)에서 조작이 숨겨진다(의도된 안전 쪽 동작). `false`로 바꾸면 연결 대기 중의 짧은 순간 조작이 보일 수 있다.
    - car service 미연결·종료 상태, 자동차가 아닌 기기, android.car 클래스가 없는 기기의 동작은 시험하지 못했다 [미확인]. 코드는 모두 `Throwable` catch → 제한 쪽.
-   - `createCar`의 대기 시간 10초는 실측 스니펫 값이다. car service가 늦게 뜨는 기기에서 `Application.onCreate`(메인 스레드)가 그만큼 기다릴 수 있는지는 [미확인].
+   - `createCar`는 연결을 기다리지 않는다(`CAR_WAIT_TIMEOUT_DO_NOT_WAIT`). 에뮬레이터 실측: 테스트에서 `initialize()` 18ms, 첫 값까지 2~33ms. car service가 늦게 뜨는 상황은 만들 수 없어 그때 수명주기 리스너가 나중에 오는지는 [미확인](AOSP 지식상 연결 시 호출). `createCar`가 null을 돌려주면 재시도하지 않고 null(UNKNOWN)로 남는다.
+   - 참고(1번 기존 동작): 앱 콜드 스타트 약 9.3~9.5초(`am start -W`) 중 Vehicle SDK `initialize`(기존 코드)가 메인 스레드에서 약 2.8초 걸렸다(logcat `[Pleos][SDK]Vehicle: initialize` 16:04:41.976 → `hasPropertyIdCount` 16:04:44.787). CarUxRestrictions 쪽은 그 앞 0.3초 안에 끝났다.
    - 리스너 콜백 스레드는 확인하지 않았다 [미확인]. 값은 `MutableStateFlow`에 넣기만 하므로 스레드와 무관하다.
    - Moving(속도 > 0) 상태 값은 에뮬레이터에서 만들지 못했다 [미확인]. Park/Drive만 실측.
    - Drive 전환은 Virtual Console(브라우저) 조작이 필요해 자동 테스트(8절)에는 Park만 있다. Drive = `true/0x50`은 작업 #14a 프로브로 실측.
@@ -175,4 +178,5 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 ### 8.1 주행 규제 스모크 테스트 (작업 #14b, 2026-11-10)
 - 테스트: `app/src/androidTest/java/ai/pleos/playground/sample/vehicle/departure/UxRestrictionSmokeTest.kt` (logcat 태그 `UxRestrictionSmoke`). 전제: 에뮬레이터 기어 **Park**(`dumpsys car_service` `Current Driving State: 0`).
 - 결과: 통과. `uxRestriction = UxRestrictionState(requiresDistractionOptimization=false, activeRestrictions=0, source=CAR_SERVICE)`, 어댑터 `observeDrivingRestriction().first() = UNRESTRICTED`. 같은 실행에서 `NaviHelperQuerySmokeTest`·`AppDatabaseMigrationTest` 포함 3건 모두 통과.
+- 재작업 1회차(`DO_NOT_WAIT` 전환 후): `park_readsCarServiceValue_andAdapterReportsUnrestricted`(initialize 18ms, 첫 값 대기 2ms, 어댑터 UNRESTRICTED), 신규 `releaseThenInitialize_resubscribes`(release → Mock 덮어쓰기 → 재 initialize 후 CAR_SERVICE false 값으로 복귀 — `unregisterListener()`·`disconnect()` 후 재연결 확인) 통과. 전체 4건 실패 0.
 - Drive는 자동 테스트에 없음 [테스트 미확인, 작업 #14a 프로브로 실측].
