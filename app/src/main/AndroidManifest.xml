@@ -51,6 +51,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.VehicleSampleApp">
+        <!-- AAOS CarUxRestrictions(주행 중 UX 제한) 사용. 권한 불필요(에뮬레이터 실측). 없는 기기에서도 설치되도록 required=false -->
+        <uses-library android:name="android.car" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

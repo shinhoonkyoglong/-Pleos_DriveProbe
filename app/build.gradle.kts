@@ -13,6 +13,9 @@ val sampleVersionPatch = 0
 android {
     namespace = "ai.pleos.playground.sample.vehicle"
     compileSdk = targetAndroidSdk
+    // AAOS android.car(CarUxRestrictions) 스텁 연결 — 주행 중 UX 제한 상태용. 추가 의존성 없음.
+    // 없으면 import android.car.* 컴파일 실패(MyApplication/docs/pleos/api-notes/vehicle-state.md §13.1)
+    useLibrary("android.car")
 
     defaultConfig {
         applicationId = "ai.pleos.playground.sample.vehicle.diagnostic"

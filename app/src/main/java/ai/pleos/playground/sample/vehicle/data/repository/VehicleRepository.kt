@@ -2,6 +2,7 @@ package ai.pleos.playground.sample.vehicle.data.repository
 
 import ai.pleos.playground.sample.vehicle.data.model.DrivingState
 import ai.pleos.playground.sample.vehicle.data.model.HvacControlCommand
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionState
 import ai.pleos.playground.sample.vehicle.data.model.VehicleDriveData
 import ai.pleos.playground.sample.vehicle.data.model.WindowControlCommand
 import ai.pleos.playground.vehicle.constant.area.SeatValue
@@ -29,6 +30,14 @@ interface VehicleRepository {
 
     /** 현재 차량 주행 상태 (정차 중 / 주행 중 / 종료) */
     val drivingState: StateFlow<DrivingState>
+
+    /**
+     * 주행 중 UX 제한 상태 (AAOS CarUxRestrictions, initialize() 때 car service 에 연결해 받는다)
+     * - null: 아직 첫 값을 읽지 못함(모름 → 사용하는 쪽은 제한으로 취급)
+     * - 연결 실패·미지원 기기·오류: source = UNAVAILABLE, requiresDistractionOptimization = true (제한 쪽)
+     * Pleos 주행 규제 가이드가 이 값을 기준으로 주행 중 UX 제한을 하도록 요구한다. 위 drivingState(수동 설정)와는 별개다.
+     */
+    val uxRestriction: StateFlow<UxRestrictionState?>
 
 
     // =========================================================================
@@ -95,6 +104,9 @@ interface VehicleRepository {
 
     /** 주행 상태 강제 변경 */
     fun setDrivingState(state: DrivingState)
+
+    /** 가짜 주행 중 UX 제한 상태 주입 (source = MOCK). 실제 car service 값이 바뀌면 그 값으로 덮어써진다 */
+    fun injectMockUxRestriction(requiresDistractionOptimization: Boolean, activeRestrictions: Int = 0)
 
     /** 수명주기 초기화 및 해제 */
     fun initialize(): Boolean
