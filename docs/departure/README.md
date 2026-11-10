@@ -208,3 +208,27 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 결과: 통과. `uxRestriction = UxRestrictionState(requiresDistractionOptimization=false, activeRestrictions=0, source=CAR_SERVICE)`, 어댑터 `observeDrivingRestriction().first() = UNRESTRICTED`. 같은 실행에서 `NaviHelperQuerySmokeTest`·`AppDatabaseMigrationTest` 포함 3건 모두 통과.
 - 재작업 1회차(`DO_NOT_WAIT` 전환 후): `park_readsCarServiceValue_andAdapterReportsUnrestricted`(initialize 18ms, 첫 값 대기 2ms, 어댑터 UNRESTRICTED), 신규 `releaseThenInitialize_resubscribes`(release → Mock 덮어쓰기 → 재 initialize 후 CAR_SERVICE false 값으로 복귀 — `unregisterListener()`·`disconnect()` 후 재연결 확인) 통과. 전체 4건 실패 0.
 - Drive는 자동 테스트에 없음 [테스트 미확인, 작업 #14a 프로브로 실측].
+
+### 8.2 "유료도로 우회" 토글 반영 확인 (작업 #19, 2026-11-10)
+- 테스트: `app/src/androidTest/java/ai/pleos/playground/sample/vehicle/departure/TollAvoidanceToggleCheckTest.kt` (logcat 태그 `TollToggleCheck`).
+  **내비 상태를 바꾸지 않는다**(requestRoute·cancelRoute 없음). 목적지·토글·안내 시작은 바깥(사람 또는 adb)에서 준비하고, 지금 경로를 `NaviHelperRepositoryImpl` → 2번 어댑터 → `ConditionRouteUseCase`(무료도로 선호)로 읽어 판정한다.
+- 인자 `expectedRouteOption`(RECOMMENDED | FREE)이 없으면 assume 으로 **건너뛴다**. 그래서 평소 `./gradlew :app:connectedDebugAndroidTest`는 그대로 녹색이다(이번 실행: 5건 중 실패 0, 건너뜀 1 = 이 테스트).
+- 실행:
+  ```
+  ./gradlew :app:connectedDebugAndroidTest \
+    -Pandroid.testInstrumentationRunnerArguments.class=ai.pleos.playground.sample.vehicle.departure.TollAvoidanceToggleCheckTest \
+    -Pandroid.testInstrumentationRunnerArguments.expectedRouteOption=FREE
+  ```
+  선택 인자 `waitForGuidingSec`(기본 0): 테스트를 먼저 띄워 두고 그동안 내비에서 "적용"/"안내 시작"을 하면 `onRouteStarted`의 tollFare 까지 관측한다. gradle 은 실행 뒤 APK 를 지우므로 이 경우는 `installDebug`·`installDebugAndroidTest` 후 `adb shell am instrument -w -e class ... -e expectedRouteOption FREE -e waitForGuidingSec 150 ai.pleos.playground.sample.vehicle.diagnostic.test/androidx.test.runner.AndroidJUnitRunner`로 돌렸다.
+- 내비 조작(에뮬레이터, adb): 최근 목록 서울역 → "목적지로" → 미리보기 필터 버튼 → 경로 설정 시트 → 토글은 탭이 아니라 짧은 swipe(`input swipe 1375 361 1415 361 150`)로 켬(1회 성공) → "적용" → 후보 화면 "안내 시작".
+- 결과 (모두 통과, 실패 0):
+
+| 토글 | 실행 | `getRouteStateInfo()` | `ConditionRouteUseCase` (무료도로 선호) |
+|---|---|---|---|
+| 꺼짐 | gradle, `RECOMMENDED` | `ROUTE_GUIDING`, `routeOption=RECOMMENDED`, `tollFare=null`, 23km/3180초 | `NeedsUserAction[TURN_ON_TOLL_AVOIDANCE]`, `Guiding(RECOMMENDED, null)` |
+| 켬 | am instrument, `FREE` + 대기 150초 | `ROUTE_GUIDING`, `routeOption=FREE`, **`tollFare=0`**, 26km/5400초 | `Satisfied`, `Guiding(FREE, 0)`, notes 없음 |
+| 켬 | gradle, `FREE` (대기 없음) | `ROUTE_GUIDING`, `routeOption=FREE`, `tollFare=null` | `Satisfied`, notes `[TOLL_FARE_NOT_OBSERVED]` |
+
+- 해석: 사람이 켠 "유료도로 우회"는 새로 연결한 Repository 에서도 `routeOption=FREE`로 다시 읽힌다(주 신호). tollFare 는 Repository 가 `onRouteStarted`를 받았을 때만 채워지고(0), 이미 시작된 경로에 나중에 붙으면 null → 유스케이스는 충족 + `TOLL_FARE_NOT_OBSERVED`. 둘 다 api-notes §10.4 설계대로다.
+- 증거(로그 발췌·캡처 4장): 2번 저장소 `docs/pleos/api-notes/evidence/2026-11-10/task19/`.
+- 정리: 내비 "안내 종료"로 안내 없음, 기어 P(`Current Driving State: 0`) 확인. 이어서 돌린 전체 계측 테스트의 `NaviHelperQuerySmokeTest`도 마지막에 `cancelRoute`로 정리한다.
