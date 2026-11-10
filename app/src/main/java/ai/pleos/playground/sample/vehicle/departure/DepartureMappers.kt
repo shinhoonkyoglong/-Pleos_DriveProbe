@@ -1,12 +1,13 @@
 package ai.pleos.playground.sample.vehicle.departure
 
-import ai.pleos.playground.sample.vehicle.data.model.DrivingState
 import ai.pleos.playground.sample.vehicle.data.model.NaviDestinationInfo
 import ai.pleos.playground.sample.vehicle.data.model.NaviHelperException
 import ai.pleos.playground.sample.vehicle.data.model.NaviLocation
 import ai.pleos.playground.sample.vehicle.data.model.NaviMode
 import ai.pleos.playground.sample.vehicle.data.model.NaviRouteState
 import ai.pleos.playground.sample.vehicle.data.model.NaviTripInfo
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionState
 import com.pleos.departure.model.DataResult
 import com.pleos.departure.model.DrivingRestriction
 import com.pleos.departure.model.EstimateSource
@@ -37,15 +38,20 @@ internal object DepartureMappers {
     private const val DEFAULT_DESTINATION_NAME = "내비 목적지"
 
     /**
-     * 1번 drivingState → 2번 주행 규제.
-     * - DRIVING → RESTRICTED (안전 쪽이라 그대로 매핑)
-     * - IDLE / STOPPED → UNKNOWN. **UNRESTRICTED 로 매핑하지 않는다.** 1번 drivingState 는 setDrivingState()(수동·목업)로만 바뀌고
-     *   기본값이 IDLE 이라 실차 주행 중에도 IDLE 일 수 있다. Pleos 는 CarUxRestrictions 기준을 요구한다.
-     *   결과: 기본 설정(treatUnknownDrivingAsRestricted = true)에서는 화면 조작이 늘 숨겨진다(알려진 한계, docs/departure/README.md).
+     * 1번 uxRestriction(AAOS CarUxRestrictions) → 2번 주행 규제.
+     * - car service 실제 값(CAR_SERVICE): requiresDistractionOptimization true → RESTRICTED, false → UNRESTRICTED
+     *   (에뮬레이터 실측: Park = false/0x0, Drive = true/0x50 — api-notes/vehicle-state.md §13.3)
+     * - null(아직 못 읽음)·UNAVAILABLE(연결 실패·오류) → UNKNOWN. 기본 설정(treatUnknownDrivingAsRestricted = true)은 UNKNOWN 을 제한으로 본다.
+     * - MOCK(injectMockUxRestriction): **UNRESTRICTED 를 내지 않는다**(지어낸 값으로 조작을 열지 않기 위해).
+     *   true → RESTRICTED(안전 쪽이라 그대로), false → UNKNOWN.
+     * 1번 drivingState(수동 setDrivingState)는 더 이상 쓰지 않는다.
      */
-    fun drivingRestriction(state: DrivingState): DrivingRestriction = when (state) {
-        DrivingState.DRIVING -> DrivingRestriction.RESTRICTED
-        DrivingState.IDLE, DrivingState.STOPPED -> DrivingRestriction.UNKNOWN
+    fun drivingRestriction(state: UxRestrictionState?): DrivingRestriction = when (state?.source) {
+        UxRestrictionSource.CAR_SERVICE ->
+            if (state.requiresDistractionOptimization) DrivingRestriction.RESTRICTED else DrivingRestriction.UNRESTRICTED
+        UxRestrictionSource.MOCK ->
+            if (state.requiresDistractionOptimization) DrivingRestriction.RESTRICTED else DrivingRestriction.UNKNOWN
+        UxRestrictionSource.UNAVAILABLE, null -> DrivingRestriction.UNKNOWN
     }
 
     /**

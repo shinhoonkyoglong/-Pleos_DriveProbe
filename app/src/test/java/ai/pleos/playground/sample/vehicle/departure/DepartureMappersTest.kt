@@ -1,12 +1,13 @@
 package ai.pleos.playground.sample.vehicle.departure
 
-import ai.pleos.playground.sample.vehicle.data.model.DrivingState
 import ai.pleos.playground.sample.vehicle.data.model.NaviDestinationInfo
 import ai.pleos.playground.sample.vehicle.data.model.NaviHelperException
 import ai.pleos.playground.sample.vehicle.data.model.NaviLocation
 import ai.pleos.playground.sample.vehicle.data.model.NaviMode
 import ai.pleos.playground.sample.vehicle.data.model.NaviRouteState
 import ai.pleos.playground.sample.vehicle.data.model.NaviTripInfo
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionState
 import com.pleos.departure.model.DataResult
 import com.pleos.departure.model.DrivingRestriction
 import com.pleos.departure.model.EstimateSource
@@ -32,14 +33,41 @@ class DepartureMappersTest {
         remainDistanceMeters = 23000, remainTimeSeconds = 2700,
     )
 
-    // --- 주행 상태 ---
+    // --- 주행 규제 (CarUxRestrictions) ---
+
+    private fun ux(requiresDO: Boolean, active: Int, source: UxRestrictionSource) =
+        UxRestrictionState(requiresDistractionOptimization = requiresDO, activeRestrictions = active, source = source, timestamp = 0L)
 
     @Test
-    fun drivingState_onlyDrivingIsRestricted_othersUnknown() {
-        assertEquals(DrivingRestriction.RESTRICTED, DepartureMappers.drivingRestriction(DrivingState.DRIVING))
-        // IDLE 은 기본값이라 실차 주행 중에도 IDLE 일 수 있다 → UNRESTRICTED 로 매핑하지 않는다
-        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(DrivingState.IDLE))
-        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(DrivingState.STOPPED))
+    fun uxRestriction_carService_parkIsUnrestricted_driveIsRestricted() {
+        // 에뮬레이터 실측값: Park = false/0x0, Drive = true/0x50
+        assertEquals(DrivingRestriction.UNRESTRICTED, DepartureMappers.drivingRestriction(ux(false, 0x0, UxRestrictionSource.CAR_SERVICE)))
+        assertEquals(DrivingRestriction.RESTRICTED, DepartureMappers.drivingRestriction(ux(true, 0x50, UxRestrictionSource.CAR_SERVICE)))
+    }
+
+    @Test
+    fun uxRestriction_notYetRead_isUnknown() {
+        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(null))
+    }
+
+    @Test
+    fun uxRestriction_unavailable_isUnknown() {
+        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(UxRestrictionState.unavailable()))
+        // 출처가 UNAVAILABLE 이면 DO 값과 무관하게 UNKNOWN (제한 없음으로 보지 않는다)
+        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(ux(false, 0x0, UxRestrictionSource.UNAVAILABLE)))
+    }
+
+    @Test
+    fun uxRestriction_mock_neverUnrestricted() {
+        assertEquals(DrivingRestriction.UNKNOWN, DepartureMappers.drivingRestriction(ux(false, 0x0, UxRestrictionSource.MOCK)))
+        assertEquals(DrivingRestriction.RESTRICTED, DepartureMappers.drivingRestriction(ux(true, 0x50, UxRestrictionSource.MOCK)))
+    }
+
+    @Test
+    fun uxRestriction_unavailableState_isRestrictedSide() {
+        val s = UxRestrictionState.unavailable()
+        assertTrue(s.requiresDistractionOptimization)
+        assertEquals(0x1ff, s.activeRestrictions)
     }
 
     // --- 목적지 ---

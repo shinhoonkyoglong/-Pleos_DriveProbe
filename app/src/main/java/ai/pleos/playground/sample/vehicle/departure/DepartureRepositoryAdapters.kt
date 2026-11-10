@@ -32,15 +32,16 @@ import com.pleos.departure.port.VehicleRepository as DepartureVehicleRepository
 // 이름이 같은 VehicleRepository 가 양쪽에 있어 import 별칭을 쓴다.
 
 /**
- * 주행 규제 포트 ← 1번 VehicleRepository.drivingState.
- * DRIVING → RESTRICTED, IDLE/STOPPED → UNKNOWN (DepartureMappers.drivingRestriction KDoc 참고).
- * TODO(1번-연동): 1번이 CarUxRestrictions 기반 상태를 제공하면 그 값으로 바꾼다(주차 → UNRESTRICTED 를 낼 수 있게).
+ * 주행 규제 포트 ← 1번 VehicleRepository.uxRestriction(AAOS CarUxRestrictions).
+ * car service 값 DO true → RESTRICTED, false → UNRESTRICTED, null·연결 실패 → UNKNOWN, Mock 은 UNRESTRICTED 로 내지 않음
+ * (DepartureMappers.drivingRestriction KDoc 참고). StateFlow 라 구독 즉시 현재 값(첫 값 전이면 UNKNOWN)을 내보낸다.
+ * 1번 drivingState(수동 설정)는 쓰지 않는다.
  */
 class DriveProbeVehicleAdapter(
     private val vehicleRepository: DriveProbeVehicleRepository,
 ) : DepartureVehicleRepository {
     override fun observeDrivingRestriction(): Flow<DrivingRestriction> =
-        vehicleRepository.drivingState
+        vehicleRepository.uxRestriction
             .map(DepartureMappers::drivingRestriction)
             .distinctUntilChanged()
 }
