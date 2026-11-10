@@ -100,9 +100,8 @@ class DriveProbeNaviAdapter(
 }
 
 /**
- * 운전자 조건 저장소 — 인메모리 구현(앱을 다시 시작하면 사라진다).
- * TODO(1번-연동): 1번 Room 스키마는 건드리지 않았다. 운전자 조건 테이블(+ 서버 동기화 GET/PUT /v1/drivers/me/driver-condition)이
- *   생기면 이 클래스를 그 Repository 위 어댑터로 바꾼다. 필드는 2번 문서 contracts/driver-condition-api.md 참고.
+ * 운전자 조건 저장소 — 인메모리 구현(앱을 다시 시작하면 사라진다). **테스트·시연 전용.**
+ * 앱은 Room 에 저장하는 [RoomDriverConditionRepository]를 쓴다(DriveProbeApplication.departureFeature).
  *
  * @param initial 시작 조건. null 이면 "확인된 미설정"(getCondition 은 Unavailable(NO_DATA), observeCondition 은 Available(null)).
  */

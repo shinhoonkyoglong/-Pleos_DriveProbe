@@ -7,7 +7,10 @@ import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryIm
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepository
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepositoryImpl
 import ai.pleos.playground.sample.vehicle.departure.DriveProbeDeparture
+import ai.pleos.playground.sample.vehicle.departure.RoomDriverConditionRepository
+import com.pleos.departure.DepartureConfig
 import com.pleos.departure.DepartureFeature
+import java.time.Clock
 
 /**
  * 전역 의존성(Repository, Database) 관리 Application 클래스
@@ -26,9 +29,18 @@ class DriveProbeApplication : Application() {
     /**
      * 2번 '출발 전'(출발 마감·반경 확인·무료도로 확인) 진입점. 처음 접근할 때 만든다.
      * 사용: `departureFeature.createSession(scope)` → `session.state` 관찰. docs/departure/README.md 참고.
+     * 운전자 조건은 Room(appDatabase 의 driver_conditions 테이블)에 저장된다.
      */
     val departureFeature: DepartureFeature by lazy {
-        DriveProbeDeparture.createFeature(vehicleRepository, naviHelperRepository)
+        val config = DepartureConfig()
+        val clock = Clock.system(config.timeZone)
+        DriveProbeDeparture.createFeature(
+            vehicleRepository = vehicleRepository,
+            naviHelperRepository = naviHelperRepository,
+            config = config,
+            clock = clock,
+            driverConditionRepository = RoomDriverConditionRepository(appDatabase.driverConditionDao(), clock),
+        )
     }
 
     override fun onCreate() {

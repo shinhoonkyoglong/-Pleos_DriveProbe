@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
  * - requestRoute/cancelRoute 는 앱 코드에 없는 기능이라 테스트에서 SDK 를 직접 부른다(권한 NAVI_ROUTE_SEARCH 는 debug 매니페스트에만 선언).
  * - 테스트 전용 NaviHelper 는 경로 설정·취소만 하고 조회는 하지 않는다(콜백에 요청 ID 가 없어 조회 응답이 섞이지 않게).
  * - Application 의 departureFeature 는 쓰지 않는다: 그 안의 NaviHelperRepositoryImpl 이 두 번째 NaviHelper 연결을 만들고,
- *   운전자 조건이 미설정(ConditionNotSet)이라 마감 계산까지 가지 않는다. 같은 조립 함수(createFeature)에 이 테스트의 Repository 와
+ *   Room 에 운전자 조건이 없으면 미설정(ConditionNotSet)이라 마감 계산까지 가지 않는다. 같은 조립 함수(createFeature)에 이 테스트의 Repository 와
  *   운전자 조건을 넘겨 만든다.
  */
 @RunWith(AndroidJUnit4::class)
