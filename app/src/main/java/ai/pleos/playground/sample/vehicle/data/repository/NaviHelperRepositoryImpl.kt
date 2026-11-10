@@ -93,6 +93,13 @@ class NaviHelperRepositoryImpl(
     private var mockCurrentLat = 37.4600
     private var mockCurrentLng = 127.0400
 
+    /**
+     * 목업 구현: NaviHelper SDK 를 부르지 않고 조건에 맞춘 가상의 경로를 만든다. 반환 값(거리·시간·containsHighway 등)은 실측값이 아니다.
+     *
+     * 실제 SDK 로 바꿀 때의 실측 한계(인터페이스 KDoc 참고, 근거 MyApplication/docs/pleos/api-notes/navi-runtime-check.md §10):
+     * 내비는 RouteInfo.routeOption 을 무시하고, requestRoute 는 현재 안내를 덮어쓰며, 고속도로 회피 옵션은 없고, 좌표가 필수다.
+     * 무료도로 확인은 사용자가 "유료도로 우회"를 켠 뒤 getRouteStateInfo().routeOption == FREE 로 한다(docs/departure/README.md).
+     */
     override suspend fun searchConditionAdaptedRoute(
         destination: String,
         conditions: DrivingConditions

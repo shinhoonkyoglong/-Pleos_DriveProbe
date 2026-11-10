@@ -27,6 +27,17 @@ interface NaviHelperRepository {
     /**
      * 출발 전 조건 맞춤 경로 탐색
      * (고령 운전자 조건부 면허: 야간 주행 회피, 고속도로 회피, 최고제한속도 준수 등)
+     *
+     * **실측 한계(에뮬레이터 Pleos Connect 2.1.0 / 내비 3.3.2 / NaviHelper SDK 3.0.5, 2026-11-10)** — 실제 SDK 로 구현할 때 주의.
+     * 근거: 2번 저장소 MyApplication/docs/pleos/api-notes/navi-runtime-check.md §10.2·§10.3·§10.4·§10.8.
+     * - 내비가 경로 옵션을 무시한다: `requestRoute(RouteInfo(routeOption = FREE))`, `changeRouteOption(FREE)` 모두 적용 옵션 RECOMMENDED·통행료 그대로.
+     * - `requestRoute` 는 확인 없이 현재 안내를 덮어쓰고 바로 안내를 시작한다(사용자가 설정한 목적지·옵션이 사라질 수 있음). "탐색만" 하는 SDK 기능은 없다.
+     * - 고속도로 회피 옵션은 SDK 에 없다(RouteOption 에 회피 값 없음). [DrivingConditions.avoidHighways]·`maxSpeedLimitKmh` 는 경로로 보장할 수 없다.
+     * - `RouteInfo` 는 위도·경도가 필수라 `destination: String` 만으로는 요청을 만들 수 없다.
+     *
+     * 실제로 확인된 무료도로 흐름: 사용자가 내비 "경로 설정"에서 "유료도로 우회"를 켠다 →
+     * [getRouteStateInfo] 의 `routeOption == FREE` 로 확인한다(2번 '출발 전' 어댑터가 이 방식, docs/departure/README.md 6절 한계 3).
+     * 현재 구현은 SDK 를 부르지 않는 목업이다(시그니처·동작 변경 없음).
      */
     suspend fun searchConditionAdaptedRoute(
         destination: String,
