@@ -1,5 +1,7 @@
 package ai.pleos.playground.sample.vehicle
 
+import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewModel
+import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
 import android.content.BroadcastReceiver
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val viewModel: MainViewModel by viewModels()
+    private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,7 +80,14 @@ class MainActivity : ComponentActivity() {
                     onStartUpdates = viewModel::startFeatureUpdates,
                     onStopUpdates = viewModel::stopFeatureUpdates,
                     onBackToFeatureList = viewModel::backToFeatureList,
-                    onDismissError = viewModel::dismissError
+                    onDismissError = viewModel::dismissError,
+                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                    driverConditionSettings = {
+                        DriverConditionSettingsScreen(
+                            viewModel = driverConditionViewModel,
+                            onBack = viewModel::closeDriverConditionSettings
+                        )
+                    }
                 )
             }
         }

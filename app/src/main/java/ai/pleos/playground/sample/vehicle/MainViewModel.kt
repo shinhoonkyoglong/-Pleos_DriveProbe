@@ -115,6 +115,16 @@ class MainViewModel(application: Application) :
         }
     }
 
+    /** 2번 '출발 전' 운전자 조건 설정 화면 열기(작업 #17). API 탐색 상태는 그대로 둔다 */
+    fun showDriverConditionSettings() {
+        _uiState.update { it.copy(page = AppPage.DRIVER_CONDITION_SETTINGS) }
+    }
+
+    /** 운전자 조건 설정 화면에서 돌아가기 — 열기 전 API 탐색 화면으로 */
+    fun closeDriverConditionSettings() {
+        _uiState.update { it.copy(page = AppPage.API_EXPLORER) }
+    }
+
     fun selectFeature(featureId: String) {
         val feature = _uiState.value.apiFeatures.firstOrNull { it.id == featureId } ?: return
         featureRequestFlow.beginEntry(featureId)

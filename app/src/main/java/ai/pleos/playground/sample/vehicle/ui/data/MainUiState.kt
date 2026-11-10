@@ -69,7 +69,9 @@ data class RuntimeVersions(
 
 enum class AppPage {
     HOME,
-    API_EXPLORER
+    API_EXPLORER,
+    /** 2번 '출발 전' 운전자 조건 설정 화면(작업 #17) */
+    DRIVER_CONDITION_SETTINGS
 }
 
 enum class ApiExplorerPane {
