@@ -1,0 +1,120 @@
+# 2번 '출발 전' 연동 안내 (`:departure-core` + NaviHelper 조회)
+
+2번 파트(출발 전: 출발 마감 알림·허용 반경 확인·무료도로 확인)의 핵심 로직을 이 저장소에 넣고, 1번 Repository에 연결했다.
+**화면(UI)은 넣지 않았다.** 화면 방식은 아직 협의 전이라 상태(StateFlow)만 제공한다.
+
+- 원본: 2번 저장소 `MyApplication/departure-core` (패키지 `com.pleos.departure.*`). 이 PR이 병합되기 전까지 원본은 2번 저장소다.
+- 근거 문서(2번 저장소): `docs/pleos/api-notes/navi-route.md`, `eta-location.md`, `sdk-setup.md`, `navi-runtime-check.md`(에뮬레이터 2.1.0 / 내비 3.3.2 / NaviHelper SDK 3.0.5 실행 확인), `docs/pleos/integration/part1-gap-analysis.md`
+
+## 1. 추가된 것
+
+| 위치 | 내용 |
+|---|---|
+| `departure-core/` (신규 모듈) | 순수 Kotlin/JVM 모듈. Android·Pleos 의존성 없음(코루틴 + `java.time`만). 일몰 계산, 출발 마감, 반경 확인, 무료도로 확인, 확인 세션(`DepartureSession`). 단위 테스트 147건 |
+| `app/.../data/repository/NaviHelperRepository(.kt / Impl.kt)` | **조회 계열 멤버 추가**(기존 멤버는 그대로): `currentDestination`, `currentRouteState`, `getDestinationInfo()`, `getRouteStateInfo()`, `requestTrip(...)`, `getCurrentLocation()`, `injectMockDestination()`, `injectMockRouteOption()`. 실제 NaviHelper SDK를 호출하고, 서비스 연결이 안 되면 `VehicleRepositoryImpl`처럼 Mock Fallback |
+| `app/.../data/model/NaviModels.kt` | 모델 추가: `NaviLocation`, `NaviDestinationInfo`, `NaviMode`, `NaviRouteState`, `NaviTripInfo`, `NaviHelperException`(실패 사유 구분) |
+| `app/.../departure/` (신규 패키지) | 2번 core 포트 ↔ 1번 Repository 어댑터, 조립 코드 `DriveProbeDeparture`, 변환 규칙 `DepartureMappers` |
+| `app/src/test/.../departure/DepartureMappersTest.kt` | 변환 규칙 단위 테스트 16건(기존 `testImplementation(libs.junit)`만 사용) |
+| `DriveProbeApplication.departureFeature` | 진입점(lazy) |
+
+## 2. 사용법
+
+```kotlin
+// ViewModel(또는 화면 수명과 같은 범위)에서
+val feature = DriveProbeApplication.instance.departureFeature
+val session = feature.createSession(viewModelScope)      // 화면 하나에 세션 하나
+
+// 상태 관찰: StateFlow<DepartureSessionState>
+session.state.collect { state ->
+    // state.outcome        : CheckOutcome.Checked(snapshot, recheck, tollToggleNotYetApplied) 또는 CheckOutcome.Failed, 첫 결과 전 null
+    // state.loading / showLoadingIndicator (2초 넘으면 "확인 중" 표시)
+    // state.drivingRestriction / controlsEnabled (false 면 조작 요소를 숨긴다)
+}
+
+// 명령 (메인 스레드에서 부른다)
+session.onVisible()                        // 화면이 보이기 시작함(진입·백그라운드 복귀) → 확인 시작, 60초마다 갱신
+session.onHidden()                         // 화면이 가려짐 → 주기 확인 멈춤
+session.refresh()                          // 사용자 "다시 확인"
+session.confirmTollAvoidanceTurnedOn()     // 사용자 "켰어요"(내비에서 유료도로 우회를 켰다고 알림)
+session.resetSession()                     // 세션 기억을 지우고 다시 확인
+```
+
+- **세션에는 release(해제) 메서드가 없다.** 넘긴 `CoroutineScope`가 취소될 때만 멈춘다. 반드시 수명이 끝나는 범위(`viewModelScope`, `lifecycleScope`, Compose `rememberCoroutineScope()`)를 넘긴다. `GlobalScope`나 Application 범위를 넘기면 앱이 끝날 때까지 돈다.
+- **스레드 가정**: 상태 갱신은 넘긴 scope 의 dispatcher 에서 일어난다(`viewModelScope`는 Main). 명령(`onVisible` 등)은 메인 스레드에서 부른다. 세션 내부 상태는 한 스레드에서만 바뀐다는 전제로 동기화하지 않는다.
+- 한 번 계산만 필요하면 `feature.departureCheck` 등 유스케이스를 직접 호출해도 된다.
+- 화면 문구(한국어)는 core 에 없다. `CheckOutcome.Checked.snapshot`(출발 마감·반경·경로 결과)을 화면 쪽에서 문구·아이콘으로 바꾼다. 2번 저장소의 `:departure-ui`(`DepartureDisplayMapper`)를 참고하거나 가져올 수 있다.
+- 동작 수치(출발 여유 30분, 기본 반경 10km, 경고 임계값, 콜백 타임아웃 등)는 `DepartureConfig` 하나에 있다. 바꾸려면 `DriveProbeDeparture.createFeature(..., config = DepartureConfig().copy(...))`.
+
+## 3. 1번 파일에 한 변경 (추가 위주)
+
+| 파일 | 변경 | 종류 |
+|---|---|---|
+| `settings.gradle.kts` | `include(":departure-core")` 1줄 | 추가 |
+| `build.gradle.kts`(루트) | `alias(libs.plugins.kotlin.jvm) apply false` 1줄 | 추가 |
+| `gradle/libs.versions.toml` | `kotlinxCoroutines = "1.9.0"`, `naviHelperSdk = "3.0.5"`, 라이브러리 `navihelper-sdk`·`kotlinx-coroutines-core`·`kotlinx-coroutines-test`, 플러그인 `kotlin-jvm` | 추가 |
+| `app/build.gradle.kts` | `implementation(libs.navihelper.sdk)`, `implementation(project(":departure-core"))` 추가, **`minSdk 23 → 28`** | 추가 + 값 변경 1곳 |
+| `app/src/main/AndroidManifest.xml` | `pleos.car.permission.NAVI_ROUTE` 1개 | 추가 |
+| `data/model/NaviModels.kt` | 파일 끝에 모델 6개 | 추가 |
+| `data/repository/NaviHelperRepository.kt` | 인터페이스 끝에 멤버 8개 | 추가 |
+| `data/repository/NaviHelperRepositoryImpl.kt` | 생성자에 `context: Context? = null, enableMockFallback: Boolean = true`(기본값이라 기존 `NaviHelperRepositoryImpl()` 호출도 그대로 컴파일됨), 클래스 끝에 조회 구현 + `releaseNaviHelper()` | 추가(기존 메서드·목업 변경 없음) |
+| `DriveProbeApplication.kt` | `val departureFeature by lazy { ... }` 추가, `NaviHelperRepositoryImpl()` → `NaviHelperRepositoryImpl(this)`(SDK 연결에 context 필요) | 추가 + 인자 1개 |
+
+**건드리지 않은 것**: `searchConditionAdaptedRoute`·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`, Room(`AppDatabase`·엔티티·DAO), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
+
+### minSdk 23 → 28 이유
+1. Pleos 요구: "API 28 이상 — 차량 사이버 보안 요건(사이닝 키 로테이션·리니지 지원)" (Pleos Connect Emulator 설치 및 실행 문서, 2번 `api-notes/sdk-setup.md`).
+2. `:departure-core`는 `java.time`(Duration·Instant·ZoneId)을 desugaring 없이 쓴다 → API 26 이상 필요.
+- 참고: NaviHelper aar 자체 매니페스트는 minSdk 23이라 병합 오류는 나지 않는다. 올리는 이유는 위 두 가지다.
+
+### 권한
+- `NAVI_ROUTE`만 선언했다: `getDestinationInfo`·`getRouteStateInfo`·`getCurrentLocationInfo`·`requestTrip`용(보호 수준 normal, 설치 시 자동 허용).
+- `NAVI_ROUTE_SEARCH`(requestRoute·cancelRoute·changeRouteOption 등)는 SDK로 부르는 곳이 없어 넣지 않았다. Pleos 정책: 승인되지 않은 권한 선언은 심사 탈락 사유 → 필요한 권한만 선언. 1번이 `searchConditionAdaptedRoute`를 실제 SDK로 구현할 때 함께 추가하면 된다.
+
+## 4. NaviHelperRepository 조회 계열 동작
+
+- **NaviHelper 인스턴스·리스너는 `NaviHelperRepositoryImpl` 하나만 가진다.** 콜백에 요청 ID가 없어서 두 곳에서 등록하면 응답이 섞인다. 다른 기능도 이 Repository 를 거쳐 주세요.
+- 연결: 조회 메서드를 처음 부를 때 `initialize(onConnected, onFailed)` → `addListener`. 실패하면 30초 동안 재시도하지 않고 Mock Fallback(`enableMockFallback = true`) 또는 `NaviHelperException(UNAVAILABLE)`.
+  - 연결된 뒤 `onFailed`가 늦게 오거나 SDK 호출이 예외를 던지면(권한 예외 제외) 연결이 끊긴 것으로 보고 다음 조회에서 다시 연결한다. SDK 문서에 연결 끊김 전용 콜백이 없어서, 서비스가 조용히 죽으면 감지하지 못하고 조회가 타임아웃(5·10초)으로 끝날 수 있다.
+- 한 번에 한 요청(Mutex), SDK 호출은 메인 스레드, 콜백 대기 제한: 목적지·경로 상태·위치 5초, requestTrip 10초(실측 0.02~1.0초).
+- 목적지 없음: SDK는 오류 대신 좌표 (0,0)의 0 값 객체를 준다 → `success(null)`. **경로 교체 중(최대 약 19초, 탐색 실패 시 무기한)에도 똑같은 0 값**이 와서 구분할 수 없다. 2번 세션이 5초 × 6회 재확인으로 처리한다.
+- `tollFare`: `onRouteStarted`에서만 오고 다시 조회할 수 없다 → 받아 둔다. `onRouteCancelled`, 리스너 (재)등록, 다른 목적지 좌표가 들어오면 버린다. `DestinationInfo.tollFare`는 항상 0이라 쓰지 않는다.
+- `requestTrip`: 안내를 시작하지 않는다. 결과는 내비가 그 순간 쓰는 "유료도로 우회" 설정을 따르므로, 안내 중이면 같은 시점 `routeOption`을 함께 돌려준다.
+- 실패 사유: `NaviHelperException.reason` = `UNAVAILABLE` / `TIMEOUT` / `SERVICE_ERROR` / `PERMISSION_DENIED`.
+- **미연결 시 목적지**: Mock 목적지(`injectMockDestination`)를 넣지 않았다면 `success(null)`("목적지 없음")이 아니라 `NaviHelperException(UNAVAILABLE)` 실패를 돌려준다. 목적지를 모르는 상태를 "목적지 없음"으로 지어내지 않기 위해서다. 그래서 Mock 으로 "목적지 없음"을 흉내 낼 수는 없다.
+- Mock Fallback 값은 `currentDestination`·`currentRouteState`에 넣지 않는다(이 두 상태는 실제 SDK 값만).
+- **늦은 콜백 한계**: 콜백에 요청 ID가 없어, 타임아웃 뒤 늦게 온 콜백이나 대기 중 외부 사건으로 온 푸시(예: 사람이 취소해서 온 0 값 목적지)가 다음 같은 종류 요청의 응답으로 쓰일 수 있다. 2번 세션의 재확인(5초 × 6회)과 60초 주기 갱신이 보완한다.
+- Mock 값에는 `isMock = true`가 붙는다. 2번 어댑터는 기본 설정에서 Mock 값을 쓰지 않는다(지어낸 위치·ETA로 판정하면 거짓 안내). 서비스 없는 환경에서 시연할 때만 `createFeature(..., acceptMockNaviValues = true)`.
+
+## 5. 2번 포트 ↔ 1번 Repository 대응
+
+| 2번 포트 (`com.pleos.departure.port`) | 1번 Repository | 비고 |
+|---|---|---|
+| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.drivingState` | DRIVING → RESTRICTED, IDLE/STOPPED → UNKNOWN |
+| `NaviRepository.getDestination()` | `NaviHelperRepository.getDestinationInfo()` | null·(0,0) → NotSet, displayName = name → address → "내비 목적지" |
+| `NaviRepository.getRouteState()` | `getRouteStateInfo()` | ROUTE/SIMULATION_GUIDING → Guiding, SAFE_GUIDING → NotGuiding, NOT_WORKING → 확인 불가 |
+| `NaviRepository.requestTrip(place)` | `requestTrip(lat, lng, poiName, poiId)` | eta(남은 초) → Duration, 출처 SDK_MEASURED |
+| `NaviRepository.getCurrentLocation()` | `getCurrentLocation()` | (0,0) → 확인 불가 |
+| `NaviRepository.observeRemainingTrip()` | `currentDestination` | 2번 core는 지금 쓰지 않음 |
+| `DriverConditionRepository` | (없음) → `InMemoryDriverConditionRepository` | 아래 한계 2 |
+| `TtsRepository` / `SttRepository` | (없음) → 항상 Unavailable | 2번은 TTS/STT를 쓰지 않음 |
+
+## 6. 알려진 한계
+
+1. **주행 상태 매핑 때문에 화면 조작이 늘 숨겨진다.** 1번 `drivingState`는 `setDrivingState()`(수동·목업)로만 바뀌고 기본값이 IDLE이라, IDLE을 "제한 없음"으로 보면 실차 주행 중에도 조작이 열린다(안전 문제). 그래서 IDLE/STOPPED는 UNKNOWN으로 매핑했고, 기본 설정(`treatUnknownDrivingAsRestricted = true`)은 UNKNOWN을 제한으로 본다 → `controlsEnabled`가 늘 false. Pleos 주행 규제 개발 가이드는 "플랫폼이 제공하는 CarUxRestrictions 상태를 기준으로 주행 중 UX 제한을 적용해야 합니다"라고 요구한다(앱 전체 요구 — 3·4번 화면 포함). **1번에 `CarUxRestrictions` 기반 상태(`UNRESTRICTED/RESTRICTED/UNKNOWN`, 기본 UNKNOWN) 제공을 요청한다.** 에뮬레이터는 Virtual Console 기어 Park/Drive로 전환된다.
+2. **운전자 조건은 인메모리다.** 앱을 다시 시작하면 사라지고, 처음에는 "조건 미설정"이라 판정을 하지 않는다. 1번 Room 스키마는 건드리지 않았다. 운전자 조건 테이블(+ 서버 GET/PUT `/v1/drivers/me/driver-condition`, 2번 `docs/pleos/contracts/driver-condition-api.md`)이 생기면 `InMemoryDriverConditionRepository`를 바꾼다. 1번 `DrivingConditions`와 2번 `DriverCondition`(무료도로 선호·허용 반경 포함, 최고속도·편안한 경로 없음) 두 모델의 원본을 하나로 정해야 한다.
+3. **1번 `searchConditionAdaptedRoute`는 실측 결과와 맞지 않는다**(수정하지 않았다 — 1번 판단에 맡김. 2번 어댑터는 부르지 않는다):
+   1. 경로 옵션이 적용되지 않는다. `requestRoute(RouteInfo(routeOption = FREE))`, `changeRouteOption(FREE)` 모두 무시됐다(적용 옵션 RECOMMENDED 그대로, 통행료 700원 그대로, `onRouteOptionChanged` 없음). 무료도로가 되는 방법은 **사람이 내비 "경로 설정"에서 "유료도로 우회"를 켜는 것**뿐이었고, 확인은 `getRouteStateInfo().routeOption == FREE`로 한다.
+   2. 고속도로 회피 옵션은 SDK에 없다(RouteOption 7개, 회피 값 없음). "유료도로 우회"를 켜도 통행료 없는 고속도로가 남았다. `avoidHighways`·`maxSpeedLimitKmh`는 경로로 보장할 수 없다.
+   3. 안내 중 `requestRoute`는 확인 없이 기존 안내를 덮어쓴다(약 7초 뒤 새 안내 시작). 출발 전 "탐색"용으로 부르면 사용자가 설정한 목적지와 유료도로 우회 설정이 사라질 수 있다.
+   4. `requestRoute`는 호출 즉시 안내를 시작한다. "탐색 후 `startNavigation(routeId)`" 2단계에 해당하는 SDK 기능이 없다(경로 ID도 없음). 안내 없이 ETA만 보려면 `requestTrip`.
+   5. `destination: String`으로는 요청을 만들 수 없다. `RouteInfo`는 위도·경도가 필수다.
+   6. `RouteInfo.containsHighway`, `isNightDrivingExpected`는 SDK가 주는 값이 아니라 화면에 쓰면 거짓 안내가 된다. 야간(일몰) 판정은 2번 core(`DepartureDeadlineUseCase`)가 일몰 + ETA로 한다.
+   - 원문: 2번 저장소 `docs/pleos/integration/part1-gap-analysis.md` 8절 B.
+4. 에뮬레이터 내비 위치는 기본 위치(성남 수정구)에 고정되고 `geo fix`/`geo nmea`를 따르지 않는다. 시연 수치를 원하는 값으로 만들기 어렵다.
+5. 이 PR의 NaviHelper 연동 코드는 에뮬레이터에서 아직 실행하지 않았다(2번 프로브 앱으로 같은 SDK 호출 순서를 실행 확인한 것이 근거). 빌드 검증 방법은 PR 본문 참고.
+6. `NaviHelperRepositoryImpl.releaseNaviHelper()`는 어디서도 부르지 않는다(`onTerminate`는 실기기에서 호출되지 않음). 필요하면 1번이 수명 관리 위치를 정한다. 부를 때는 메인 스레드에서, 진행 중인 조회가 없을 때 부른다(Mutex 밖에서 실행됨).
+7. 연결된 뒤 서비스가 조용히 죽으면(끊김 콜백 없음) 감지하지 못해 조회가 타임아웃으로 끝날 수 있다. `onFailed`가 늦게 오거나 SDK 호출이 예외를 던질 때만 연결을 끊고 다시 연결한다.
+
+## 7. 2번 core 를 고칠 때
+- 원본은 병합 전까지 2번 저장소(`MyApplication/departure-core`)다. 이 저장소의 `departure-core/`를 직접 고치면 2번 저장소에도 반영해야 한다.
+- 이식하면서 바꾼 core 코드: `model/Trip.kt` `TripEstimate.isFresh` 한 줄(`Duration.isPositive`는 Java 18 / Android API 34부터라 JDK 17·minSdk 28에서 쓸 수 없어 비교 연산으로 바꿈. 동작 동일). 2번 저장소에도 같은 수정이 역반영되어 지금 두 저장소의 core 는 같다.
