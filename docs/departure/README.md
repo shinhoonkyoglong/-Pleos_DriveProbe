@@ -63,8 +63,13 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `DriveProbeApplication.kt` | `val departureFeature by lazy { ... }` 추가(작업 #15부터 `RoomDriverConditionRepository(appDatabase.driverConditionDao(), clock)`를 넘김), `NaviHelperRepositoryImpl()` → `NaviHelperRepositoryImpl(this)`(SDK 연결에 context 필요) | 추가 + 인자 1개 |
 | `data/local/AppDatabase.kt` (작업 #15) | 엔티티 `DriverConditionEntity`·`driverConditionDao()` 추가, `version 1 → 2`, `MIGRATION_1_2` + `.addMigrations(MIGRATION_1_2)`. `fallbackToDestructiveMigration()`은 그대로 | 추가 + 값 변경 1곳 |
 | `data/repository/NaviHelperRepository(.kt / Impl.kt)` `searchConditionAdaptedRoute` (작업 #15) | KDoc만 추가(실측 한계 명시). 시그니처·동작 변경 없음 | 주석 |
+| `app/build.gradle.kts` (작업 #14b) | android 블록에 `useLibrary("android.car")` 1줄(AGP 8.8.2 DSL 그대로 동작, compileSdk 35의 `optional/android.car.jar` 스텁 연결. APK에 포함되지 않음) | 추가 |
+| `app/src/main/AndroidManifest.xml` (작업 #14b) | `<application>` 안에 `<uses-library android:name="android.car" android:required="false"/>`. 권한 추가 없음 | 추가 |
+| `data/model/VehicleModels.kt` (작업 #14b) | 파일 끝에 `UxRestrictionSource`(CAR_SERVICE/UNAVAILABLE/MOCK), `UxRestrictionState` | 추가 |
+| `data/repository/VehicleRepository.kt` (작업 #14b) | `val uxRestriction: StateFlow<UxRestrictionState?>`, `fun injectMockUxRestriction(...)`. 기존 `drivingState`·`setDrivingState` 그대로 | 추가 |
+| `data/repository/VehicleRepositoryImpl.kt` + 새 파일 `CarUxRestrictionsMonitor.kt` (작업 #14b) | `initialize()` 맨 앞에서 CarUxRestrictions 구독 시작, `release()`에서 해제. android.car 호출은 `CarUxRestrictionsMonitor`에만 둠 | 추가 |
 
-**건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`, Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
+**건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`의 기존 멤버(Vehicle SDK·HVAC·창문·`drivingState`·Mock 주입 — 작업 #14b는 멤버 추가만), Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
 
 ### minSdk 23 → 28 이유
 1. Pleos 요구: "API 28 이상 — 차량 사이버 보안 요건(사이닝 키 로테이션·리니지 지원)" (Pleos Connect Emulator 설치 및 실행 문서, 2번 `api-notes/sdk-setup.md`).
@@ -91,11 +96,20 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - **늦은 콜백 한계**: 콜백에 요청 ID가 없어, 타임아웃 뒤 늦게 온 콜백이나 대기 중 외부 사건으로 온 푸시(예: 사람이 취소해서 온 0 값 목적지)가 다음 같은 종류 요청의 응답으로 쓰일 수 있다. 2번 세션의 재확인(5초 × 6회)과 60초 주기 갱신이 보완한다.
 - Mock 값에는 `isMock = true`가 붙는다. 2번 어댑터는 기본 설정에서 Mock 값을 쓰지 않는다(지어낸 위치·ETA로 판정하면 거짓 안내). 서비스 없는 환경에서 시연할 때만 `createFeature(..., acceptMockNaviValues = true)`.
 
+### 주행 중 UX 제한 — `VehicleRepository.uxRestriction` (작업 #14b)
+- 출처: AAOS `CarUxRestrictionsManager`(Pleos SDK 아님). Pleos 주행 규제 개발 가이드가 "플랫폼이 제공하는 CarUxRestrictions 상태를 기준으로" UX 제한을 하라고 요구한다 → 3·4번 화면도 이 값을 쓰면 된다.
+- 동작: `initialize()`에서 `Car.createCar(context, 메인 Handler, 10초, 수명주기 리스너)` → `getCarManager(CAR_UX_RESTRICTION_SERVICE)` → **`getCurrentCarUxRestrictions()`로 현재 값 1회 읽기**(리스너 등록 직후 초기값 콜백이 오지 않음, 실측) → `registerListener`로 변경 수신. `release()`에서 `unregisterListener()` + `disconnect()`.
+- 값: `null` = 아직 못 읽음. car service 값은 `source = CAR_SERVICE`. 에뮬레이터 실측 Park = `false / 0x0`, Drive = `true / 0x50`(변경 후 약 16~36ms에 리스너 호출).
+- 실패(자동차 아닌 기기, android.car 클래스 없음, manager null, 예외, 연결 끊김 `ready=false`) → `source = UNAVAILABLE`, `requiresDistractionOptimization = true`, `0x1ff`. **`enableMockFallback`이어도 "제한 없음" Mock 값을 지어내지 않는다.**
+- `injectMockUxRestriction(requiresDO, active)` → `source = MOCK`. 실제 값이 바뀌면 덮어써진다.
+- 권한: 선언하지 않았다(에뮬레이터에서는 권한 없이 동작, 실측). 실차 이미지도 같은지는 [미확인].
+- 근거: 2번 저장소 `docs/pleos/api-notes/vehicle-state.md` §13, `evidence/2026-11-10/task14/`.
+
 ## 5. 2번 포트 ↔ 1번 Repository 대응
 
 | 2번 포트 (`com.pleos.departure.port`) | 1번 Repository | 비고 |
 |---|---|---|
-| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.drivingState` | DRIVING → RESTRICTED, IDLE/STOPPED → UNKNOWN |
+| `VehicleRepository.observeDrivingRestriction()` | `VehicleRepository.uxRestriction` (작업 #14b부터. `drivingState`는 쓰지 않음) | CAR_SERVICE: DO true → RESTRICTED, false → UNRESTRICTED. null·UNAVAILABLE → UNKNOWN. MOCK: true → RESTRICTED, false → UNKNOWN(지어낸 값으로 조작을 열지 않음) |
 | `NaviRepository.getDestination()` | `NaviHelperRepository.getDestinationInfo()` | null·(0,0) → NotSet, displayName = name → address → "내비 목적지" |
 | `NaviRepository.getRouteState()` | `getRouteStateInfo()` | ROUTE/SIMULATION_GUIDING → Guiding, SAFE_GUIDING → NotGuiding, NOT_WORKING → 확인 불가 |
 | `NaviRepository.requestTrip(place)` | `requestTrip(lat, lng, poiName, poiId)` | eta(남은 초) → Duration, 출처 SDK_MEASURED |
@@ -106,7 +120,13 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 
 ## 6. 알려진 한계
 
-1. **주행 상태 매핑 때문에 화면 조작이 늘 숨겨진다.** 1번 `drivingState`는 `setDrivingState()`(수동·목업)로만 바뀌고 기본값이 IDLE이라, IDLE을 "제한 없음"으로 보면 실차 주행 중에도 조작이 열린다(안전 문제). 그래서 IDLE/STOPPED는 UNKNOWN으로 매핑했고, 기본 설정(`treatUnknownDrivingAsRestricted = true`)은 UNKNOWN을 제한으로 본다 → `controlsEnabled`가 늘 false. Pleos 주행 규제 개발 가이드는 "플랫폼이 제공하는 CarUxRestrictions 상태를 기준으로 주행 중 UX 제한을 적용해야 합니다"라고 요구한다(앱 전체 요구 — 3·4번 화면 포함). **1번에 `CarUxRestrictions` 기반 상태(`UNRESTRICTED/RESTRICTED/UNKNOWN`, 기본 UNKNOWN) 제공을 요청한다.** 에뮬레이터는 Virtual Console 기어 Park/Drive로 전환된다.
+1. **주행 규제는 CarUxRestrictions 기준이다(작업 #14b에서 해결 — 이전에는 `drivingState` 매핑 때문에 조작이 늘 숨겨졌다).** 주차 중이면 UNRESTRICTED가 나와 조작이 보인다. 남은 한계:
+   - 연결 실패·첫 값 전에는 UNKNOWN → 기본 설정(`treatUnknownDrivingAsRestricted = true`)에서 조작이 숨겨진다(의도된 안전 쪽 동작).
+   - car service 미연결·종료 상태, 자동차가 아닌 기기, android.car 클래스가 없는 기기의 동작은 시험하지 못했다 [미확인]. 코드는 모두 `Throwable` catch → 제한 쪽.
+   - `createCar`의 대기 시간 10초는 실측 스니펫 값이다. car service가 늦게 뜨는 기기에서 `Application.onCreate`(메인 스레드)가 그만큼 기다릴 수 있는지는 [미확인].
+   - 리스너 콜백 스레드는 확인하지 않았다 [미확인]. 값은 `MutableStateFlow`에 넣기만 하므로 스레드와 무관하다.
+   - Moving(속도 > 0) 상태 값은 에뮬레이터에서 만들지 못했다 [미확인]. Park/Drive만 실측.
+   - Drive 전환은 Virtual Console(브라우저) 조작이 필요해 자동 테스트(8절)에는 Park만 있다. Drive = `true/0x50`은 작업 #14a 프로브로 실측.
 2. **운전자 조건은 Room 에 저장된다(작업 #15, 서버 동기화는 아직 없음).** 앱을 다시 시작해도 남는다. 처음 설치 시에는 행이 없어 "조건 미설정"이라 판정을 하지 않는다(조건 입력 화면은 아직 없음).
    - 테이블 `driver_conditions`: 단일 행(`id = 1`). 집합은 enum 이름을 쉼표로 이은 문자열(오름차순), 반경 중심은 위도·경도 두 열(둘 다 null 이거나 둘 다 값), `updatedAt`(epoch ms), `isSynced`. 필드는 2번 `DriverCondition`·`docs/pleos/contracts/driver-condition-api.md` §4 그대로.
    - 포트 규칙(계약 §5.4): 행 없음 → `observeCondition()` = `Available(null)`, `getCondition()` = `Unavailable(NO_DATA)`. 해제 저장(빈 조건) → 행이 남아 `Available(DriverCondition())`. DB 오류·모르는 enum·범위 밖 값 → `Unavailable(SERVICE_ERROR)`(건너뛰거나 null 로 내보내지 않음).
@@ -151,3 +171,8 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 부수 관측: 테스트 전용 NaviHelper 와 `NaviHelperRepositoryImpl` 의 리스너가 **둘 다** `onRouteStarted`를 받았다. 푸시 콜백은 등록된 모든 클라이언트에 간다 → 4절 "인스턴스 하나만" 원칙의 근거.
 - 3번은 Application 의 `departureFeature` 대신 같은 조립 함수 `DriveProbeDeparture.createFeature`에 테스트의 Repository 와 운전자 조건을 넘겨 만든다(앱 쪽 Repository 로 두 번째 연결을 만들지 않기 위해, 그리고 인메모리 조건이 비어 있으면 `ConditionNotSet`으로 끝나기 때문).
 - 로그 발췌는 2번 저장소 `docs/pleos/api-notes/evidence/2026-11-10/task13/`.
+
+### 8.1 주행 규제 스모크 테스트 (작업 #14b, 2026-11-10)
+- 테스트: `app/src/androidTest/java/ai/pleos/playground/sample/vehicle/departure/UxRestrictionSmokeTest.kt` (logcat 태그 `UxRestrictionSmoke`). 전제: 에뮬레이터 기어 **Park**(`dumpsys car_service` `Current Driving State: 0`).
+- 결과: 통과. `uxRestriction = UxRestrictionState(requiresDistractionOptimization=false, activeRestrictions=0, source=CAR_SERVICE)`, 어댑터 `observeDrivingRestriction().first() = UNRESTRICTED`. 같은 실행에서 `NaviHelperQuerySmokeTest`·`AppDatabaseMigrationTest` 포함 3건 모두 통과.
+- Drive는 자동 테스트에 없음 [테스트 미확인, 작업 #14a 프로브로 실측].
