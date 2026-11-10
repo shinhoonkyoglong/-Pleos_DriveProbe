@@ -1,7 +1,7 @@
 # 2번 '출발 전' 연동 안내 (`:departure-core` + NaviHelper 조회)
 
 2번 파트(출발 전: 출발 마감 알림·허용 반경 확인·무료도로 확인)의 핵심 로직을 이 저장소에 넣고, 1번 Repository에 연결했다.
-**화면(UI)은 넣지 않았다.** 화면 방식은 아직 협의 전이라 상태(StateFlow)만 제공한다.
+출발 확인 화면(UI)은 넣지 않았다(화면 방식 협의 전이라 상태(StateFlow)만 제공). **운전자 조건 설정 화면은 작업 #17에서 추가했다**(2.1절).
 
 - 원본: 2번 저장소 `MyApplication/departure-core` (패키지 `com.pleos.departure.*`). 이 PR이 병합되기 전까지 원본은 2번 저장소다.
 - 근거 문서(2번 저장소): `docs/pleos/api-notes/navi-route.md`, `eta-location.md`, `sdk-setup.md`, `navi-runtime-check.md`(에뮬레이터 2.1.0 / 내비 3.3.2 / NaviHelper SDK 3.0.5 실행 확인), `docs/pleos/integration/part1-gap-analysis.md`
@@ -19,6 +19,9 @@
 | `app/.../departure/RoomDriverConditionRepository.kt`, `DriverConditionEntityMapper.kt` (작업 #15) | 2번 `DriverConditionRepository` 포트의 Room 구현 + Entity ↔ `DriverCondition` 변환. 단위 테스트 17건(`DriverConditionEntityMapperTest` 12, `RoomDriverConditionRepositoryTest` 5) |
 | `app/src/androidTest/.../data/local/AppDatabaseMigrationTest.kt` (작업 #15) | v1 DB → v2 마이그레이션 계측 테스트(기존 데이터 유지 확인) |
 | `DriveProbeApplication.departureFeature` | 진입점(lazy) |
+| `app/.../departure/DriverConditionDefaults.kt`, `DriverConditionForm.kt`, `DriverConditionSettingsController.kt`, `DriverConditionSettingsViewModel.kt` (작업 #17) | 운전자 조건 설정 화면의 기본값(한 곳), 입력값·검증·저장 변환, 상태와 동작(Android 의존 없는 일반 클래스), AndroidViewModel 래퍼 |
+| `app/.../ui/screen/DriverConditionSettingsScreen.kt` (작업 #17) | 운전자 조건 설정 화면(Compose). 2.1절 |
+| `app/src/test/.../departure/DriverConditionFormTest.kt`, `DriverConditionSettingsControllerTest.kt` (작업 #17) | 설정 화면 로직 단위 테스트 20건(9 + 11) |
 
 ## 2. 사용법
 
@@ -49,6 +52,23 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 동작 수치(출발 여유 30분, 기본 반경 10km, 경고 임계값, 콜백 타임아웃 등)는 `DepartureConfig` 하나에 있다. 바꾸려면 `DriveProbeDeparture.createFeature(..., config = DepartureConfig().copy(...))`.
 - **`createFeature`의 `driverConditionRepository` 인자는 필수다(작업 #15에서 기본값 제거 — 공개 시그니처 변경, 감독관 승인).** 인메모리 저장소가 조용히 쓰여 조건이 앱 재시작마다 사라지는 일을 막기 위해서다. 앱은 `RoomDriverConditionRepository`, 테스트는 `InMemoryDriverConditionRepository`를 넘긴다(호출처: `DriveProbeApplication`, `NaviHelperQuerySmokeTest`).
 
+### 2.1 운전자 조건 설정 화면 (작업 #17)
+
+| 기본값(저장된 조건이 없을 때) | 저장 후 |
+|---|---|
+| ![기본값](images/driver-condition-defaults.png) | ![저장 후](images/driver-condition-saved.png) |
+
+- **들어가는 곳**: API 탐색 화면 머리(`CatalogHeader`) 오른쪽 끝의 [운전 조건 설정] 버튼 하나. 1번 화면 구성·스타일은 그대로 두고, `AppPage`에 `DRIVER_CONDITION_SETTINGS` 값을 하나 더해 기존 `SampleApp`의 `when (uiState.page)` 분기로 띄운다. [← 돌아가기] 또는 시스템 뒤로 가기로 API 탐색 화면(이전 상태 그대로)에 돌아간다.
+- **보여 주는 값**: 저장된 조건이 있으면 그 값. 없으면 기본값(`DriverConditionDefaults` 한 곳에만 있음): 야간 운전 금지 켬, 무료도로 선호 켬, 고속도로 회피 끔, 허용 반경 50 km, 반경 중심 = 화면을 열 때 읽은 `NaviHelperRepository.getCurrentLocation()`.
+  - 현재 위치를 읽지 못하거나 Mock 값(내비 미연결)이면 중심을 비우고 "현재 위치를 읽지 못했어요 — 반경 확인은 중심이 있어야 동작해요" + [다시 시도].
+  - 저장된 반경이 null(앱 기본 반경 사용)이면 `DepartureConfig.defaultAllowedRadiusMeters`(10 km)를 보여 주고, 이 화면에서 저장하면 그 값이 명시적으로 저장된다.
+- **기본값은 [저장]을 누르기 전에는 DB에 쓰지 않는다**(저장 안 됨 = 조건 미설정, 계약 §8 D-9). 그동안 화면 맨 위에 "아직 저장 안 됨 — 기본값을 채워 두었어요" 안내가 뜬다. 저장 뒤 값을 바꾸면 "바꾼 내용이 아직 저장 안 됨".
+- **검증**(계약 §4.2): 반경 > 0, 상한 300 km(`DriverConditionDefaults.MAX_RADIUS_KM`, 넘으면 "300 km 이하로 정해 주세요"), 중심 위도·경도는 둘 다 있거나 둘 다 없거나 + 범위. 반경은 [−]/[+] 5 km 눈금(5~300 km)이라 화면 조작으로는 오류가 잘 나지 않고, 저장된 이상값(예: 500 km)을 불러왔을 때 저장을 막는다. 중심 없이 저장하는 것은 허용(반경 확인 "확인 불가").
+- **주행 중**: `VehicleRepository.uxRestriction` → `DepartureMappers.drivingRestriction`이 RESTRICTED면 모든 입력·저장·위치 다시 읽기를 막고 "주행 중에는 설정을 바꿀 수 없어요". UNKNOWN(첫 값 전)은 `treatUnknownDrivingAsRestricted`(기본 true)에 따라 "차량 상태를 확인하는 중이라 아직 바꿀 수 없어요".
+- **화면 기준**: 본문 26sp 이상(제목 30~34sp), 행 전체가 눌리는 104dp 높이 켜기/끄기 + "켜짐/꺼짐" 글자, 88dp [−]/[+]·[저장] 버튼, 진한 글자 + 테두리. 상태 안내는 색 + 기호(ⓘ ✔ ✎ ✕ ⛔) + 문구로 한 줄만 보여 준다.
+- 에뮬레이터 확인(2026-11-10, Pleos Connect v2.1.0, Park): 첫 진입 시 기본값 + 현재 위치(수정구 시흥동, 37.4127/127.0947) 표시 → [저장] → "저장했어요" → 앱 강제 종료 후 다시 들어가도 "저장된 조건이에요"(Room 유지 확인). 위 캡처가 그 화면이다.
+- 저장소는 `DriveProbeApplication.driverConditionRepository`(Room, 작업 #15) — `departureFeature`와 같은 인스턴스를 쓴다. 설정 화면에서 저장하면 출발 확인이 다음 확인부터 그 조건을 쓴다.
+
 ## 3. 1번 파일에 한 변경 (추가 위주)
 
 | 파일 | 변경 | 종류 |
@@ -70,7 +90,14 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 | `data/repository/VehicleRepository.kt` (작업 #14b) | `val uxRestriction: StateFlow<UxRestrictionState?>`, `fun injectMockUxRestriction(...)`. 기존 `drivingState`·`setDrivingState` 그대로 | 추가 |
 | `data/repository/VehicleRepositoryImpl.kt` + 새 파일 `CarUxRestrictionsMonitor.kt` (작업 #14b) | `initialize()` 맨 앞에서 CarUxRestrictions 구독 시작, `release()`에서 해제. android.car 호출은 `CarUxRestrictionsMonitor`에만 둠 | 추가 |
 
-**건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`의 기존 멤버(Vehicle SDK·HVAC·창문·`drivingState`·Mock 주입 — 작업 #14b는 멤버 추가만), Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 화면·`MainViewModel`, 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
+| `ui/data/MainUiState.kt` (작업 #17) | `AppPage`에 `DRIVER_CONDITION_SETTINGS` 1개 | 추가 |
+| `MainViewModel.kt` (작업 #17) | `showDriverConditionSettings()`·`closeDriverConditionSettings()`(`page`만 바꿈, 다른 상태 유지) | 추가 |
+| `ui/screen/SampleApp.kt` (작업 #17) | 인자 `onOpenDriverCondition`·`driverConditionSettings`(둘 다 기본값 있음), `when (uiState.page)`에 분기 1개 | 추가 |
+| `ui/screen/ApiCatalogScreen.kt` (작업 #17) | 인자 `onOpenDriverCondition`(기본값 있음)을 `CatalogHeader`까지 전달, 머리 오른쪽 끝에 [운전 조건 설정] 버튼(`DriverConditionEntryButton`) 1개. 기존 배치·스타일 변경 없음 | 추가 |
+| `MainActivity.kt` (작업 #17) | `DriverConditionSettingsViewModel by viewModels()`, `SampleApp`에 위 두 인자 전달 | 추가 |
+| `DriveProbeApplication.kt` (작업 #17) | `departureConfig`·`driverConditionRepository`(lazy)로 꺼내 `departureFeature`와 설정 화면이 같이 씀. 동작 변경 없음 | 정리 |
+
+**건드리지 않은 것**: `searchConditionAdaptedRoute`(KDoc 외)·`guideToNearestRestArea`·`startNavigation`·`stopNavigation`·`injectMockRestAreas`·`setMockLocation`, `VehicleRepository(Impl)`의 기존 멤버(Vehicle SDK·HVAC·창문·`drivingState`·Mock 주입 — 작업 #14b는 멤버 추가만), Room 기존 엔티티·DAO(`ReactionScore*`·`InterventionHistory*`), 기존 화면의 배치·스타일·테마(작업 #17은 위 표의 진입 버튼·분기만 추가), 다른 빌드 설정(AGP 8.8.2 / Kotlin 2.0.0 / compileSdk 35 / JVM 17 / Compose BOM).
 
 ### minSdk 23 → 28 이유
 1. Pleos 요구: "API 28 이상 — 차량 사이버 보안 요건(사이닝 키 로테이션·리니지 지원)" (Pleos Connect Emulator 설치 및 실행 문서, 2번 `api-notes/sdk-setup.md`).
@@ -130,7 +157,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
    - 리스너 콜백 스레드는 확인하지 않았다 [미확인]. 값은 `MutableStateFlow`에 넣기만 하므로 스레드와 무관하다.
    - Moving(속도 > 0) 상태 값은 에뮬레이터에서 만들지 못했다 [미확인]. Park/Drive만 실측.
    - Drive 전환은 Virtual Console(브라우저) 조작이 필요해 자동 테스트(8절)에는 Park만 있다. Drive = `true/0x50`은 작업 #14a 프로브로 실측.
-2. **운전자 조건은 Room 에 저장된다(작업 #15, 서버 동기화는 아직 없음).** 앱을 다시 시작해도 남는다. 처음 설치 시에는 행이 없어 "조건 미설정"이라 판정을 하지 않는다(조건 입력 화면은 아직 없음).
+2. **운전자 조건은 Room 에 저장된다(작업 #15, 서버 동기화는 아직 없음).** 앱을 다시 시작해도 남는다. 처음 설치 시에는 행이 없어 "조건 미설정"이라 판정을 하지 않는다. 운전 조건 설정 화면(2.1절, 작업 #17)에서 [저장]을 눌러야 조건이 생긴다.
    - 테이블 `driver_conditions`: 단일 행(`id = 1`). 집합은 enum 이름을 쉼표로 이은 문자열(오름차순), 반경 중심은 위도·경도 두 열(둘 다 null 이거나 둘 다 값), `updatedAt`(epoch ms), `isSynced`. 필드는 2번 `DriverCondition`·`docs/pleos/contracts/driver-condition-api.md` §4 그대로.
    - 포트 규칙(계약 §5.4): 행 없음 → `observeCondition()` = `Available(null)`, `getCondition()` = `Unavailable(NO_DATA)`. 해제 저장(빈 조건) → 행이 남아 `Available(DriverCondition())`. DB 오류·모르는 enum·범위 밖 값 → `Unavailable(SERVICE_ERROR)`(건너뛰거나 null 로 내보내지 않음).
    - **DB 버전 1 → 2.** `MIGRATION_1_2`는 `driver_conditions` 테이블만 만든다 → 기존 `reaction_scores`·`intervention_histories` 기록은 유지된다. `fallbackToDestructiveMigration()`은 그대로라 **마이그레이션이 없는 버전 조합(예: 다음에 v3를 만들면서 2→3 마이그레이션을 빠뜨림)에서는 전부 지워진다.** 스키마를 바꿀 때는 `Migration`을 추가하고, SQL은 빌드 후 `app/build/generated/ksp/debug/java/.../AppDatabase_Impl.java`의 `CREATE TABLE`과 같게 맞춘다(`AppDatabaseMigrationTest`가 검증).
