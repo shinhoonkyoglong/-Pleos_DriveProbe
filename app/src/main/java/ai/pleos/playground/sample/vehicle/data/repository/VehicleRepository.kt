@@ -1,12 +1,16 @@
 package ai.pleos.playground.sample.vehicle.data.repository
 
 import ai.pleos.playground.sample.vehicle.data.model.DrivingState
+import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.data.model.HvacControlCommand
+import ai.pleos.playground.sample.vehicle.data.model.TurnSignalState
 import ai.pleos.playground.sample.vehicle.data.model.VehicleDriveData
+import ai.pleos.playground.sample.vehicle.data.model.VehicleSignalEvent
 import ai.pleos.playground.sample.vehicle.data.model.WindowControlCommand
 import ai.pleos.playground.vehicle.constant.area.SeatValue
 import ai.pleos.playground.vehicle.constant.area.WindowValue
 import ai.pleos.playground.vehicle.constant.unit.TemperatureUnit
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -29,6 +33,37 @@ interface VehicleRepository {
 
     /** 현재 차량 주행 상태 (정차 중 / 주행 중 / 종료) */
     val drivingState: StateFlow<DrivingState>
+
+    // -------------------------------------------------------------------------
+    // 3번 포지션 확장 (컨디션 판단: 유효 구간 판정, 반응 체크 시작 조건)
+    // -------------------------------------------------------------------------
+
+    /** 기어 위치 (AAOS GEAR_SELECTION). 아직 못 받았으면 UNKNOWN */
+    val gear: StateFlow<GearPosition>
+
+    /** 방향지시등 (Pleos SDK TurnSignal) */
+    val turnSignal: StateFlow<TurnSignalState>
+
+    /** 브레이크 페달 밟음 여부 (Pleos SDK Brake) */
+    val brakePressed: StateFlow<Boolean>
+
+    /**
+     * 실제 속도를 한 번이라도 받았는지. false면 [vehicleSpeed]의 0은 "정지"가 아니라 "모름"이다.
+     * (CAR_SPEED 권한이 없거나 Car API를 못 쓰는 경우)
+     */
+    val hasSpeedSignal: StateFlow<Boolean>
+
+    /**
+     * 모든 차량 신호 콜백을 하나도 빠짐없이 흘려보내는 스트림 (같은 값 재전송 포함).
+     * StateFlow는 같은 값을 다시 내보내지 않고 느린 수신자는 중간 값을 건너뛰므로, 신호를 하나하나 써야 하면 이것을 구독한다.
+     */
+    val signalEvents: SharedFlow<VehicleSignalEvent>
+
+    /**
+     * AAOS 속도·기어 구독을 (다시) 시작한다. CAR_SPEED 권한을 허용받은 직후 한 번 불러 주면 속도가 들어오기 시작한다.
+     * @return 속도 구독 중이면 true
+     */
+    fun startCarPropertyUpdates(): Boolean
 
 
     // =========================================================================
@@ -95,6 +130,15 @@ interface VehicleRepository {
 
     /** 주행 상태 강제 변경 */
     fun setDrivingState(state: DrivingState)
+
+    /** 가짜 기어 주입 */
+    fun injectMockGear(gear: GearPosition)
+
+    /** 가짜 방향지시등 주입 */
+    fun injectMockTurnSignal(state: TurnSignalState)
+
+    /** 가짜 브레이크 주입 */
+    fun injectMockBrake(pressed: Boolean)
 
     /** 수명주기 초기화 및 해제 */
     fun initialize(): Boolean

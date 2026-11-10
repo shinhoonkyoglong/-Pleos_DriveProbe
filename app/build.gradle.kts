@@ -61,6 +61,20 @@ buildTypes {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // [컨디션 판단] 속도·기어는 AAOS 표준 Car API(CarPropertyManager)로 받는다 (Pleos SDK에 없음)
+    useLibrary("android.car")
+
+    // [컨디션 판단] 단위 테스트 옵션
+    //  -PwriteDemo=true      : 시연 파일(assets/condition/*.json)을 생성기로 다시 만든다
+    //  -PshowTestOutput=true : 테스트의 println(결과 표)을 콘솔에 출력한다
+    testOptions {
+        unitTests.all {
+            it.systemProperty("conditionAssetsDir", file("src/main/assets/condition").absolutePath)
+            it.systemProperty("writeDemo", project.findProperty("writeDemo") ?: "false")
+            it.testLogging { showStandardStreams = project.findProperty("showTestOutput") == "true" }
+        }
+    }
 }
 
 dependencies {
