@@ -6,6 +6,8 @@ import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepository
 import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryImpl
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepository
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepositoryImpl
+import ai.pleos.playground.sample.vehicle.departure.DriveProbeDeparture
+import com.pleos.departure.DepartureFeature
 
 /**
  * 전역 의존성(Repository, Database) 관리 Application 클래스
@@ -21,6 +23,14 @@ class DriveProbeApplication : Application() {
     lateinit var naviHelperRepository: NaviHelperRepository
         private set
 
+    /**
+     * 2번 '출발 전'(출발 마감·반경 확인·무료도로 확인) 진입점. 처음 접근할 때 만든다.
+     * 사용: `departureFeature.createSession(scope)` → `session.state` 관찰. docs/departure/README.md 참고.
+     */
+    val departureFeature: DepartureFeature by lazy {
+        DriveProbeDeparture.createFeature(vehicleRepository, naviHelperRepository)
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -34,7 +44,7 @@ class DriveProbeApplication : Application() {
         }
 
         // 3. NaviHelper Repository 초기화
-        naviHelperRepository = NaviHelperRepositoryImpl()
+        naviHelperRepository = NaviHelperRepositoryImpl(this) // context: NaviHelper SDK 연결용(조회 계열)
     }
 
     override fun onTerminate() {
