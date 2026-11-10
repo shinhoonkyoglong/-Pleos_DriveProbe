@@ -1,0 +1,118 @@
+package ai.pleos.playground.sample.vehicle.departure
+
+import com.pleos.departure.model.DriverCondition
+import com.pleos.departure.model.GeoPoint
+import com.pleos.departure.model.RouteConstraint
+import com.pleos.departure.model.RoutePreference
+import com.pleos.departure.model.TimeConstraint
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** 설정 화면 입력값: 기본값, 저장값 → 입력값, 검증(계약 §4.2), 저장 변환, 반경 [+]/[-] */
+class DriverConditionFormTest {
+
+    private val center = GeoPoint(latitude = 37.5563, longitude = 126.9236)
+    private val valid = DriverConditionForm.defaults().copy(centerLatitude = center.latitude, centerLongitude = center.longitude)
+
+    @Test
+    fun defaults_matchDecidedValues_andHaveNoCenter() {
+        val form = DriverConditionForm.defaults()
+        assertTrue(form.noNightDriving)
+        assertTrue(form.preferTollFree)
+        assertFalse(form.avoidHighway)
+        assertEquals(50.0, form.radiusKm!!, 0.0)
+        assertFalse(form.hasCenter)
+        assertTrue(form.validate().isEmpty()) // 중심 없음도 저장 가능(반경 확인 "확인 불가", 계약 §4.3)
+    }
+
+    @Test
+    fun toCondition_defaultsWithCenter_mapsToContractModel() {
+        assertEquals(
+            DriverCondition(
+                timeConstraints = setOf(TimeConstraint.NO_NIGHT_DRIVING),
+                routePreference = RoutePreference.of(RouteConstraint.PREFER_TOLL_FREE),
+                radiusCenter = center,
+                allowedRadiusMeters = 50_000.0,
+            ),
+            valid.toCondition()
+        )
+    }
+
+    @Test
+    fun toCondition_allOff_noCenter_isEmptyConstraintsWithRadius() {
+        val form = valid.copy(noNightDriving = false, preferTollFree = false, avoidHighway = true, centerLatitude = null, centerLongitude = null)
+        assertEquals(
+            DriverCondition(
+                timeConstraints = emptySet(),
+                routePreference = RoutePreference.of(RouteConstraint.AVOID_HIGHWAY),
+                radiusCenter = null,
+                allowedRadiusMeters = 50_000.0,
+            ),
+            form.toCondition()
+        )
+    }
+
+    @Test
+    fun from_savedCondition_roundTrips() {
+        val saved = valid.copy(avoidHighway = true, radiusKm = 12.5).toCondition()
+        val form = DriverConditionForm.from(saved, defaultAllowedRadiusMeters = 10_000.0)
+        assertEquals(valid.copy(avoidHighway = true, radiusKm = 12.5), form)
+        assertEquals(saved, form.toCondition())
+    }
+
+    @Test
+    fun from_savedWithoutRadius_showsAppDefaultRadius() {
+        val form = DriverConditionForm.from(DriverCondition(), defaultAllowedRadiusMeters = 10_000.0)
+        assertEquals(10.0, form.radiusKm!!, 0.0)
+        assertFalse(form.noNightDriving)
+        assertFalse(form.preferTollFree)
+    }
+
+    @Test
+    fun validate_radiusBoundaries() {
+        assertEquals(listOf(DriverConditionFormError.RADIUS_MISSING), valid.copy(radiusKm = null).validate())
+        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = 0.0).validate())
+        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = -5.0).validate())
+        assertTrue(valid.copy(radiusKm = 0.1).validate().isEmpty())
+        assertTrue(valid.copy(radiusKm = 300.0).validate().isEmpty())
+        assertEquals(listOf(DriverConditionFormError.RADIUS_TOO_LARGE), valid.copy(radiusKm = 300.1).validate())
+    }
+
+    @Test
+    fun validate_centerBothOrNeither() {
+        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLongitude = null).validate())
+        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLatitude = null).validate())
+        assertTrue(valid.copy(centerLatitude = null, centerLongitude = null).validate().isEmpty())
+        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLatitude = 90.5).validate())
+        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLongitude = -180.5).validate())
+        assertTrue(valid.copy(centerLatitude = 90.0, centerLongitude = -180.0).validate().isEmpty())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun toCondition_invalid_throws() {
+        valid.copy(radiusKm = 0.0).toCondition()
+    }
+
+    @Test
+    fun radiusStepper_movesOnFiveKmGrid_andStopsAtLimits() {
+        assertEquals(55.0, valid.increaseRadius().radiusKm!!, 0.0)
+        assertEquals(45.0, valid.decreaseRadius().radiusKm!!, 0.0)
+        assertEquals(15.0, valid.copy(radiusKm = 12.3).increaseRadius().radiusKm!!, 0.0)
+        assertEquals(10.0, valid.copy(radiusKm = 12.3).decreaseRadius().radiusKm!!, 0.0)
+        // 하한: 5 km 아래로는 내리지 않는다
+        val five = valid.copy(radiusKm = 5.0)
+        assertEquals(five, five.decreaseRadius())
+        assertFalse(five.canDecreaseRadius())
+        assertEquals(5.0, valid.copy(radiusKm = 7.0).decreaseRadius().radiusKm!!, 0.0)
+        // 상한: 300 km 에서 멈추고, 저장된 이상값(500)은 [-] 한 번에 300 으로
+        val max = valid.copy(radiusKm = 300.0)
+        assertEquals(max, max.increaseRadius())
+        assertFalse(max.canIncreaseRadius())
+        assertEquals(300.0, valid.copy(radiusKm = 298.0).increaseRadius().radiusKm!!, 0.0)
+        assertEquals(300.0, valid.copy(radiusKm = 500.0).decreaseRadius().radiusKm!!, 0.0)
+        // 값이 없으면 기본값으로 채운다
+        assertEquals(50.0, valid.copy(radiusKm = null).increaseRadius().radiusKm!!, 0.0)
+    }
+}

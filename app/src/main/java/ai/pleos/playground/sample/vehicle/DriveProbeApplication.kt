@@ -10,6 +10,7 @@ import ai.pleos.playground.sample.vehicle.departure.DriveProbeDeparture
 import ai.pleos.playground.sample.vehicle.departure.RoomDriverConditionRepository
 import com.pleos.departure.DepartureConfig
 import com.pleos.departure.DepartureFeature
+import com.pleos.departure.port.DriverConditionRepository
 import java.time.Clock
 
 /**
@@ -26,20 +27,30 @@ class DriveProbeApplication : Application() {
     lateinit var naviHelperRepository: NaviHelperRepository
         private set
 
+    /** 2번 '출발 전' 동작 수치. departureFeature 와 운전자 조건 설정 화면이 같은 값을 쓴다 */
+    val departureConfig: DepartureConfig by lazy { DepartureConfig() }
+
+    private val departureClock: Clock by lazy { Clock.system(departureConfig.timeZone) }
+
+    /**
+     * 운전자 조건 저장소(Room driver_conditions 테이블). departureFeature 와 운전자 조건 설정 화면(작업 #17)이 함께 쓴다.
+     */
+    val driverConditionRepository: DriverConditionRepository by lazy {
+        RoomDriverConditionRepository(appDatabase.driverConditionDao(), departureClock)
+    }
+
     /**
      * 2번 '출발 전'(출발 마감·반경 확인·무료도로 확인) 진입점. 처음 접근할 때 만든다.
      * 사용: `departureFeature.createSession(scope)` → `session.state` 관찰. docs/departure/README.md 참고.
      * 운전자 조건은 Room(appDatabase 의 driver_conditions 테이블)에 저장된다.
      */
     val departureFeature: DepartureFeature by lazy {
-        val config = DepartureConfig()
-        val clock = Clock.system(config.timeZone)
         DriveProbeDeparture.createFeature(
             vehicleRepository = vehicleRepository,
             naviHelperRepository = naviHelperRepository,
-            config = config,
-            clock = clock,
-            driverConditionRepository = RoomDriverConditionRepository(appDatabase.driverConditionDao(), clock),
+            config = departureConfig,
+            clock = departureClock,
+            driverConditionRepository = driverConditionRepository,
         )
     }
 
