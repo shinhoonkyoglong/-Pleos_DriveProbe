@@ -243,11 +243,13 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 내비 조작(에뮬레이터, adb): 최근 목록 서울역 → "목적지로" → 미리보기 필터 버튼 → 경로 설정 시트 → 토글은 탭이 아니라 짧은 swipe(`input swipe 1375 361 1415 361 150`)로 켬(1회 성공) → "적용" → 후보 화면 "안내 시작".
 - 결과 (모두 통과, 실패 0):
 
+표는 2026-11-10 관측(작업 #19)이다. 판정 규칙은 작업 #27에서 바뀌었다: FREE + 통행료 0원만 충족, 모르면 `TollAvoidanceUnverified`.
+
 | 토글 | 실행 | `getRouteStateInfo()` | `ConditionRouteUseCase` (무료도로 선호) |
 |---|---|---|---|
 | 꺼짐 | gradle, `RECOMMENDED` | `ROUTE_GUIDING`, `routeOption=RECOMMENDED`, `tollFare=null`, 23km/3180초 | `NeedsUserAction[TURN_ON_TOLL_AVOIDANCE]`, `Guiding(RECOMMENDED, null)` |
 | 켬 | am instrument, `FREE` + 대기 150초 | `ROUTE_GUIDING`, `routeOption=FREE`, **`tollFare=0`**, 26km/5400초 | `Satisfied`, `Guiding(FREE, 0)`, notes 없음 |
-| 켬 | gradle, `FREE` (대기 없음) | `ROUTE_GUIDING`, `routeOption=FREE`, `tollFare=null` | `Satisfied`, notes `[TOLL_FARE_NOT_OBSERVED]` |
+| 켬 | gradle, `FREE` (대기 없음) | `ROUTE_GUIDING`, `routeOption=FREE`, `tollFare=null` | (#27 이전 판정) `Satisfied`, notes `[TOLL_FARE_NOT_OBSERVED]` → **#27부터 `TollAvoidanceUnverified`**(통행료 모르면 충족 아님, 해당 note 삭제) |
 
 - 해석: 사람이 켠 "유료도로 우회"는 새로 연결한 Repository 에서도 `routeOption=FREE`로 다시 읽힌다(주 신호). tollFare 는 Repository 가 `onRouteStarted`를 받았을 때만 채워지고(0), 이미 시작된 경로에 나중에 붙으면 null → 유스케이스는 충족 + `TOLL_FARE_NOT_OBSERVED`. 둘 다 api-notes §10.4 설계대로다.
 - 증거(로그 발췌·캡처 4장): 2번 저장소 `docs/pleos/api-notes/evidence/2026-11-10/task19/`.

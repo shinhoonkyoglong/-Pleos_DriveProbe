@@ -380,7 +380,7 @@ class DepartureDisplayMapperTest {
             snapshot(route = RouteConditionCheck.NeedsUserAction(dest, RouteState.Guiding(RouteOption.RECOMMENDED, 700), listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), emptyList())),
             DisplayContext(tollToggleNotYetApplied = true),
         ).route!!
-        assertTrue(r.card.lines.any { it.text.startsWith("아직 '유료도로 우회'가 적용되지 않았어요") })
+        assertTrue(r.card.lines.any { it.text.startsWith("아직 이번 경로에 '유료도로 우회'가 적용되지 않았어요") })
     }
 
     // ------------------------------------------------ 운전자 조건 (D-9)

@@ -3,6 +3,7 @@ package com.pleos.departure.ui.state
 import com.pleos.departure.DepartureFeature
 import com.pleos.departure.model.DataResult
 import com.pleos.departure.session.DepartureSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,7 +68,13 @@ class DepartureScreenModel(
     /** 사용자 [내비 설정 열기](작업 #28). 어댑터가 예외를 던져도 앱이 죽지 않게 실패로 바꾼다. */
     fun openNaviSettings() {
         scope.launch {
-            val result = runCatching { feature.openNaviSettings() }.getOrNull()
+            val result = try {
+                feature.openNaviSettings()
+            } catch (e: CancellationException) {
+                throw e // 화면 수명 종료는 실패로 보지 않는다
+            } catch (e: Exception) {
+                null
+            }
             _naviSettingsFailed.value = result !is DataResult.Available
         }
     }

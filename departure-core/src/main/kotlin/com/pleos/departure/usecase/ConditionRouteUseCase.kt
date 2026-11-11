@@ -83,7 +83,7 @@ class ConditionRouteUseCase(
                 RouteConditionCheck.NeedsUserAction(place, state, listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), highwayNote)
             state.appliedOption != RouteOption.FREE ->
                 RouteConditionCheck.OtherRouteOption(place, state, highwayNote)
-            toll == null ->
+            toll == null -> // 음수는 RouteState.Guiding 생성 시 막힌다(require tollFare >= 0)
                 RouteConditionCheck.TollAvoidanceUnverified(place, state, highwayNote)
             toll > 0 ->
                 RouteConditionCheck.NeedsUserAction(place, state, listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), highwayNote)

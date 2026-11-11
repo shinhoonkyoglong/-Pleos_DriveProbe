@@ -177,7 +177,7 @@ class DepartureScreenModelTest {
         assertTrue(m.content.route!!.showConfirmToggle)
         m.confirmTollAvoidanceTurnedOn()
         runCurrent()
-        assertTrue(m.content.route!!.card.lines.any { it.text.startsWith("아직 '유료도로 우회'가 적용되지 않았어요") })
+        assertTrue(m.content.route!!.card.lines.any { it.text.startsWith("아직 이번 경로에 '유료도로 우회'가 적용되지 않았어요") })
     }
 
     /** 주행 중이면 안내 문구를 띄우고 조작 안내를 비운다. 정차하면 되돌아온다. */
