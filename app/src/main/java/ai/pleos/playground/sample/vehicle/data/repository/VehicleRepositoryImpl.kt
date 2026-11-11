@@ -7,6 +7,8 @@ import ai.pleos.playground.sample.vehicle.data.model.DrivingState
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.data.model.HvacControlCommand
 import ai.pleos.playground.sample.vehicle.data.model.TurnSignalState
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionState
 import ai.pleos.playground.sample.vehicle.data.model.VehicleDriveData
 import ai.pleos.playground.sample.vehicle.data.model.VehicleSignalEvent
 import ai.pleos.playground.sample.vehicle.data.model.WindowControlCommand
@@ -79,6 +81,11 @@ class VehicleRepositoryImpl(
         onGearRaw = { t, raw -> onGear(t, GearPosition.fromAaos(raw)) },
     )
 
+    // 주행 중 UX 제한(CarUxRestrictions). 첫 값을 읽기 전엔 null
+    private val _uxRestriction = MutableStateFlow<UxRestrictionState?>(null)
+    override val uxRestriction: StateFlow<UxRestrictionState?> = _uxRestriction.asStateFlow()
+    private var uxRestrictionsMonitor: CarUxRestrictionsMonitor? = null
+
     private val steeringWheelListener = object : SteeringWheelAngleListener {
         override fun onSteeringWheelAngleUpdated(angle: Float?) {
             // null은 "값 없음"이다. 0°(직진)로 바꾸면 신호 끊김이 직진으로 보이므로 무시한다
@@ -119,6 +126,9 @@ class VehicleRepositoryImpl(
     }
 
     override fun initialize(): Boolean {
+        // CarUxRestrictions 는 Vehicle SDK 와 별개(AAOS car service)라 Vehicle SDK 성공 여부와 무관하게 먼저 연결한다
+        startUxRestrictions()
+
         if (isInitialized) return true
 
         // AAOS 속도·기어 (Pleos SDK와 별개라 SDK 초기화가 실패해도 시도한다)
@@ -157,9 +167,37 @@ class VehicleRepositoryImpl(
         }
     }
 
+    /**
+     * CarUxRestrictions 구독 시작. 실패(자동차 아닌 기기·android.car 없음 등)하면 Mock 값 대신
+     * UNAVAILABLE(제한 쪽) 상태를 넣는다 — enableMockFallback 이어도 "제한 없음" 을 지어내지 않는다.
+     */
+    private fun startUxRestrictions() {
+        if (uxRestrictionsMonitor != null) return
+        try {
+            val monitor = CarUxRestrictionsMonitor(appContext) { state -> _uxRestriction.value = state }
+            uxRestrictionsMonitor = monitor
+            if (!monitor.start()) {
+                Log.w(tag, "CarUxRestrictions unavailable. Reporting restricted (fallback).")
+                uxRestrictionsMonitor = null // 다음 initialize() 때 다시 시도
+            }
+        } catch (t: Throwable) {
+            Log.w(tag, "CarUxRestrictions init failed. Reporting restricted (fallback): ${t.message}")
+            uxRestrictionsMonitor = null
+            _uxRestriction.value = UxRestrictionState.unavailable()
+        }
+    }
+
     override fun startCarPropertyUpdates(): Boolean = carProperties.start()
 
     override fun release() {
+        try {
+            uxRestrictionsMonitor?.stop()
+        } catch (t: Throwable) {
+            Log.w(tag, "CarUxRestrictions release error: ${t.message}")
+        } finally {
+            uxRestrictionsMonitor = null
+        }
+
         try {
             vehicle?.getSteeringWheel()?.unregisterSteeringWheelAngle(steeringWheelListener)
         } catch (e: Exception) {
@@ -415,6 +453,14 @@ class VehicleRepositoryImpl(
 
     override fun setDrivingState(state: DrivingState) {
         _drivingState.value = state
+    }
+
+    override fun injectMockUxRestriction(requiresDistractionOptimization: Boolean, activeRestrictions: Int) {
+        _uxRestriction.value = UxRestrictionState(
+            requiresDistractionOptimization = requiresDistractionOptimization,
+            activeRestrictions = activeRestrictions,
+            source = UxRestrictionSource.MOCK
+        )
     }
 
     override fun injectMockGear(gear: GearPosition) {

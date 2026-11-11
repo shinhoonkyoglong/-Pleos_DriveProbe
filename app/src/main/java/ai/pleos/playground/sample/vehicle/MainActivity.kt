@@ -1,5 +1,7 @@
 package ai.pleos.playground.sample.vehicle
 
+import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewModel
+import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
 import android.content.BroadcastReceiver
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val viewModel: MainViewModel by viewModels()
+    private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
 
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
     private val carSpeedPermissionLauncher =
@@ -91,7 +94,14 @@ class MainActivity : ComponentActivity() {
                     onStartUpdates = viewModel::startFeatureUpdates,
                     onStopUpdates = viewModel::stopFeatureUpdates,
                     onBackToFeatureList = viewModel::backToFeatureList,
-                    onDismissError = viewModel::dismissError
+                    onDismissError = viewModel::dismissError,
+                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                    driverConditionSettings = {
+                        DriverConditionSettingsScreen(
+                            viewModel = driverConditionViewModel,
+                            onBack = viewModel::closeDriverConditionSettings
+                        )
+                    }
                 )
             }
         }

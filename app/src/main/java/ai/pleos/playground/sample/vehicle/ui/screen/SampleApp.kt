@@ -32,7 +32,9 @@ fun SampleApp(
     onStartUpdates: (Map<String, String>) -> Unit,
     onStopUpdates: (Map<String, String>) -> Unit,
     onBackToFeatureList: () -> Unit,
-    onDismissError: () -> Unit
+    onDismissError: () -> Unit,
+    onOpenDriverCondition: () -> Unit = {},
+    driverConditionSettings: @Composable () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.errorMessage) {
@@ -62,8 +64,10 @@ fun SampleApp(
                 onStartUpdates = onStartUpdates,
                 onStopUpdates = onStopUpdates,
                 onBackToFeatureList = onBackToFeatureList,
-                onDismissFeatureError = onDismissError
+                onDismissFeatureError = onDismissError,
+                onOpenDriverCondition = onOpenDriverCondition
             )
+            AppPage.DRIVER_CONDITION_SETTINGS -> driverConditionSettings()
         }
 
         SnackbarHost(

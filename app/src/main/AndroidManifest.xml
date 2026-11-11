@@ -43,6 +43,10 @@
     <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_WINDSHIELD_WIPERS" />
 
+    <!-- NaviHelper 조회(getDestinationInfo·getRouteStateInfo·getCurrentLocationInfo·requestTrip) — 2번 출발 전 연동. protectionLevel="normal".
+         requestRoute 등 경로 설정용 NAVI_ROUTE_SEARCH 는 SDK 로 호출하는 곳이 없어 선언하지 않는다(필요한 권한만 선언 — Pleos 심사 정책). -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+
     <application
         android:name=".DriveProbeApplication"
         android:allowBackup="false"
@@ -53,6 +57,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.VehicleSampleApp">
+        <!-- AAOS CarUxRestrictions(주행 중 UX 제한) 사용. 권한 불필요(에뮬레이터 실측). 없는 기기에서도 설치되도록 required=false -->
+        <uses-library android:name="android.car" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

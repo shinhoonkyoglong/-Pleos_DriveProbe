@@ -72,7 +72,8 @@ fun ApiCatalogScreen(
     onStartUpdates: (Map<String, String>) -> Unit,
     onStopUpdates: (Map<String, String>) -> Unit,
     onBackToFeatureList: () -> Unit,
-    onDismissFeatureError: () -> Unit
+    onDismissFeatureError: () -> Unit,
+    onOpenDriverCondition: () -> Unit = {}
 ) {
     val selectedFeature = uiState.apiFeatures.firstOrNull {
         it.id == uiState.selectedFeatureId
@@ -125,7 +126,8 @@ fun ApiCatalogScreen(
         ) {
             CatalogHeader(
                 runtimeVersions = uiState.runtimeVersions,
-                isInitialized = uiState.isInitialized
+                isInitialized = uiState.isInitialized,
+                onOpenDriverCondition = onOpenDriverCondition
             )
             BoxWithConstraints(
                 modifier = Modifier
@@ -249,7 +251,11 @@ private fun CompactDomainMenuButton(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CatalogHeader(runtimeVersions: RuntimeVersions, isInitialized: Boolean) {
+private fun CatalogHeader(
+    runtimeVersions: RuntimeVersions,
+    isInitialized: Boolean,
+    onOpenDriverCondition: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("catalog-header"),
         shape = RoundedCornerShape(16.dp),
@@ -268,6 +274,7 @@ private fun CatalogHeader(runtimeVersions: RuntimeVersions, isInitialized: Boole
                     VersionChip(label = "SDK", version = runtimeVersions.sdkVersion)
                     VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
                     ReadyPill(isInitialized)
+                    DriverConditionEntryButton(onOpenDriverCondition)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -285,10 +292,22 @@ private fun CatalogHeader(runtimeVersions: RuntimeVersions, isInitialized: Boole
                     ) {
                         VersionChip(label = "SDK", version = runtimeVersions.sdkVersion)
                         VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
+                        DriverConditionEntryButton(onOpenDriverCondition)
                     }
                 }
             }
         }
+    }
+}
+
+/** 2번 '출발 전' 운전자 조건 설정 화면으로 가는 버튼(작업 #17) */
+@Composable
+private fun DriverConditionEntryButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 48.dp).testTag("open-driver-condition")
+    ) {
+        Text(text = "운전 조건 설정", style = MaterialTheme.typography.labelLarge)
     }
 }
 

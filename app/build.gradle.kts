@@ -13,10 +13,10 @@ val sampleVersionPatch = 0
 android {
     namespace = "ai.pleos.playground.sample.vehicle"
     compileSdk = targetAndroidSdk
-
     defaultConfig {
         applicationId = "ai.pleos.playground.sample.vehicle.diagnostic"
-        minSdk = 23
+        // 23 → 28: Pleos SDK 요구(API 28 이상) + 2번 :departure-core 의 java.time(API 26+) 사용
+        minSdk = 28
         targetSdk = targetAndroidSdk
         versionCode =
             targetAndroidSdk * 1_000_000 +
@@ -63,6 +63,7 @@ buildTypes {
     }
 
     // [컨디션 판단] 속도·기어는 AAOS 표준 Car API(CarPropertyManager)로 받는다 (Pleos SDK에 없음)
+    // [출발 전] 주행 중 UX 제한(CarUxRestrictionsManager)도 같은 android.car 스텁을 쓴다(MyApplication/docs/pleos/api-notes/vehicle-state.md §13.1)
     useLibrary("android.car")
 
     // [컨디션 판단] 단위 테스트 옵션
@@ -80,6 +81,9 @@ buildTypes {
 dependencies {
     implementation(libs.vehicle.sdk)
     implementation(libs.kotlin.reflect)
+    // 2번 출발 전 연동: NaviHelper SDK(내비 목적지·경로 상태·ETA·위치 조회) + 핵심 로직 모듈
+    implementation(libs.navihelper.sdk)
+    implementation(project(":departure-core"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

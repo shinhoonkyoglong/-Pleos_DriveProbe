@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- debug 빌드 전용: 에뮬레이터 스모크 테스트(androidTest/.../NaviHelperQuerySmokeTest)가 테스트 안에서
+         NaviHelper requestRoute/cancelRoute 로 목적지를 설정·취소하는 데 필요하다.
+         계측 테스트는 앱 프로세스(앱 uid)에서 돌므로 androidTest 매니페스트가 아니라 앱 debug 매니페스트에 선언해야 한다.
+         실측(2026-11-10): 미선언 시 requestRoute 가 SecurityException("Permission [pleos.car.permission.NAVI_ROUTE_SEARCH] is required").
+         앱 코드는 경로를 설정하지 않으므로 release(main) 매니페스트에는 선언하지 않는다(필요한 권한만 선언 — Pleos 심사 정책). -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+
+</manifest>
