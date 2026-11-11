@@ -29,7 +29,7 @@ class DemoAssetsTest {
         files.forEach { (name, text) ->
             val f = File(dir, name)
             assertTrue("$name 없음 → -PwriteDemo=true 로 생성", f.exists())
-            assertEquals("$name 이 생성기와 다름 → -PwriteDemo=true 로 다시 생성", text, f.readText(Charsets.UTF_8))
+            assertEquals("$name 이 생성기와 다름 → -PwriteDemo=true 로 다시 생성", text, f.readText(Charsets.UTF_8).replace("\r\n", "\n"))
         }
     }
 

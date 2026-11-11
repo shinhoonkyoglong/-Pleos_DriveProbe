@@ -38,7 +38,7 @@ data class HvacControlCommand(
 
 /**
  * 창문 제어 파라미터
- * @param position 0: 완전히 닫힘 ~ 100: 완전히 열림 (차량 사양에 따라 변동)
+ * @param position Raw SDK position in the target area capability range (not percent).
  */
 data class WindowControlCommand(
     val targetArea: WindowValue = WindowValue.ROW_1_LEFT,

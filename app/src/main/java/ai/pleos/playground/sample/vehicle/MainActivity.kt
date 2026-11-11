@@ -3,6 +3,21 @@ package ai.pleos.playground.sample.vehicle
 import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewModel
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
+import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
+import ai.pleos.playground.sample.vehicle.data.model.GearPosition
+import android.Manifest
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -30,7 +45,6 @@ class MainActivity : ComponentActivity() {
     private val diagnosticTick = object : Runnable {
         override fun run() {
             Log.i("DriveProbe", "heartbeat count=${++diagnosticCount}")
-            viewModel.probeTemperatureRead()
             // Temperature SET_TEST remains available in the ViewModel, but is never automatic.
             diagnosticHandler.postDelayed(this, 5000)
         }
@@ -61,6 +75,11 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
 
+    private val microphonePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Log.i("Intervention", "RECORD_AUDIO granted=$granted")
+        }
+
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
     private val carSpeedPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -81,28 +100,53 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+            val app = DriveProbeApplication.instance
+            val intervention = app.interventions.controller.status.collectAsStateWithLifecycle().value
+            val latest = remember(app) { app.appDatabase.interventionHistoryDao().getLatestIntervention() }
+                .collectAsStateWithLifecycle(initialValue = null).value
+            val gear = app.vehicleRepository.gear.collectAsStateWithLifecycle().value
+            var showIntervention by rememberSaveable { mutableStateOf(false) }
 
             VehicleSampleAppTheme {
-                SampleApp(
-                    uiState = uiState,
-                    onOpenDomain = viewModel::showApiExplorer,
-                    onSelectFeature = viewModel::selectFeature,
-                    onSearchFeatures = viewModel::searchFeatures,
-                    onRunCapability = viewModel::runFeatureCapability,
-                    onRunRead = viewModel::runFeatureRead,
-                    onRunSet = viewModel::runFeatureSet,
-                    onStartUpdates = viewModel::startFeatureUpdates,
-                    onStopUpdates = viewModel::stopFeatureUpdates,
-                    onBackToFeatureList = viewModel::backToFeatureList,
-                    onDismissError = viewModel::dismissError,
-                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
-                    driverConditionSettings = {
-                        DriverConditionSettingsScreen(
-                            viewModel = driverConditionViewModel,
-                            onBack = viewModel::closeDriverConditionSettings
-                        )
+                Column {
+                    Row(Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { showIntervention = false }) { Text("차량 API") }
+                        TextButton(onClick = { showIntervention = true }) { Text("개입 상태") }
                     }
-                )
+                    Box(Modifier.weight(1f)) {
+                        if (showIntervention) {
+                            InterventionScreen(
+                                status = intervention,
+                                latest = latest,
+                                parked = gear == GearPosition.PARK,
+                                onEnabled = app.interventions.controller::setEnabled,
+                                onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                onSimulate = app.interventions.controller::simulate,
+                            )
+                        } else {
+                            SampleApp(
+                                uiState = uiState,
+                                onOpenDomain = viewModel::showApiExplorer,
+                                onSelectFeature = viewModel::selectFeature,
+                                onSearchFeatures = viewModel::searchFeatures,
+                                onRunCapability = viewModel::runFeatureCapability,
+                                onRunRead = viewModel::runFeatureRead,
+                                onRunSet = viewModel::runFeatureSet,
+                                onStartUpdates = viewModel::startFeatureUpdates,
+                                onStopUpdates = viewModel::stopFeatureUpdates,
+                                onBackToFeatureList = viewModel::backToFeatureList,
+                                onDismissError = viewModel::dismissError,
+                                onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                                driverConditionSettings = {
+                                    DriverConditionSettingsScreen(
+                                        viewModel = driverConditionViewModel,
+                                        onBack = viewModel::closeDriverConditionSettings
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
