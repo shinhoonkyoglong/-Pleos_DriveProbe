@@ -73,7 +73,7 @@ fun ApiCatalogScreen(
     onStopUpdates: (Map<String, String>) -> Unit,
     onBackToFeatureList: () -> Unit,
     onDismissFeatureError: () -> Unit,
-    onOpenDriverCondition: () -> Unit = {}
+    onGoHome: () -> Unit = {}
 ) {
     val selectedFeature = uiState.apiFeatures.firstOrNull {
         it.id == uiState.selectedFeatureId
@@ -127,7 +127,7 @@ fun ApiCatalogScreen(
             CatalogHeader(
                 runtimeVersions = uiState.runtimeVersions,
                 isInitialized = uiState.isInitialized,
-                onOpenDriverCondition = onOpenDriverCondition
+                onGoHome = onGoHome
             )
             BoxWithConstraints(
                 modifier = Modifier
@@ -254,7 +254,7 @@ private fun CompactDomainMenuButton(
 private fun CatalogHeader(
     runtimeVersions: RuntimeVersions,
     isInitialized: Boolean,
-    onOpenDriverCondition: () -> Unit
+    onGoHome: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("catalog-header"),
@@ -274,7 +274,7 @@ private fun CatalogHeader(
                     VersionChip(label = "SDK", version = runtimeVersions.sdkVersion)
                     VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
                     ReadyPill(isInitialized)
-                    DriverConditionEntryButton(onOpenDriverCondition)
+                    HomeEntryButton(onGoHome)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -292,7 +292,7 @@ private fun CatalogHeader(
                     ) {
                         VersionChip(label = "SDK", version = runtimeVersions.sdkVersion)
                         VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
-                        DriverConditionEntryButton(onOpenDriverCondition)
+                        HomeEntryButton(onGoHome)
                     }
                 }
             }
@@ -300,14 +300,14 @@ private fun CatalogHeader(
     }
 }
 
-/** 2번 '출발 전' 운전자 조건 설정 화면으로 가는 버튼(작업 #17) */
+/** 앱 홈으로 돌아가는 버튼(작업 #25). 운전 조건 설정은 홈에서 연다(작업 #17의 이 자리 버튼을 대체) */
 @Composable
-private fun DriverConditionEntryButton(onClick: () -> Unit) {
+private fun HomeEntryButton(onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
-        modifier = Modifier.heightIn(min = 48.dp).testTag("open-driver-condition")
+        modifier = Modifier.heightIn(min = 48.dp).testTag("go-home")
     ) {
-        Text(text = "운전 조건 설정", style = MaterialTheme.typography.labelLarge)
+        Text(text = "← 홈", style = MaterialTheme.typography.labelLarge)
     }
 }
 

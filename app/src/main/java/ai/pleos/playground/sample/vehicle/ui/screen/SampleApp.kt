@@ -33,7 +33,9 @@ fun SampleApp(
     onStopUpdates: (Map<String, String>) -> Unit,
     onBackToFeatureList: () -> Unit,
     onDismissError: () -> Unit,
-    onOpenDriverCondition: () -> Unit = {},
+    onGoHome: () -> Unit = {},
+    home: @Composable () -> Unit = {},
+    departureDetail: @Composable () -> Unit = {},
     driverConditionSettings: @Composable () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -52,7 +54,8 @@ fun SampleApp(
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (uiState.page) {
-            AppPage.HOME,
+            AppPage.HOME -> home()
+            AppPage.DEPARTURE_DETAIL -> departureDetail()
             AppPage.API_EXPLORER -> ApiCatalogScreen(
                 uiState = uiState,
                 onSelectDomain = onOpenDomain,
@@ -65,7 +68,7 @@ fun SampleApp(
                 onStopUpdates = onStopUpdates,
                 onBackToFeatureList = onBackToFeatureList,
                 onDismissFeatureError = onDismissError,
-                onOpenDriverCondition = onOpenDriverCondition
+                onGoHome = onGoHome
             )
             AppPage.DRIVER_CONDITION_SETTINGS -> driverConditionSettings()
         }

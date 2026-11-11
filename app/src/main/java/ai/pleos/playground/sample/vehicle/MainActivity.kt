@@ -1,6 +1,9 @@
 package ai.pleos.playground.sample.vehicle
 
+import ai.pleos.playground.sample.vehicle.departure.DepartureHomeViewModel
 import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewModel
+import ai.pleos.playground.sample.vehicle.ui.screen.DepartureDetailScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.DepartureHomeScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
@@ -60,6 +63,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
+    private val departureHomeViewModel: DepartureHomeViewModel by viewModels()
 
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
     private val carSpeedPermissionLauncher =
@@ -95,7 +99,21 @@ class MainActivity : ComponentActivity() {
                     onStopUpdates = viewModel::stopFeatureUpdates,
                     onBackToFeatureList = viewModel::backToFeatureList,
                     onDismissError = viewModel::dismissError,
-                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                    onGoHome = viewModel::showHome,
+                    home = {
+                        DepartureHomeScreen(
+                            model = departureHomeViewModel.model,
+                            onOpenDepartureDetail = viewModel::showDepartureDetail,
+                            onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                            onOpenApiExplorer = viewModel::openApiExplorer
+                        )
+                    },
+                    departureDetail = {
+                        DepartureDetailScreen(
+                            model = departureHomeViewModel.model,
+                            onBack = viewModel::showHome
+                        )
+                    },
                     driverConditionSettings = {
                         DriverConditionSettingsScreen(
                             viewModel = driverConditionViewModel,

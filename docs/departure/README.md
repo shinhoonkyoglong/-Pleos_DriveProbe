@@ -11,6 +11,7 @@
 | 위치 | 내용 |
 |---|---|
 | `departure-core/` (신규 모듈) | 순수 Kotlin/JVM 모듈. Android·Pleos 의존성 없음(코루틴 + `java.time`만). 일몰 계산, 출발 마감, 반경 확인, 무료도로 확인, 확인 세션(`DepartureSession`). 단위 테스트 147건 |
+| `departure-ui/` (신규 모듈, 작업 #25) | 2번 화면(Compose). `:departure-core`에만 의존. 원본은 2번 저장소 `MyApplication/departure-ui`, `build.gradle.kts`만 1번 환경(AGP 8.8.2·Compose BOM 2024.04.01·JVM 17)에 맞춤. 홈 카드 `DepartureHomeCard`, 전체 화면 `DepartureScreen`, 문구 `DepartureDisplayMapper` |
 | `app/.../data/repository/NaviHelperRepository(.kt / Impl.kt)` | **조회 계열 멤버 추가**(기존 멤버는 그대로): `currentDestination`, `currentRouteState`, `getDestinationInfo()`, `getRouteStateInfo()`, `requestTrip(...)`, `getCurrentLocation()`, `injectMockDestination()`, `injectMockRouteOption()`. 실제 NaviHelper SDK를 호출하고, 서비스 연결이 안 되면 `VehicleRepositoryImpl`처럼 Mock Fallback |
 | `app/.../data/model/NaviModels.kt` | 모델 추가: `NaviLocation`, `NaviDestinationInfo`, `NaviMode`, `NaviRouteState`, `NaviTripInfo`, `NaviHelperException`(실패 사유 구분) |
 | `app/.../departure/` (신규 패키지) | 2번 core 포트 ↔ 1번 Repository 어댑터, 조립 코드 `DriveProbeDeparture`, 변환 규칙 `DepartureMappers` |
@@ -52,13 +53,32 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 동작 수치(출발 여유 30분, 기본 반경 10km, 경고 임계값, 콜백 타임아웃 등)는 `DepartureConfig` 하나에 있다. 바꾸려면 `DriveProbeDeparture.createFeature(..., config = DepartureConfig().copy(...))`.
 - **`createFeature`의 `driverConditionRepository` 인자는 필수다(작업 #15에서 기본값 제거 — 공개 시그니처 변경, 감독관 승인).** 인메모리 저장소가 조용히 쓰여 조건이 앱 재시작마다 사라지는 일을 막기 위해서다. 앱은 `RoomDriverConditionRepository`, 테스트는 `InMemoryDriverConditionRepository`를 넘긴다(호출처: `DriveProbeApplication`, `NaviHelperQuerySmokeTest`).
 
+### 2.0 앱 첫 화면 — 홈 (작업 #25)
+
+![홈](images/home.jpg)
+
+- 앱을 열면 홈(`AppPage.HOME`)이 나온다. 2번 몫만 넣었다: **'오늘 운전해도 되나요?' 카드 1장 + 큰 버튼 2개**([운전 조건 설정], [API 탐색기 (개발용)]). 다른 파트 카드는 각 파트가 정해서 추가한다(자리를 미리 만들지 않음).
+- 카드를 누르면 '출발 전' 확인 전체 화면(`AppPage.DEPARTURE_DETAIL`), [← 홈으로]로 돌아온다. API 탐색기 머리의 [← 홈]도 홈으로 간다. 운전 조건 설정의 [← 돌아가기]도 홈으로 간다.
+- 화면 코드: 2번 `:departure-ui` 모듈(`DepartureHomeCard`, `DepartureScreen`, 문구는 `DepartureDisplayMapper`·`HomeCardSummary`). 1번 앱 쪽은 `ui/screen/DepartureHomeScreen.kt`(홈·상세 틀)와 `departure/DepartureHomeViewModel.kt`(세션을 viewModelScope 로 — 홈 ↔ 상세 이동·Activity 재생성에도 같은 세션)뿐이다.
+- 카드는 새 판정을 하지 않고 전체 화면 결과를 요약한다: 위험 > 확인 불가 > 주의 > 문제 없음 중 가장 나쁜 쪽, 요약 최대 2줄. 조건 미설정이면 "운전 조건을 먼저 정해 주세요".
+- **출발 전 확인은 내비 목적지 기준**이다. 목적지가 없으면 판정하지 않고 "내비에 목적지를 정하면 확인해요"(+ 오늘 일몰)를 보여 준다. 목적지가 잠깐 사라진 재확인 중에는 "확인 중이에요". 에뮬레이터 확인: 목적지 서울역 → "출발 전에 확인할 것이 있어요 / 오후 3시 26분까지 출발 / ✓ 반경 안 / ! 유료도로 경로"
+- 확인은 화면이 보일 때만 돈다(주행 중 화면 미사용 결정과 같은 방향).
+
+### 2.0.1 내비 '유료도로 우회' 기본 설정 안내 (작업 #28)
+
+- 앱은 내비 설정을 바꿀 수 없다(SDK API 없음). 대신 **차량 설정 → 내비게이션 → 경로 → '유료도로 우회'**(전역, 기본 꺼짐)를 사용자가 한 번 켜 두도록 안내한다. 켜 두면 새 경로가 통행료 0원 경로로 안내된다(에뮬레이터 실측).
+- [내비 설정 열기] 버튼 = `NaviHelperRepository.openNaviSettings()` → `requestNavigationScreen(NavigationScreenRequest.Settings)`(권한 `NAVI_CUSTOM_MAP`, main 매니페스트에 추가). 차량 설정 "내비게이션" 탭이 열린다. 미연결이면 실패를 돌려주고 화면은 메뉴 위치를 글로 안내한다.
+- 버튼이 나오는 곳: 운전 조건 설정에서 "무료도로 선호"가 켜져 있을 때, 출발 전 확인 화면의 "유료도로를 지나는 경로예요"·"유료도로 우회를 확인해 주세요" 카드. 주행 중에는 숨긴다.
+
+![내비 설정 열림](images/navi-settings-opened.jpg)
+
 ### 2.1 운전자 조건 설정 화면 (작업 #17)
 
 | 기본값(저장된 조건이 없을 때) | 저장 후 |
 |---|---|
 | ![기본값](images/driver-condition-defaults.png) | ![저장 후](images/driver-condition-saved.png) |
 
-- **들어가는 곳**: API 탐색 화면 머리(`CatalogHeader`) 오른쪽 끝의 [운전 조건 설정] 버튼 하나. 1번 화면 구성·스타일은 그대로 두고, `AppPage`에 `DRIVER_CONDITION_SETTINGS` 값을 하나 더해 기존 `SampleApp`의 `when (uiState.page)` 분기로 띄운다. [← 돌아가기] 또는 시스템 뒤로 가기로 API 탐색 화면(이전 상태 그대로)에 돌아간다.
+- **들어가는 곳**: 홈의 [운전 조건 설정] 버튼(작업 #25부터. 그 전에는 API 탐색 화면 머리의 버튼이었고, 그 자리는 [← 홈]으로 바뀌었다). 1번 화면 구성·스타일은 그대로 두고, `AppPage`에 `DRIVER_CONDITION_SETTINGS` 값을 하나 더해 기존 `SampleApp`의 `when (uiState.page)` 분기로 띄운다. [← 돌아가기] 또는 시스템 뒤로 가기로 API 탐색 화면(이전 상태 그대로)에 돌아간다.
 - **보여 주는 값**: 저장된 조건이 있으면 그 값. 없으면 기본값(`DriverConditionDefaults` 한 곳에만 있음): 야간 운전 금지 켬, 무료도로 선호 켬, 고속도로 회피 끔, 허용 반경 50 km, 반경 중심 = 화면을 열 때 읽은 `NaviHelperRepository.getCurrentLocation()`.
   - 현재 위치를 읽지 못하거나 Mock 값(내비 미연결)이면 중심을 비우고 "현재 위치를 읽지 못했어요 — 반경 확인은 중심이 있어야 동작해요" + [다시 시도].
   - 저장된 반경이 null(앱 기본 반경 사용)이면 `DepartureConfig.defaultAllowedRadiusMeters`(10 km)를 보여 주고, 이 화면에서 저장하면 그 값이 명시적으로 저장된다. 그래서 이후 `DepartureConfig` 기본 반경을 바꿔도 이미 저장한 사용자는 저장된 반경을 그대로 쓴다.
@@ -223,11 +243,13 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 내비 조작(에뮬레이터, adb): 최근 목록 서울역 → "목적지로" → 미리보기 필터 버튼 → 경로 설정 시트 → 토글은 탭이 아니라 짧은 swipe(`input swipe 1375 361 1415 361 150`)로 켬(1회 성공) → "적용" → 후보 화면 "안내 시작".
 - 결과 (모두 통과, 실패 0):
 
+표는 2026-11-10 관측(작업 #19)이다. 판정 규칙은 작업 #27에서 바뀌었다: FREE + 통행료 0원만 충족, 모르면 `TollAvoidanceUnverified`.
+
 | 토글 | 실행 | `getRouteStateInfo()` | `ConditionRouteUseCase` (무료도로 선호) |
 |---|---|---|---|
 | 꺼짐 | gradle, `RECOMMENDED` | `ROUTE_GUIDING`, `routeOption=RECOMMENDED`, `tollFare=null`, 23km/3180초 | `NeedsUserAction[TURN_ON_TOLL_AVOIDANCE]`, `Guiding(RECOMMENDED, null)` |
 | 켬 | am instrument, `FREE` + 대기 150초 | `ROUTE_GUIDING`, `routeOption=FREE`, **`tollFare=0`**, 26km/5400초 | `Satisfied`, `Guiding(FREE, 0)`, notes 없음 |
-| 켬 | gradle, `FREE` (대기 없음) | `ROUTE_GUIDING`, `routeOption=FREE`, `tollFare=null` | `Satisfied`, notes `[TOLL_FARE_NOT_OBSERVED]` |
+| 켬 | gradle, `FREE` (대기 없음) | `ROUTE_GUIDING`, `routeOption=FREE`, `tollFare=null` | (#27 이전 판정) `Satisfied`, notes `[TOLL_FARE_NOT_OBSERVED]` → **#27부터 `TollAvoidanceUnverified`**(통행료 모르면 충족 아님, 해당 note 삭제) |
 
 - 해석: 사람이 켠 "유료도로 우회"는 새로 연결한 Repository 에서도 `routeOption=FREE`로 다시 읽힌다(주 신호). tollFare 는 Repository 가 `onRouteStarted`를 받았을 때만 채워지고(0), 이미 시작된 경로에 나중에 붙으면 null → 유스케이스는 충족 + `TOLL_FARE_NOT_OBSERVED`. 둘 다 api-notes §10.4 설계대로다.
 - 증거(로그 발췌·캡처 4장): 2번 저장소 `docs/pleos/api-notes/evidence/2026-11-10/task19/`.
