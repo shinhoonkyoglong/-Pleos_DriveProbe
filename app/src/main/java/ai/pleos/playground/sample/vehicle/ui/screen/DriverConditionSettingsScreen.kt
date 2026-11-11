@@ -82,7 +82,7 @@ fun DriverConditionSettingsScreen(
     viewModel: DriverConditionSettingsViewModel,
     onBack: () -> Unit
 ) {
-    // 새로 들어왔을 때만 다시 채운다. Activity 재생성(화면 회전 등) 때는 rememberSaveable 이 true 로 복원되어
+    // 새로 들어왔을 때만 다시 채운다. Activity 재생성(주간/야간 모드 전환·글자 크기 변경 등 설정 변경) 때는 rememberSaveable 이 true 로 복원되어
     // ViewModel 에 남은 저장 전 입력을 지우지 않는다. 화면을 나갔다 다시 들어오면 false 로 새로 시작한다.
     var opened by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {

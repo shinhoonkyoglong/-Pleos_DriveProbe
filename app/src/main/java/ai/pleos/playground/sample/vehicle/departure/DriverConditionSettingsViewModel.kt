@@ -54,7 +54,7 @@ class DriverConditionSettingsViewModel(application: Application) : AndroidViewMo
     /**
      * 화면에 들어올 때 부른다(저장된 값 또는 기본값 + 현재 위치로 다시 채움).
      *
-     * @param reload 새로 들어온 경우 true. 화면 회전 등으로 Activity 만 다시 만들어진 경우 false 를 넘기면
+     * @param reload 새로 들어온 경우 true. 설정 변경(차량 주간/야간 모드 전환, 글자 크기·언어 변경 등)으로 Activity 만 다시 만들어진 경우 false 를 넘기면
      *   ViewModel 에 남아 있는 저장 전 입력을 그대로 둔다(단, 아직 한 번도 채우지 않았으면 채운다).
      */
     fun open(reload: Boolean = true) {
