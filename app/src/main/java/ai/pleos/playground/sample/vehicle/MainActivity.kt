@@ -6,7 +6,11 @@ import ai.pleos.playground.sample.vehicle.ui.screen.DepartureDetailScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DepartureHomeScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
+import ai.pleos.playground.sample.vehicle.ui.kd.KdAppViewModel
+import ai.pleos.playground.sample.vehicle.ui.kd.KeepDrivingApp
+import ai.pleos.playground.sample.vehicle.ui.kd.ReactionCheckViewModel
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
+import com.pleos.departure.ui.DepartureHomeCard
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -64,6 +68,8 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
     private val departureHomeViewModel: DepartureHomeViewModel by viewModels()
+    private val kdViewModel: KdAppViewModel by viewModels()
+    private val reactionViewModel: ReactionCheckViewModel by viewModels()
 
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
     private val carSpeedPermissionLauncher =
@@ -86,42 +92,61 @@ class MainActivity : ComponentActivity() {
         setContent {
             val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
 
-            VehicleSampleAppTheme {
-                SampleApp(
-                    uiState = uiState,
-                    onOpenDomain = viewModel::showApiExplorer,
-                    onSelectFeature = viewModel::selectFeature,
-                    onSearchFeatures = viewModel::searchFeatures,
-                    onRunCapability = viewModel::runFeatureCapability,
-                    onRunRead = viewModel::runFeatureRead,
-                    onRunSet = viewModel::runFeatureSet,
-                    onStartUpdates = viewModel::startFeatureUpdates,
-                    onStopUpdates = viewModel::stopFeatureUpdates,
-                    onBackToFeatureList = viewModel::backToFeatureList,
-                    onDismissError = viewModel::dismissError,
-                    onGoHome = viewModel::showHome,
-                    home = {
-                        DepartureHomeScreen(
-                            model = departureHomeViewModel.model,
-                            onOpenDepartureDetail = viewModel::showDepartureDetail,
-                            onOpenDriverCondition = viewModel::showDriverConditionSettings,
-                            onOpenApiExplorer = viewModel::openApiExplorer
-                        )
-                    },
-                    departureDetail = {
-                        DepartureDetailScreen(
-                            model = departureHomeViewModel.model,
-                            onBack = viewModel::showHome
-                        )
-                    },
-                    driverConditionSettings = {
-                        DriverConditionSettingsScreen(
-                            viewModel = driverConditionViewModel,
-                            onBack = viewModel::closeDriverConditionSettings
+            // 앱 첫 화면 = '계속운전' 홈(ui/kd). 2번 '출발 전' 카드·상세 화면은 홈 안의 슬롯에 넣는다.
+            // 2번 홈(DepartureHomeScreen)과 1번 API 탐색기는 [개발자 도구] 안에서 그대로 쓸 수 있다
+            KeepDrivingApp(
+                appViewModel = kdViewModel,
+                reactionViewModel = reactionViewModel,
+                departureCard = { modifier, onOpen ->
+                    DepartureHomeCard(model = departureHomeViewModel.model, onOpen = onOpen, modifier = modifier)
+                },
+                departureDetail = { onBack ->
+                    DepartureDetailScreen(model = departureHomeViewModel.model, onBack = onBack)
+                },
+                driverCondition = { onBack ->
+                    VehicleSampleAppTheme {
+                        DriverConditionSettingsScreen(viewModel = driverConditionViewModel, onBack = onBack)
+                    }
+                },
+                devTools = {
+                    VehicleSampleAppTheme {
+                        SampleApp(
+                            uiState = uiState,
+                            onOpenDomain = viewModel::showApiExplorer,
+                            onSelectFeature = viewModel::selectFeature,
+                            onSearchFeatures = viewModel::searchFeatures,
+                            onRunCapability = viewModel::runFeatureCapability,
+                            onRunRead = viewModel::runFeatureRead,
+                            onRunSet = viewModel::runFeatureSet,
+                            onStartUpdates = viewModel::startFeatureUpdates,
+                            onStopUpdates = viewModel::stopFeatureUpdates,
+                            onBackToFeatureList = viewModel::backToFeatureList,
+                            onDismissError = viewModel::dismissError,
+                            onGoHome = viewModel::showHome,
+                            home = {
+                                DepartureHomeScreen(
+                                    model = departureHomeViewModel.model,
+                                    onOpenDepartureDetail = viewModel::showDepartureDetail,
+                                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                                    onOpenApiExplorer = viewModel::openApiExplorer
+                                )
+                            },
+                            departureDetail = {
+                                DepartureDetailScreen(
+                                    model = departureHomeViewModel.model,
+                                    onBack = viewModel::showHome
+                                )
+                            },
+                            driverConditionSettings = {
+                                DriverConditionSettingsScreen(
+                                    viewModel = driverConditionViewModel,
+                                    onBack = viewModel::closeDriverConditionSettings
+                                )
+                            }
                         )
                     }
-                )
-            }
+                },
+            )
         }
     }
 }
