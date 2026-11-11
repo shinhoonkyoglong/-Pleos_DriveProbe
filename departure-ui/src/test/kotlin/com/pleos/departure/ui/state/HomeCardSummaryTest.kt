@@ -105,6 +105,30 @@ class HomeCardSummaryTest {
     }
 
     @Test
+    fun noDestination_doesNotJudge_asksForDestination() {
+        // 작업 #26: 출발 전 확인은 목적지 기준. 목적지가 없으면 모든 카드가 참고(INFO)라도 "출발해도 좋아요"로 보이면 안 된다
+        val noDest = DepartureContent(
+            conditionNotice = null,
+            main = card(Tone.INFO, "내비에 목적지를 설정하면 출발 마감을 알려 드려요", headline = "오늘 일몰 오후 5시 24분"),
+            radius = card(Tone.INFO, "목적지가 없어 허용 반경을 확인하지 않았어요"),
+            route = null,
+            destinationSet = false,
+        )
+        val s = HomeCardSummary.from(ui(noDest))
+        assertEquals(HomeCardSummary.VERDICT_NO_DESTINATION, s.verdict)
+        assertEquals(Tone.INFO, s.tone)
+        assertEquals("오늘 일몰 오후 5시 24분", s.headline)
+        assertEquals(1, s.lines.size)
+    }
+
+    @Test
+    fun recheckingDestination_showsChecking() {
+        val s = HomeCardSummary.from(ui(content().copy(rechecking = true)))
+        assertEquals(HomeCardSummary.VERDICT_CHECKING, s.verdict)
+        assertEquals(Tone.UNKNOWN, s.tone)
+    }
+
+    @Test
     fun whileDriving_cannotOpen() {
         assertFalse(HomeCardSummary.from(ui(content(), controls = false)).openEnabled)
     }

@@ -75,6 +75,9 @@ data class RouteCard(
  * @property route 경로 조건 카드. 조건 미설정이거나 출발 자제(마감 지남·야간)면 null — 운전을 부추기는 조작 안내를 띄우지 않는다.
  *   확인 자체가 실패했어도 null.
  * @property conditionSet 운전자 조건이 저장돼 있는가. 미설정이면 false — 홈 카드가 "출발해도 좋아요"로 보이지 않게 구분한다(작업 #24).
+ * @property destinationSet 내비 목적지가 있는가. 확인된 '목적지 없음'이면 false — 출발 전 확인은 목적지 기준이라
+ *   홈 카드가 판정 대신 "내비에 목적지를 정하면 확인해요"를 보여 준다(작업 #26, 사용자 결정 11/11). 목적지 확인 불가는 true(확인 불가로 표시)
+ * @property rechecking 목적지가 잠깐 사라져(경로 교체 중일 수 있음) 다시 확인하는 중. 홈 카드는 "확인 중이에요"
  */
 data class DepartureContent(
     val conditionNotice: StatusCard?,
@@ -82,6 +85,8 @@ data class DepartureContent(
     val radius: StatusCard?,
     val route: RouteCard?,
     val conditionSet: Boolean = true,
+    val destinationSet: Boolean = true,
+    val rechecking: Boolean = false,
 )
 
 /**

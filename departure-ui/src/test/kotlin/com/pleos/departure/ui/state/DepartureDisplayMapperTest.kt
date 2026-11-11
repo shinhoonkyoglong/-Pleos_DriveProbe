@@ -191,6 +191,21 @@ class DepartureDisplayMapperTest {
     }
 
     @Test
+    fun destinationFlags_followNaviDestinationAndRechecking() {
+        // 작업 #26: 홈 카드가 목적지 없음·재확인 중을 구분하는 값
+        val noDest = snapshot(
+            deadline = DepartureDeadlineResult.DestinationNotSet(now, null),
+            radius = RadiusCheckResult.DestinationNotSet,
+            route = RouteConditionCheck.DestinationNotSet,
+        ).copy(destination = DataResult.Available(NaviDestination.NotSet))
+        assertFalse(map(noDest).destinationSet)
+        assertTrue(map(noDest, DisplayContext(rechecking = true)).rechecking)
+        assertTrue(map(snapshot()).destinationSet)
+        // 목적지 확인 불가는 '목적지 없음'이 아니다(확인 불가로 표시)
+        assertTrue(map(snapshot().copy(destination = DataResult.Unavailable(UnavailableReason.TIMEOUT))).destinationSet)
+    }
+
+    @Test
     fun originSunsetUnknownOrHome() {
         val unknown = map(snapshot(deadline = DepartureDeadlineResult.DestinationNotSet(now, null))).main
         assertNull(unknown.headline)

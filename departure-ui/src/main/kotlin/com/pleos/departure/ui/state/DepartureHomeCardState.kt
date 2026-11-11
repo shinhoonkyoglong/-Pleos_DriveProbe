@@ -37,6 +37,7 @@ object HomeCardSummary {
     const val VERDICT_DANGER = "출발 전에 꼭 확인하세요"
     const val VERDICT_UNKNOWN = "확인하지 못한 항목이 있어요"
     const val VERDICT_CONDITION_NOT_SET = "운전 조건을 먼저 정해 주세요"
+    const val VERDICT_NO_DESTINATION = "내비에 목적지를 정하면 확인해요"
     const val VERDICT_CHECKING = "확인 중이에요"
     const val VERDICT_NOT_CHECKED = "아직 확인하지 않았어요"
 
@@ -58,6 +59,24 @@ object HomeCardSummary {
                 verdict = VERDICT_CONDITION_NOT_SET,
                 headline = null,
                 lines = emptyList(),
+                openEnabled = ui.controlsEnabled,
+            )
+        }
+
+        // 경로 교체 중일 수 있어 목적지를 다시 확인하는 중 → 판정하지 않는다
+        if (content.rechecking) {
+            return HomeCardState(Tone.UNKNOWN, StatusIcon.WAIT, VERDICT_CHECKING, null, emptyList(), ui.controlsEnabled)
+        }
+
+        // 출발 전 확인은 내비 목적지 기준(작업 #26). 목적지가 없으면 판정하지 않고 목적지를 정하도록 안내한다
+        // — 목적지 없이 "출발해도 좋아요"로 보이면 해가 진 뒤에도 그렇게 보일 수 있다. 오늘 일몰(출발지 기준)은 참고로 보여 준다
+        if (!content.destinationSet) {
+            return HomeCardState(
+                tone = Tone.INFO,
+                icon = StatusIcon.INFO,
+                verdict = VERDICT_NO_DESTINATION,
+                headline = content.main.headline,
+                lines = listOf(HomeCardLine(Tone.INFO, StatusIcon.INFO, "출발 마감·허용 반경·경로 조건을 확인해요")),
                 openEnabled = ui.controlsEnabled,
             )
         }

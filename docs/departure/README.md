@@ -61,6 +61,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - 카드를 누르면 '출발 전' 확인 전체 화면(`AppPage.DEPARTURE_DETAIL`), [← 홈으로]로 돌아온다. API 탐색기 머리의 [← 홈]도 홈으로 간다. 운전 조건 설정의 [← 돌아가기]도 홈으로 간다.
 - 화면 코드: 2번 `:departure-ui` 모듈(`DepartureHomeCard`, `DepartureScreen`, 문구는 `DepartureDisplayMapper`·`HomeCardSummary`). 1번 앱 쪽은 `ui/screen/DepartureHomeScreen.kt`(홈·상세 틀)와 `departure/DepartureHomeViewModel.kt`(세션을 viewModelScope 로 — 홈 ↔ 상세 이동·Activity 재생성에도 같은 세션)뿐이다.
 - 카드는 새 판정을 하지 않고 전체 화면 결과를 요약한다: 위험 > 확인 불가 > 주의 > 문제 없음 중 가장 나쁜 쪽, 요약 최대 2줄. 조건 미설정이면 "운전 조건을 먼저 정해 주세요".
+- **출발 전 확인은 내비 목적지 기준**이다. 목적지가 없으면 판정하지 않고 "내비에 목적지를 정하면 확인해요"(+ 오늘 일몰)를 보여 준다. 목적지가 잠깐 사라진 재확인 중에는 "확인 중이에요". 에뮬레이터 확인: 목적지 서울역 → "출발 전에 확인할 것이 있어요 / 오후 3시 26분까지 출발 / ✓ 반경 안 / ! 유료도로 경로"
 - 확인은 화면이 보일 때만 돈다(주행 중 화면 미사용 결정과 같은 방향).
 
 ### 2.1 운전자 조건 설정 화면 (작업 #17)
