@@ -64,6 +64,8 @@ class MainViewModel(application: Application) :
                 )
             }
             showApiExplorer(VehicleDomain.DOOR)
+            // 작업 #25: API 탐색 상태는 위에서 준비만 하고, 첫 화면은 홈으로 둔다
+            showHome()
         }
     }
 
@@ -120,8 +122,18 @@ class MainViewModel(application: Application) :
         _uiState.update { it.copy(page = AppPage.DRIVER_CONDITION_SETTINGS) }
     }
 
-    /** 운전자 조건 설정 화면에서 돌아가기 — 열기 전 API 탐색 화면으로 */
+    /** 운전자 조건 설정 화면에서 돌아가기 — 진입점이 홈 하나뿐이라 홈으로(작업 #25) */
     fun closeDriverConditionSettings() {
+        showHome()
+    }
+
+    /** 홈 카드 → 2번 '출발 전' 확인 전체 화면(작업 #25) */
+    fun showDepartureDetail() {
+        _uiState.update { it.copy(page = AppPage.DEPARTURE_DETAIL) }
+    }
+
+    /** API 탐색기로(홈의 개발용 버튼). 이미 준비된 탐색 상태를 그대로 보여 준다(작업 #25) */
+    fun openApiExplorer() {
         _uiState.update { it.copy(page = AppPage.API_EXPLORER) }
     }
 
