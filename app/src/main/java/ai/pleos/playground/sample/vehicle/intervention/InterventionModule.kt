@@ -36,6 +36,7 @@ class InterventionModule(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val voice = AndroidVoiceConversation(context.applicationContext)
+    private val speech = InterventionSpeechAction(voice)
     val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save)
     private var probeRunning = false
     private var automaticWasEnabled = false
@@ -48,7 +49,7 @@ class InterventionModule(
     )
 
     fun startVoiceTest(mode: VoiceTestMode) {
-        if (BuildConfig.DEBUG && !probeRunning && !controller.status.value.running) voiceTests.start(mode)
+        if (BuildConfig.DEBUG && !probeRunning && !controller.isBusy) voiceTests.start(mode)
     }
 
     private var speedSampleMs: Long? = null
@@ -61,7 +62,7 @@ class InterventionModule(
     )
 
     fun probeControl(kind: String, seat: SeatValue, moving: Boolean) {
-        if (!BuildConfig.DEBUG || probeRunning || voiceTests.state.value.running) return
+        if (!BuildConfig.DEBUG || probeRunning || voiceTests.state.value.running || controller.isBusy) return
         val initial = probeVehicleState()
         try { initial.requireReady(moving) } catch (e: IllegalArgumentException) {
             Log.w("Intervention", "PROBE REJECTED kind=$kind moving=$moving: ${e.message}")
@@ -114,8 +115,11 @@ class InterventionModule(
                 controller.reset()
                 try {
                     combine(engine.state, engine.isDriving, engine.signals.gear) { state, active, gear -> Triple(state, active, gear) }
-                        .collect { (state, active, gear) ->
-                            controller.update(state, active, gear == GearPosition.DRIVE, simulation = engine.isReplay)
+                        .combine(DrivingVoiceService.ready) { input, prepared -> input to prepared }
+                        .collect { (input, prepared) ->
+                            val (state, active, gear) = input
+                            val voiceAllowed = engine.isReplay || state.level < FatigueLevel.CAUTION || prepared
+                            controller.update(state, active, gear == GearPosition.DRIVE && voiceAllowed, simulation = engine.isReplay)
                         }
                 } finally {
                     controller.reset()
@@ -147,25 +151,7 @@ class InterventionModule(
             onSuccess = { InterventionResult(InterventionOutcome.VERIFIED, "운전석 설정 온도 1℃ 하향·풍량 1단계 증가 후 재조회 확인. 지원 범위 한계에서는 유지") },
             onFailure = { InterventionResult(InterventionOutcome.FAILED, "공조 개입 실패: ${it.message}. 일부 설정은 이미 적용됐을 수 있어요") },
         )
-        FatigueLevel.CAUTION -> ask(level, "피로 징후가 감지됐어요. 괜찮으시면 괜찮아요라고 말씀해 주세요.")
-        FatigueLevel.DANGER -> ask(level, "휴식이 필요해 보여요. 가까운 쉼터 안내를 원하시면 안내해 줘, 원치 않으시면 아니요라고 말씀해 주세요.")
-    }
-
-    private suspend fun ask(level: FatigueLevel, prompt: String): InterventionResult = try {
-        val answer = voice.ask(prompt)
-        when {
-            answer.text.isNullOrBlank() -> InterventionResult(InterventionOutcome.NO_RESPONSE, "음성 응답이 없어요. 자동 경로 변경은 하지 않았어요", responseMs = answer.responseMs)
-            level == FatigueLevel.CAUTION -> InterventionResult(InterventionOutcome.ANSWERED,
-                "음성 응답 수신. 피로 점수 재반영 정책은 판단 모듈 담당자와 연동이 필요해요", answer.text, answer.responseMs)
-            VoiceResponse.consent(answer.text) == VoiceConsent.DECLINE -> InterventionResult(InterventionOutcome.DECLINED, "쉼터 안내를 거절했어요", answer.text, answer.responseMs)
-            VoiceResponse.consent(answer.text) == VoiceConsent.ACCEPT -> InterventionResult(InterventionOutcome.UNAVAILABLE,
-                "쉼터 안내 동의 수신. 실제 NaviHelper·쉼터 검색 연동이 없어 경로를 변경하지 않았어요", answer.text, answer.responseMs)
-            else -> InterventionResult(InterventionOutcome.NO_RESPONSE, "쉼터 안내 동의를 확인하지 못했어요", answer.text, answer.responseMs)
-        }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        InterventionResult(InterventionOutcome.UNAVAILABLE, e.message ?: "음성 기능을 사용할 수 없어요")
+        FatigueLevel.CAUTION, FatigueLevel.DANGER -> speech.execute(level)
     }
 
     private suspend fun save(record: InterventionRecord) {
@@ -176,7 +162,17 @@ class InterventionModule(
             put("simulation", record.simulation)
             put("details", result.details)
             put("responseMs", result.responseMs ?: JSONObject.NULL)
-            put("responseTiming", if (result.responseMs != null) "TTS_onDone_to_speech_onBeginning" else JSONObject.NULL)
+            put("responseTiming", result.voiceAnswer?.responseTiming ?: JSONObject.NULL)
+            put("readyLatencyMs", result.voiceAnswer?.readyLatencyMs ?: JSONObject.NULL)
+            put("captureLatencyMs", result.voiceAnswer?.captureLatencyMs ?: JSONObject.NULL)
+            put("epdOnBytes", result.voiceAnswer?.epdOnBytes ?: JSONObject.NULL)
+            put("epdOffBytes", result.voiceAnswer?.epdOffBytes ?: JSONObject.NULL)
+            put("audioBytes", result.voiceAnswer?.audioBytes ?: JSONObject.NULL)
+            put("recognitionEnd", result.voiceAnswer?.end?.name ?: JSONObject.NULL)
+            put("consent", result.consent?.name ?: JSONObject.NULL)
+            put("navigationStatus", result.navigationStatus ?: JSONObject.NULL)
+            put("error", result.error?.name ?: JSONObject.NULL)
+            put("platformCode", result.platformCode ?: result.voiceAnswer?.platformCode ?: JSONObject.NULL)
             put("recognitionBackend", voice.capabilities().recognitionBackend.name)
             put("calibrating", record.condition.isCalibrating)
         }.toString()
@@ -198,6 +194,10 @@ class InterventionModule(
             put("version", 1)
             put("source", "VOICE_TEST")
             put("mode", record.mode.name)
+            put("stageOutcome", result.intervention?.outcome?.name ?: JSONObject.NULL)
+            put("consent", result.intervention?.consent?.name ?: JSONObject.NULL)
+            put("navigationStatus", result.intervention?.navigationStatus ?: JSONObject.NULL)
+            put("executionPath", if (record.mode in setOf(VoiceTestMode.CAUTION_FLOW, VoiceTestMode.DANGER_FLOW)) "INTERVENTION_SPEECH_ACTION" else "VOICE_TEST")
             put("simulation", true) // Exclude manual tests from real driving reports.
             put("audioMode", "REAL_PLATFORM_TTS_STT")
             put("ttsBackend", voice.capabilities().ttsBackend.name)
@@ -219,7 +219,7 @@ class InterventionModule(
         }.toString()
         val id = history.insertIntervention(InterventionHistoryEntity(
             sessionId = record.id,
-            interventionLevel = if (record.mode == VoiceTestMode.CONSENT) 3 else 2,
+            interventionLevel = if (record.mode in setOf(VoiceTestMode.CONSENT, VoiceTestMode.DANGER_FLOW)) 3 else 2,
             fatigueScore = 0f, // Not a measured fatigue score. source=VOICE_TEST distinguishes it.
             triggerReason = "VOICE_TEST",
             actionDetails = details,

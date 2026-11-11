@@ -4,6 +4,7 @@ import ai.pleos.playground.sample.vehicle.condition.core.ConditionState
 import ai.pleos.playground.sample.vehicle.condition.core.FatigueLevel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,13 +13,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-enum class InterventionOutcome { VERIFIED, ANSWERED, DECLINED, NO_RESPONSE, UNAVAILABLE, FAILED, CANCELLED, SIMULATED }
+enum class InterventionOutcome { VERIFIED, ANSWERED, ACCEPTED, DECLINED, NO_RESPONSE, NO_MATCH, UNKNOWN_RESPONSE, UNAVAILABLE, FAILED, CANCELLED, SIMULATED }
 
 data class InterventionResult(
     val outcome: InterventionOutcome,
     val details: String,
     val response: String? = null,
     val responseMs: Long? = null,
+    val voiceAnswer: VoiceAnswer? = null,
+    val consent: VoiceConsent? = null,
+    val navigationStatus: String? = null,
+    val error: VoiceFailureCode? = null,
+    val platformCode: Int? = null,
 )
 
 data class InterventionRecord(
@@ -52,6 +58,8 @@ class InterventionController(
     private var action: Job? = null
     private var activeLevel = FatigueLevel.NORMAL
     private var generation = 0
+    private val inFlight = mutableSetOf<Job>()
+    val isBusy: Boolean get() = inFlight.any { !it.isCompleted }
 
     fun setEnabled(enabled: Boolean) {
         if (!enabled) cancelAction()
@@ -112,8 +120,11 @@ class InterventionController(
         val token = ++generation
         activeLevel = condition.level
         _status.value = _status.value.copy(running = true, message = "${condition.level} 개입 실행 중", historyError = null)
-        action = scope.launch {
+        val predecessors = inFlight.filter { !it.isCompleted }
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             val result = try {
+                // Cancellation cleanup can suspend while stopping a microphone/SDK session.
+                predecessors.forEach { it.join() }
                 if (simulation) InterventionResult(InterventionOutcome.SIMULATED, "${condition.level} 시연: 차량·음성·내비 호출 없음")
                 else execute(condition.level)
             } catch (e: CancellationException) {
@@ -123,9 +134,13 @@ class InterventionController(
             } catch (e: Exception) {
                 InterventionResult(InterventionOutcome.FAILED, e.message ?: e.javaClass.simpleName)
             }
-            persist(InterventionRecord(id, condition, simulation, result), token)
+            withContext(NonCancellable) { persist(InterventionRecord(id, condition, simulation, result), token) }
             if (token == generation) _status.value = _status.value.copy(running = false, message = result.details, result = result)
         }
+        action = job
+        inFlight += job
+        job.invokeOnCompletion { inFlight -= job }
+        job.start()
     }
 
     private suspend fun persist(record: InterventionRecord, token: Int) {

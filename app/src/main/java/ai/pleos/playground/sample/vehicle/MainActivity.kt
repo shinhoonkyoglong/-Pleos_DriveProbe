@@ -6,6 +6,7 @@ import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.VoiceTestScreen
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
+import ai.pleos.playground.sample.vehicle.intervention.DrivingVoiceService
 import android.Manifest
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -116,6 +117,8 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = null).value
             val gear = app.vehicleRepository.gear.collectAsStateWithLifecycle().value
             val voiceState = app.interventions.voiceTests.state.collectAsStateWithLifecycle().value
+            val drivingVoicePrepared = DrivingVoiceService.ready.collectAsStateWithLifecycle().value
+            val drivingVoiceError = DrivingVoiceService.error.collectAsStateWithLifecycle().value
             val voiceHistory = remember(app) { app.appDatabase.interventionHistoryDao().getLatestVoiceTest() }
                 .collectAsStateWithLifecycle(initialValue = null).value
             var activeTab by rememberSaveable { mutableStateOf("vehicle") }
@@ -145,7 +148,20 @@ class MainActivity : ComponentActivity() {
                                 status = intervention,
                                 latest = latest,
                                 parked = gear == GearPosition.PARK,
-                                onEnabled = { if (!voiceState.running) app.interventions.controller.setEnabled(it) },
+                                voicePrepared = drivingVoicePrepared,
+                                voicePreparationError = drivingVoiceError,
+                                onPrepareVoice = {
+                                    if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                                        DrivingVoiceService.prepare(this@MainActivity)
+                                    else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                },
+                                onReleaseVoice = { DrivingVoiceService.stop(this@MainActivity) },
+                                onEnabled = { enabled ->
+                                    if (!voiceState.running) {
+                                        app.interventions.controller.setEnabled(enabled)
+                                        if (!enabled) DrivingVoiceService.stop(this@MainActivity)
+                                    }
+                                },
                                 onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
                                 onSimulate = app.interventions.controller::simulate,
                             )

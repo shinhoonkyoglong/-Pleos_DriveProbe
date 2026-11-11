@@ -58,6 +58,11 @@ fun VoiceTestScreen(
             OutlinedButton(onClick = onStop, enabled = state.running && state.phase != VoicePhase.SAVING) { Text("시험 중지") }
         }
         OutlinedButton(onClick = { onStart(VoiceTestMode.TIMING) }, enabled = idle && state.allowed) { Text("4. 응답 시간 시험") }
+        Text("정차 단계 연결 시험 · 실제 개입의 질문·응답 처리를 확인해요. 피로 점수와 경로는 변경하지 않아요.")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { onStart(VoiceTestMode.CAUTION_FLOW) }, enabled = idle && state.allowed) { Text("5. CAUTION 연결 시험") }
+            OutlinedButton(onClick = { onStart(VoiceTestMode.DANGER_FLOW) }, enabled = idle && state.allowed) { Text("6. DANGER 연결 시험") }
+        }
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(state.message, style = MaterialTheme.typography.titleMedium)
@@ -67,7 +72,7 @@ fun VoiceTestScreen(
                     Text("인식 문장: ${result.answer?.text ?: "없음"}")
                     val estimated = result.answer?.responseTiming?.endsWith("_ESTIMATE") == true
                     Text("응답 시간${if (estimated) " (발화 추정)" else ""}: ${result.answer?.responseMs?.let { "${it}ms" } ?: "측정 없음"}")
-                    if (state.mode == VoiceTestMode.TIMING) {
+                    if (state.mode in setOf(VoiceTestMode.TIMING, VoiceTestMode.CAUTION_FLOW, VoiceTestMode.DANGER_FLOW)) {
                         Text("질문 재생 종료 → 녹음 시작 지연과 발화 시작 위치를 합산해요. 발화 검출·오디오 버퍼 지연에 따른 오차가 있어요.")
                         Text("시간 기준: ${when (result.answer?.responseTiming) {
                             "PCM_AUDIO_TIMESTAMP_EPD_ESTIMATE" -> "오디오 프레임 시각 + 발화 위치"
@@ -81,6 +86,10 @@ fun VoiceTestScreen(
                         Text("입력 레벨 수신: ${result.answer.inputLevelCallbacks ?: 0}회 · 최대 RMS: ${result.answer.maxInputRms ?: "수신 없음"}")
                     }
                     result.error?.let { Text("진단 코드: $it / ${result.platformCode ?: "없음"}") }
+                    result.intervention?.let { stage ->
+                        Text("단계 처리 결과: ${stage.outcome}")
+                        stage.navigationStatus?.let { Text("내비 연동: ${if (it == "NOT_CONNECTED") "준비 중 · 경로 변경 없음" else "요청하지 않음"}") }
+                    }
                     result.answer?.platformCode?.let { Text("인식 서비스 코드: $it") }
                 }
                 state.savedId?.let { Text("시험 이력 저장 완료 (#$it)") }

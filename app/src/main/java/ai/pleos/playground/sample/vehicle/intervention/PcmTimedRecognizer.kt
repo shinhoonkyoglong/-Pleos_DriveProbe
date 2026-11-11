@@ -17,7 +17,7 @@ import kotlinx.coroutines.*
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Manual timing test only. Audio is streamed to the local SDK and never written to disk. */
+/** Audio is streamed to the local SDK and never written to disk. Background use requires a microphone FGS. */
 internal class PcmTimedRecognizer(private val context: Context) {
     @SuppressLint("MissingPermission") // The shared voice adapter checks RECORD_AUDIO first.
     suspend fun listen(questionEndMs: Long, phase: (VoicePhase) -> Unit): VoiceAnswer = coroutineScope {

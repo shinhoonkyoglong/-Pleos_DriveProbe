@@ -11,6 +11,37 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VoiceTestControllerTest {
+    @Test fun `parked stage tests reuse timed action and preserve business outcomes`() = runTest {
+        for ((mode, text, expected) in listOf(
+            Triple(VoiceTestMode.CAUTION_FLOW, "괜찮아요", VoiceTestOutcome.ANSWERED),
+            Triple(VoiceTestMode.DANGER_FLOW, "안내해 줘", VoiceTestOutcome.ACCEPTED),
+            Triple(VoiceTestMode.DANGER_FLOW, "아니요", VoiceTestOutcome.DECLINED),
+        )) {
+            val voice = FakeVoice().apply { answer = answer.copy(text = text) }
+            val records = mutableListOf<VoiceTestRecord>()
+            val c = VoiceTestController(this, voice, { records += it; 1L })
+            c.setAllowed(true); c.start(mode); runCurrent()
+            val result = records.single().result
+            assertEquals(expected, result.outcome)
+            assertEquals(1, voice.timedCalls)
+            assertEquals(voice.answer, result.intervention!!.voiceAnswer)
+            if (expected == VoiceTestOutcome.ACCEPTED) assertEquals("NOT_CONNECTED", result.intervention.navigationStatus)
+            if (expected == VoiceTestOutcome.DECLINED) assertEquals("NOT_REQUESTED", result.intervention.navigationStatus)
+        }
+    }
+
+    @Test fun `parked danger flow preserves permission failure and does not fabricate consent`() = runTest {
+        val voice = FakeVoice().apply { failure = VoiceFailure(VoiceFailureCode.PERMISSION, "denied", 9) }
+        val records = mutableListOf<VoiceTestRecord>()
+        val c = VoiceTestController(this, voice, { records += it; 1L })
+        c.setAllowed(true); c.start(VoiceTestMode.DANGER_FLOW); runCurrent()
+        val result = records.single().result
+        assertEquals(VoiceTestOutcome.PERMISSION_REQUIRED, result.outcome)
+        assertEquals(VoiceFailureCode.PERMISSION, result.error)
+        assertEquals(9, result.platformCode)
+        assertNull(result.intervention!!.consent)
+        assertNull(result.answer)
+    }
     @Test fun `vehicle gate cancellation preserves the actual blocking condition`() = runTest {
         val voice = FakeVoice().apply { wait = CompletableDeferred() }
         val records = mutableListOf<VoiceTestRecord>()

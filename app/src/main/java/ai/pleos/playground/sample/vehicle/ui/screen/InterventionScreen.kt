@@ -26,6 +26,10 @@ fun InterventionScreen(
     status: InterventionStatus,
     latest: InterventionHistoryEntity?,
     parked: Boolean,
+    voicePrepared: Boolean,
+    voicePreparationError: String?,
+    onPrepareVoice: () -> Unit,
+    onReleaseVoice: () -> Unit,
     onEnabled: (Boolean) -> Unit,
     onMicrophone: () -> Unit,
     onSimulate: (FatigueLevel) -> Unit,
@@ -34,7 +38,14 @@ fun InterventionScreen(
         Text("주행 중 개입", style = MaterialTheme.typography.headlineSmall)
         Text("자동 개입: ${if (status.enabled) "켜짐" else "꺼짐"} · 피로 단계: ${status.level}")
         Text(status.message)
-        status.result?.let { Text("최근 결과: ${it.outcome} · 음성 반응: ${it.responseMs?.let { ms -> "${ms}ms" } ?: "측정 없음"}") }
+        status.result?.let { Text("최근 결과: ${it.outcome} · 음성 반응${if (it.voiceAnswer?.responseTiming?.endsWith("_ESTIMATE") == true) " (발화 추정)" else ""}: ${it.responseMs?.let { ms -> "${ms}ms" } ?: "측정 없음"}") }
+        Text("주행 음성: ${if (voicePrepared) "준비됨" else "준비 필요"}")
+        voicePreparationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onPrepareVoice, enabled = parked && !voicePrepared) { Text("주행 음성 준비") }
+            OutlinedButton(onClick = onReleaseVoice, enabled = voicePrepared) { Text("음성 준비 해제") }
+        }
+        Text("출발 전 마이크 권한을 허용하고 주행 음성을 준비해 주세요. 준비 중에는 녹음하지 않으며, 실제 질문·응답 때만 마이크를 사용해요.")
         status.historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = { onEnabled(!status.enabled) }) { Text(if (status.enabled) "개입 중지" else "개입 재개") }

@@ -1,5 +1,6 @@
 package ai.pleos.playground.sample.vehicle.intervention
 
+import ai.pleos.playground.sample.vehicle.condition.core.FatigueLevel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -15,6 +16,8 @@ enum class VoiceTestMode(val prompt: String) {
     RESPONSE("음성 응답 시험입니다. 질문이 끝나면 괜찮아요라고 말씀해 주세요."),
     CONSENT("쉼터 안내 동의 시험입니다. 원하시면 안내해 줘, 원치 않으시면 아니요라고 말씀해 주세요."),
     TIMING("응답 시간 시험입니다. 질문이 끝나면 괜찮아요라고 말씀해 주세요."),
+    CAUTION_FLOW(InterventionSpeechAction.prompt(FatigueLevel.CAUTION)),
+    DANGER_FLOW(InterventionSpeechAction.prompt(FatigueLevel.DANGER)),
 }
 
 enum class VoiceTestOutcome { PLAYBACK_COMPLETED, ANSWERED, ACCEPTED, DECLINED, UNKNOWN_ANSWER, NO_RESPONSE, NO_MATCH, PERMISSION_REQUIRED, UNAVAILABLE, ERROR, CANCELLED }
@@ -25,6 +28,7 @@ data class VoiceTestResult(
     val answer: VoiceAnswer? = null,
     val error: VoiceFailureCode? = null,
     val platformCode: Int? = null,
+    val intervention: InterventionResult? = null,
 )
 
 data class VoiceTestRecord(val id: String, val mode: VoiceTestMode, val result: VoiceTestResult)
@@ -54,6 +58,7 @@ class VoiceTestController(
     val state = _state.asStateFlow()
     private var job: Job? = null
     private var cancelReason = "사용자가 시험을 중지했어요"
+    private val stageSpeech = InterventionSpeechAction(voice)
 
     fun refreshCapabilities() {
         _state.value = _state.value.copy(capabilities = runCatching { voice.capabilities() }.getOrNull())
@@ -75,7 +80,10 @@ class VoiceTestController(
         job = scope.launch {
             try {
                 val result = try {
-                    if (mode == VoiceTestMode.PLAYBACK) {
+                    if (mode == VoiceTestMode.CAUTION_FLOW || mode == VoiceTestMode.DANGER_FLOW) {
+                        val stage = if (mode == VoiceTestMode.CAUTION_FLOW) FatigueLevel.CAUTION else FatigueLevel.DANGER
+                        fromStage(stageSpeech.execute(stage, ::phase))
+                    } else if (mode == VoiceTestMode.PLAYBACK) {
                         voice.play(mode.prompt, ::phase)
                         VoiceTestResult(VoiceTestOutcome.PLAYBACK_COMPLETED, "재생 완료 콜백을 받았어요. 실제 소리가 들렸는지 직접 확인해 주세요")
                     } else evaluate(mode, if (mode == VoiceTestMode.TIMING) voice.askTimed(mode.prompt, ::phase) else voice.ask(mode.prompt, ::phase))
@@ -131,6 +139,20 @@ class VoiceTestController(
     }
 
     companion object {
+        internal fun fromStage(result: InterventionResult): VoiceTestResult = VoiceTestResult(
+            when (result.outcome) {
+                InterventionOutcome.ANSWERED -> VoiceTestOutcome.ANSWERED
+                InterventionOutcome.ACCEPTED -> VoiceTestOutcome.ACCEPTED
+                InterventionOutcome.DECLINED -> VoiceTestOutcome.DECLINED
+                InterventionOutcome.NO_RESPONSE -> VoiceTestOutcome.NO_RESPONSE
+                InterventionOutcome.NO_MATCH -> VoiceTestOutcome.NO_MATCH
+                InterventionOutcome.UNKNOWN_RESPONSE -> VoiceTestOutcome.UNKNOWN_ANSWER
+                InterventionOutcome.UNAVAILABLE -> if (result.error == VoiceFailureCode.PERMISSION)
+                    VoiceTestOutcome.PERMISSION_REQUIRED else VoiceTestOutcome.UNAVAILABLE
+                else -> VoiceTestOutcome.ERROR
+            }, result.details, result.voiceAnswer, result.error, result.platformCode, result,
+        )
+
         internal fun evaluate(mode: VoiceTestMode, answer: VoiceAnswer): VoiceTestResult {
             if (answer.end == VoiceEnd.TIMEOUT) return VoiceTestResult(VoiceTestOutcome.NO_RESPONSE, "응답 대기 시간이 끝났어요", answer)
             if (answer.end == VoiceEnd.NO_MATCH || answer.text.isNullOrBlank()) return VoiceTestResult(VoiceTestOutcome.NO_MATCH, "응답 문장을 인식하지 못했어요", answer)
