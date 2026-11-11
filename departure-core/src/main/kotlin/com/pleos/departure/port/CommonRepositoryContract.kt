@@ -152,7 +152,8 @@ interface NaviRepository {
      * - `naviMode == ROUTE_GUIDING`(또는 SIMULATION_GUIDING) → [RouteState.Guiding], `SAFE_GUIDING` → [RouteState.NotGuiding].
      *   `NOT_WORKING`은 의미 [미확인] → Unavailable(NO_DATA)로 돌려준다(설계 판단). `isRouting`은 안내 중에도 false 라 쓰지 않는다.
      * - [RouteState.Guiding.appliedOption] = `RouteStateInfo.routeOption`(보고값). 사용자가 내비에서 "유료도로 우회"를 켜면 FREE.
-     *   "어린이 보호구역 우회"를 함께 켰을 때의 값은 [미확인].
+     *   **"어린이 보호구역 우회"만 켜도 FREE**다(실행 확인 2026-11-11, 그 경로 통행료 700원) → FREE 만으로 유료도로 회피를 판정하지 않는다
+     *   (ConditionRouteUseCase 는 tollFare == 0 일 때만 충족 — 작업 #27). 두 토글을 함께 켰을 때의 값은 [미확인](확인 폐기, 사용자 결정 11/11).
      * - [RouteState.Guiding.tollFare] = 어댑터가 리스너로 받아 둔 **현재 경로의** `RouteStartInfo.tollFare`. 다시 조회할 수 없다.
      *   캐시 규칙(리뷰 task-05 재검토 MINOR-R1) — 하나라도 해당하면 null 로 돌려준다:
      *   1. 못 받았다.

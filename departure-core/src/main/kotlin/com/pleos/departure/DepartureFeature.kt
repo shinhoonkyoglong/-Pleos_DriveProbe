@@ -74,6 +74,9 @@ class DepartureFeature(
         //   경로 교체 중·안내 없음의 0 값 목적지는 둘 다 NotSet.
         // 0.8.0(#12b): 포트 시그니처 변경 없음. 세션 동작(재확인·주기 갱신·실패 처리·세션 기억)을 ui 에서 core 로 옮겨 공개 API 추가 —
         //   DepartureFeature.createSession, session 패키지(DepartureSession, DepartureSessionState, CheckOutcome, RecheckProgress).
-        const val VERSION: String = "0.8.0"
+        // 0.9.0(#27): 포트 시그니처 변경 없음. 도메인 모델 변경 — RouteConditionCheck.TollAvoidanceUnverified 추가(FREE + 통행료 모름),
+        //   RouteUserAction.REVIEW_TOLL_ON_ROUTE·RouteNote.TOLL_FARE_NOT_OBSERVED 삭제. 무료도로 충족 = FREE + tollFare 0 일 때만.
+        //   when 으로 RouteConditionCheck 를 전부 처리하는 소비자는 새 분기를 추가해야 한다.
+        const val VERSION: String = "0.9.0"
     }
 }

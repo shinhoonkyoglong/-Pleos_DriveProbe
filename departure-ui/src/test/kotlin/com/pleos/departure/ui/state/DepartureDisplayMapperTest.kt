@@ -327,23 +327,29 @@ class DepartureDisplayMapperTest {
         assertEquals(DepartureDisplayMapper.TOGGLE_STEPS, turnOn.steps)
         assertTrue(turnOn.showConfirmToggle)
         assertTrue(turnOn.card.lines.any { it.text == "통행료 700원" })
-        val review = card(RouteConditionCheck.NeedsUserAction(dest, RouteState.Guiding(RouteOption.FREE, 1_200), listOf(RouteUserAction.REVIEW_TOLL_ON_ROUTE), emptyList()))
-        assertEquals("통행료가 있는 경로예요", review.card.title)
-        assertFalse(review.showConfirmToggle)
+        // 작업 #27: FREE + 통행료 있음(어린이 보호구역 우회만) → 유료도로 우회 켜기 안내 + 켰어요 버튼
+        val freeWithToll = card(RouteConditionCheck.NeedsUserAction(dest, RouteState.Guiding(RouteOption.FREE, 700), listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), emptyList()))
+        assertEquals("유료도로를 지나는 경로예요", freeWithToll.card.title)
+        assertTrue(freeWithToll.showConfirmToggle)
+        // 작업 #27: FREE + 통행료 모름 → 주의, 확인 권함, 켰어요 반복 유도 없음
+        val unverified = card(RouteConditionCheck.TollAvoidanceUnverified(dest, RouteState.Guiding(RouteOption.FREE, null), emptyList()))
+        assertEquals(Tone.CAUTION, unverified.card.tone)
+        assertEquals("유료도로 우회를 확인해 주세요", unverified.card.title)
+        assertFalse(unverified.showConfirmToggle)
         val ref = card(RouteConditionCheck.ReferenceOnly(dest, listOf(RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED)))
         assertEquals(Tone.INFO, ref.card.tone)
         assertTrue(ref.notes.single().text.startsWith("고속도로 회피는"))
     }
 
-    /** 충족이어도 참고 안내(통행료 모름, 고속도로 회피 보장 불가)는 숨기지 않는다(리뷰 task-05 #7-9). */
+    /** 충족이어도 참고 안내(고속도로 회피 보장 불가)는 숨기지 않는다(리뷰 task-05 #7-9). */
     @Test
     fun satisfiedNotes_areShown() {
         val r = map(
-            snapshot(route = RouteConditionCheck.Satisfied(dest, RouteState.Guiding(RouteOption.FREE, null), listOf(RouteNote.TOLL_FARE_NOT_OBSERVED, RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED))),
+            snapshot(route = RouteConditionCheck.Satisfied(dest, RouteState.Guiding(RouteOption.FREE, 0), listOf(RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED))),
         ).route!!
-        assertEquals(2, r.notes.size)
-        assertTrue(r.notes[0].text.contains("통행료 정보는 받지 못했어요"))
-        assertTrue(r.notes[1].text.contains("고속도로 회피는"))
+        assertEquals(1, r.notes.size)
+        assertTrue(r.notes[0].text.contains("고속도로 회피는"))
+        assertTrue(r.card.lines.any { it.text == "통행료 0원" })
     }
 
     @Test

@@ -26,12 +26,13 @@ import com.pleos.departure.port.NaviRepository
  *    고속도로 회피는 어떤 경로로도 보장할 수 없으므로 결코 "충족"으로 보지 않는다(경로 상태도 읽지 않음).
  * 4. 무료도로 조건 → 경로 상태 조회
  *    - Unavailable → [RouteConditionCheck.Unconfirmed] / 안내 중 아님 → [RouteConditionCheck.NotGuiding]
- *    - 주 신호 `appliedOption == FREE`(다시 조회 가능), 보조 신호 tollFare(받았을 때만, task-01d MAJOR-4):
+ *    - 신호 `appliedOption`(다시 조회 가능) + tollFare(안내 시작 때 받았을 때만). 작업 #27(2026-11-11)부터 **통행료 0원이 확인돼야 충족**:
+ *      FREE 는 "어린이 보호구역 우회"만 켜도 오므로(실측, 그 경로 통행료 700원) FREE 만으로는 유료도로를 피했다고 볼 수 없다.
  *      - RECOMMENDED(토글 꺼짐 실측 값) → 사용자 조작 [RouteUserAction.TURN_ON_TOLL_AVOIDANCE]
  *      - 그 밖의 FREE 아닌 값 → [RouteConditionCheck.OtherRouteOption](충족 아님, 단정 안 함 — 리뷰 task-05 재검토 MAJOR-R2)
- *      - FREE + tollFare > 0 → [RouteUserAction.REVIEW_TOLL_ON_ROUTE] (충족 아님)
+ *      - FREE + tollFare > 0 → [RouteUserAction.TURN_ON_TOLL_AVOIDANCE] (유료도로 우회가 꺼져 있는 것 — 어린이 보호구역 우회만 켠 경우)
  *      - FREE + tollFare == 0 → 충족
- *      - FREE + tollFare 모름 → 충족 + [RouteNote.TOLL_FARE_NOT_OBSERVED]
+ *      - FREE + tollFare 모름 → [RouteConditionCheck.TollAvoidanceUnverified] (충족 아님, 확인 권함)
  *    - 고속도로 회피도 있으면 notes 에 [RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED]를 붙인다.
  *
  * 호출 시점: 화면 진입·백그라운드 복귀, 사용자가 "켰어요"를 누른 뒤. 사람이 내비에서 경로를 바꾸면 onRouteCancelled → 7~19초 뒤
@@ -82,10 +83,10 @@ class ConditionRouteUseCase(
                 RouteConditionCheck.NeedsUserAction(place, state, listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), highwayNote)
             state.appliedOption != RouteOption.FREE ->
                 RouteConditionCheck.OtherRouteOption(place, state, highwayNote)
-            toll != null && toll > 0 ->
-                RouteConditionCheck.NeedsUserAction(place, state, listOf(RouteUserAction.REVIEW_TOLL_ON_ROUTE), highwayNote)
             toll == null ->
-                RouteConditionCheck.Satisfied(place, state, listOf(RouteNote.TOLL_FARE_NOT_OBSERVED) + highwayNote)
+                RouteConditionCheck.TollAvoidanceUnverified(place, state, highwayNote)
+            toll > 0 ->
+                RouteConditionCheck.NeedsUserAction(place, state, listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), highwayNote)
             else ->
                 RouteConditionCheck.Satisfied(place, state, highwayNote)
         }

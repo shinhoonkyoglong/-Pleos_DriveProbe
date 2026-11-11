@@ -436,6 +436,16 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
             ),
             notes = result.notes.map(::noteLine),
         )
+        is RouteConditionCheck.TollAvoidanceUnverified -> RouteCard(
+            StatusCard(
+                Tone.CAUTION, StatusIcon.QUESTION, "유료도로 우회를 확인해 주세요",
+                lines = listOf(
+                    DisplayLine("이 경로의 통행료를 확인하지 못했어요"),
+                    DisplayLine("내비 경로 설정에서 '유료도로 우회'가 켜져 있는지 확인해 주세요", emphasis = true),
+                ),
+            ),
+            notes = result.notes.map(::noteLine),
+        )
         is RouteConditionCheck.OtherRouteOption -> RouteCard(
             StatusCard(
                 Tone.CAUTION, StatusIcon.QUESTION, "무료도로 적용을 확인해 주세요",
@@ -457,7 +467,6 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         val first = result.actions.firstOrNull()
         val title = when (first) {
             RouteUserAction.TURN_ON_TOLL_AVOIDANCE -> "유료도로를 지나는 경로예요"
-            RouteUserAction.REVIEW_TOLL_ON_ROUTE -> "통행료가 있는 경로예요"
             null -> "경로를 확인해 주세요"
         }
         val lines = mutableListOf<DisplayLine>()
@@ -478,10 +487,6 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
                         lines += DisplayLine(PARKED_ONLY_GUIDE, emphasis = true)
                     }
                 }
-                RouteUserAction.REVIEW_TOLL_ON_ROUTE -> {
-                    lines += DisplayLine("'유료도로 우회'는 켜져 있지만 통행료가 확인됐어요", emphasis = true)
-                    lines += DisplayLine("내비 경로 화면에서 경로를 확인해 주세요")
-                }
             }
         }
         return RouteCard(
@@ -492,14 +497,12 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         )
     }
 
-    /** 통행료는 받았을 때만 표시한다(못 받으면 notes 의 TOLL_FARE_NOT_OBSERVED 가 대신 설명). */
+    /** 통행료는 받았을 때만 표시한다(못 받으면 충족이 아니라 TollAvoidanceUnverified 카드가 설명 — 작업 #27). */
     private fun tollFareLine(state: RouteState.Guiding): DisplayLine? = state.tollFare?.let { DisplayLine("통행료 ${KoreanFormat.won(it)}") }
 
     private fun noteLine(note: RouteNote): DisplayLine = when (note) {
         RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED ->
             DisplayLine("고속도로 회피는 내비 기능으로 보장할 수 없어요. 통행료 없는 고속도로가 포함될 수 있어요")
-        RouteNote.TOLL_FARE_NOT_OBSERVED ->
-            DisplayLine("이 경로의 통행료 정보는 받지 못했어요. '유료도로 우회' 설정만 확인했어요")
     }
 
     // ---------------------------------------------------------------- 공통
