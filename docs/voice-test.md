@@ -10,8 +10,10 @@
 | 응답 시험 | '괜찮아요' 인식, 결과 '응답 인식' | #57 |
 | 안내 동의 | '안내해' 인식, 결과 '안내 동의' | #58 |
 | 안내 거절 | '아니' 인식, 결과 '안내 거절' | #59 |
+| 응답 시간 시험 1 | '괜찮아요' 인식, 발화 추정 1,027ms·녹음 시작 지연 27ms | #60 |
+| 응답 시간 시험 2 | '괜찮아요' 인식, 발화 추정 2,023ms·녹음 시작 지연 23ms | #61 |
 
-인식·동의 판별·이력 저장은 위 범위에서 확인됐다. 동의 시험은 실제 경로를 변경하지 않는다. 응답 시간(ms)은 미구현 상태이며 `측정 없음`으로 표시한다. 무응답·사용자 중지·화면 이탈·주행 전환의 실제 기기 검증은 별도다. 아래 내용은 구성과 오류 수정 이력이며, 당시 남아 있던 문장 인식 재시험은 위 결과로 완료했다.
+인식·동의 판별・추정 시간 표시・이력 저장은 위 범위에서 확인됐다. 동의 시험은 실제 경로를 변경하지 않는다. 기존 2·3번 시험의 응답 시간(ms)은 `측정 없음`으로 표시한다. 4번은 오디오 프레임 시각 기준으로 동작했다. #60·#61의 EPD 시작 오프셋은 각각 32,000·64,000 byte(1초·2초)였으므로, 이 두 사례만으로 밀리초 수준의 발화 검출 정확도를 입증하지는 않는다. 아래 내용은 구성 및 오류 수정 이력이다.
 
 `feat/hvac-control`의 디버그 빌드에서 **음성 시험** 탭으로 진입한다. 피로 점수가 올라갈 때까지 기다릴 필요가 없다.
 
@@ -37,6 +39,7 @@ $adb = 'C:\Users\SSAFY\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 | --- | --- | --- |
 | 1. 질문만 재생 | 질문이 실제로 들리는지 확인 | 재생 중 → 재생 완료 콜백 수신 → 이력 저장 완료 |
 | 2. 응답 시험 | '응답 대기 중'이 나오면 **괜찮아요**라고 말하기 | 발화 감지 → 인식 문장 → 응답 시간(ms) → 이력 저장 완료 |
+| 4. 응답 시간 시험 | 대기 표시 후 **괜찮아요**라고 말하기 | 인식 문장, 발화 시작 추정 시간(ms), 시간 기준, 이력 저장 완료 |
 | 3. 동의·거절 시험 | **안내해 줘**라고 말하기 | 안내 동의. 시험에서는 실제 경로가 변경되지 않음 |
 | 3. 동의·거절 시험 재실행 | **아니요**라고 말하기 | 안내 거절 |
 | 2. 응답 시험 재실행 | 말하지 않고 기다리기 | 최대 10초 후 시간 초과. 제공 서비스가 먼저 NO_MATCH를 반환하면 문장 인식 실패로 구분 |
@@ -46,7 +49,49 @@ $adb = 'C:\Users\SSAFY\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 질문 재생만 성공했다고 음성 응답 성공으로 판단하지 않는다. TTS 완료 콜백도 실제 소리가 들렸다는 증거는 아니므로 사람이 소리를 확인해야 한다.
 
+## 종료·실패 시나리오 검증 (2026-11-11)
+
+아래는 에뮬레이터의 실제 앱·Room DB·차량 서비스·Android 녹음 이벤트로 확인했다. 녹음 시나리오는 PC 마이크 경로를 끈 무음 입력으로 실행해 실제 사용자의 목소리를 수집하지 않았다. 기존 성공 이력은 보존했다.
+
+| 대상 | 시나리오 | 결과 | 이력 |
+| --- | --- | --- | --- |
+| 질문 재생 | 시험 중지 | TTS 중지 전달, CANCELLED 1건 | #63 |
+| 질문 재생 | 다른 탭으로 이동 | TTS 중지 전달, CANCELLED 1건 | #64 |
+| 질문 재생 | 앱 화면 종료(onStop) | TTS 중지 전달, CANCELLED 1건 | #65 |
+| 질문 재생 | P·0 → D·60km/h | 조건 보호로 취소, TTS 중지 전달, CANCELLED 1건 | #66 |
+| 시간 시험 녹음 | 시험 중지 | AudioRecord 종료, CANCELLED 1건 | #68 |
+| 시간 시험 녹음 | 다른 탭으로 이동 | AudioRecord 종료, CANCELLED 1건 | #69 |
+| 시간 시험 녹음 | 앱 화면 종료(onStop) | AudioRecord 종료, CANCELLED 1건 | #70 |
+| 시간 시험 녹음 | P·0 → D·60km/h | AudioRecord 종료, CANCELLED 1건 | #71 |
+| 시간 시험 녹음 | 무음 대기 | NO_RESPONSE 1건, responseMs=null, AudioRecord 종료 | #72 |
+| 기존 응답 시험 | 녹음 중 시험 중지 | CaaS 녹음 종료, CANCELLED 1건 | #73 |
+| 기존 응답 시험 | 무음 대기(독립 재시험) | NO_RESPONSE 1건, responseMs=null, CaaS 녹음 종료 | #75 |
+
+- 정차 상태 복구 후 속도 0·P 기어 및 공조·창문 값 보존을 확인했다. 실제 자동차가 아니라 에뮬레이터에서의 주행 전환 검증이다.
+- #74는 기존 응답 시험의 무음 대기 도중 차량/화면 조건 보호로 취소되었다. 녹음 종료와 단일 CANCELLED 저장은 확인했지만 무응답 시험 통과로 세지 않았다.
+- 조건 보호 진단을 보강했다. 취소 결과에 실제 차단 조건(기어, 속도 신호 없음, 속도 0 아님, 화면 상태 미확인/제한)을 남기며, 앱 로그에 당시 신호 상태를 기록한다. 시험 허용 조건 자체는 바꾸지 않았다.
+- 제어기 단위 테스트에는 모든 모드 × 중지·탭 이탈·onStop·차량 조건 변경의 16가지 조합을 추가했다. 비동기 녹음 정리가 끝나기 전 재시작 차단, 중복 취소 중 단일 이력 저장, 정리 후 재시작, 무응답 후 자동 개입 상태 복원을 검증한다. 실제 차단 사유가 취소 이력까지 보존되는 회귀 테스트도 추가했다.
+- 최종 Debug APK 빌드 및 앱 단위 테스트 204개 통과(실패·오류·건너뜀 0). 진단 보강 APK를 설치했다. #75는 Virtual Console 세션 갱신을 제외한 독립 조건에서 실행했다. 시험 종료 후 Android 녹음 종료 이벤트를 확인하고 PC 마이크 연결을 다시 켰다. 실제 앱에서 음성 시험 허용 상태(P·속도 0·차량 화면 제한 없음)와 화면 재진입을 확인했다.
+- 현재 커밋 기준은 `4e6fb74`(음성 시험 기능)이다. 이후 PCM 추정 시간·종료 시나리오 테스트·조건 보호 진단·이 문서가 변경되었다. 작업 환경의 `.git` 쓰기 제한 때문에 커밋/푸시는 Android Studio 터미널에서 수행해야 한다.
+
 ## 반응 시간
+
+### 4번 응답 시간 시험: PCM 발화 추정
+
+- `TIMING` 모드는 사용자가 버튼을 누르면 질문 재생 후 앱의 `AudioRecord`로 PCM16·16kHz·모노를 수집한다. 같은 바이트를 Pleos STT SDK `ON_DEVICE.sendAudio()`에 전달한다. SDK의 차량 마이크 `request()`는 이 모드에서 호출하지 않는다.
+- 질문 재생 종료는 기존 `SystemClock.elapsedRealtime()` 단조 시간이다. 오디오 프레임 시각은 `AudioTimestamp.TIMEBASE_BOOTTIME`을 사용해 같은 시간 기준으로 맞춘다.
+- 계산식: `(첫 PCM 프레임 시각 + EPD 시작 byte / 32,000초) - 질문 재생 종료 시각`.
+- 오디오 타임스탬프가 없으면 첫 버퍼 수신 시각에서 누적 샘플 길이를 빼서 녹음 시작을 추정한다. 화면에 버퍼 수신 기준임을 표시한다. 둘 다 EPD 검출 오차가 있으므로 순수한 사람의 반응 시간이나 임상 측정치로 단정하지 않는다.
+- SDK 최종 텍스트보다 EPD가 뒤에 오는 순서를 고려해 최종 문장 수신 후 최대 250ms 동안 EPD를 기다린다. 음성 인식 성공 여부와 시간 계산 성공 여부는 별개다.
+- EPD 누락, 잘못된 오프셋, 수집 바이트 범위 초과, 질문 이전 발화 시각이면 `responseMs=null`이다. byte 0에서 시작하는 유효한 발화는 누락으로 취급하지 않는다.
+- 저장: `mode=TIMING`, `responseMs`, `captureLatencyMs`, `epdOnBytes`, `epdOffBytes`, `audioBytes`, `responseTiming`. 시간 기준은 `PCM_AUDIO_TIMESTAMP_EPD_ESTIMATE` 또는 `PCM_READ_RECEIPT_EPD_ESTIMATE`이며 계산 불가는 `UNMEASURED_PCM_EPD`다.
+- 화면·최근 이력의 숫자에 '발화 추정' 표시를 붙인다. 수집 PCM은 메모리에서만 처리하며 파일로 저장하지 않는다. 결과·중지·화면 이탈·주행 전환 시 로컬 AudioRecord를 중지·해제한 뒤 SDK 세션도 중지한다.
+- 사용자 확인: 4번에서 대기 표시 직후 '괜찮아요'를 말하고, 다시 실행해 대기 표시 후 약 2초 기다렸다 말한다. 인식 문장·시간 기준·추정 ms·저장 완료를 함께 확인한다. 두 값은 녹음 준비 지연 차이도 포함하므로 차이가 정확히 2,000ms라고 단정하지 않는다.
+- 빌드 및 앱 테스트 201개 통과. 추가 11개 테스트는 샘플 시간 환산, 오디오 타임스탬프 우선순위, byte 0 발화, EPD 누락·지연·잘못된 범위, 시간 기준 불일치·오버플로 입력, 중복 이벤트, TIMING 경로 선택·측정 출처 보존을 검증한다. 설치 후 4번 버튼 활성화를 확인했다. 이후 사용자가 #60·#61에서 실제 PCM 인식·추정 시간 표시·저장을 확인했다. 종료·실패 시나리오는 위 별도 표에서 확인한다. 시간 측정 정확도 검증은 남아 있다.
+
+공식 근거: [Pleos PCM 전송](https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/SpeechToText/sending-audio-data), [EPD 바이트 오프셋](https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/SpeechToText/result-listeners), [Android AudioRecord](https://developer.android.com/reference/android/media/AudioRecord).
+
+### 기존 2·3번 시험
 
 - Pleos STT SDK 경로에서는 발화 위치가 오디오 바이트 오프셋으로 제공된다. 현재는 실제 발화 시각으로 환산하지 않으며 `responseMs=null`, `responseTiming=UNMEASURED_PLEOS_EPD_BYTE_OFFSETS`로 저장한다. 인식 성공 여부와 시간 측정 여부를 구분한다.
 - 아래 Android 콜백 기반 측정은 일반 Android 인식 경로에만 적용한다.
@@ -67,7 +112,7 @@ DB 스키마는 바꾸지 않고 `intervention_histories`를 사용한다. 테�
 - `actionDetails.simulation`: true — 실제 운전 리포트에서 제외하기 위한 테스트 표시다. 오디오 자체를 흉내 낸다는 뜻이 아니다.
 - `actionDetails.audioMode`: `REAL_PLATFORM_TTS_STT`
 - `actionDetails.ttsBackend`: `PLEOS_ON_DEVICE` / `ANDROID` / `NONE`
-- `actionDetails.mode`: PLAYBACK / RESPONSE / CONSENT
+- `actionDetails.mode`: PLAYBACK / RESPONSE / CONSENT / TIMING
 - `outcome`, `details`, `responseMs`, `readyLatencyMs`, `recognitionEnd`, `error`, `platformCode` 저장.
 - `userResponse`: 실제 인식된 문장. 음성 원본은 앱에서 저장하지 않는다.
 - 피로 점수는 측정하지 않는다. 기존 컬럼의 0은 미측정용 값이며 화면에서 테스트의 피로 점수로 표시하지 않는다.

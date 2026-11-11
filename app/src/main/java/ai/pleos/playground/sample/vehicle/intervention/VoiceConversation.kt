@@ -32,12 +32,17 @@ data class VoiceAnswer(
     val responseTiming: String = "TTS_onDone_to_speech_onBeginning",
     val inputLevelCallbacks: Int? = null,
     val maxInputRms: Double? = null,
+    val captureLatencyMs: Long? = null,
+    val epdOnBytes: Long? = null,
+    val epdOffBytes: Long? = null,
+    val audioBytes: Long? = null,
 )
 
 interface VoiceConversation {
     fun capabilities(): VoiceCapabilities
     suspend fun play(prompt: String, onPhase: (VoicePhase) -> Unit = {}): Long
     suspend fun ask(prompt: String, onPhase: (VoicePhase) -> Unit = {}): VoiceAnswer
+    suspend fun askTimed(prompt: String, onPhase: (VoicePhase) -> Unit = {}): VoiceAnswer = ask(prompt, onPhase)
 }
 
 /** Monotonic times. Missing callbacks remain unknown, never a fabricated zero response time. */

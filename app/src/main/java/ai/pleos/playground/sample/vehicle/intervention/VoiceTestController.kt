@@ -14,6 +14,7 @@ enum class VoiceTestMode(val prompt: String) {
     PLAYBACK("음성 시험입니다. 이 안내가 들리는지 확인해 주세요."),
     RESPONSE("음성 응답 시험입니다. 질문이 끝나면 괜찮아요라고 말씀해 주세요."),
     CONSENT("쉼터 안내 동의 시험입니다. 원하시면 안내해 줘, 원치 않으시면 아니요라고 말씀해 주세요."),
+    TIMING("응답 시간 시험입니다. 질문이 끝나면 괜찮아요라고 말씀해 주세요."),
 }
 
 enum class VoiceTestOutcome { PLAYBACK_COMPLETED, ANSWERED, ACCEPTED, DECLINED, UNKNOWN_ANSWER, NO_RESPONSE, NO_MATCH, PERMISSION_REQUIRED, UNAVAILABLE, ERROR, CANCELLED }
@@ -60,7 +61,7 @@ class VoiceTestController(
 
     fun setAllowed(allowed: Boolean, reason: String = "P 기어·속도 0·화면 사용 가능 상태에서만 시험할 수 있어요") {
         _state.value = _state.value.copy(allowed = allowed, blockedReason = reason)
-        if (!allowed) cancel("차량 또는 화면 사용 상태가 바뀌어 시험을 중지했어요")
+        if (!allowed) cancel("$reason · 시험을 중지했어요")
     }
 
     fun start(mode: VoiceTestMode): Boolean {
@@ -77,7 +78,7 @@ class VoiceTestController(
                     if (mode == VoiceTestMode.PLAYBACK) {
                         voice.play(mode.prompt, ::phase)
                         VoiceTestResult(VoiceTestOutcome.PLAYBACK_COMPLETED, "재생 완료 콜백을 받았어요. 실제 소리가 들렸는지 직접 확인해 주세요")
-                    } else evaluate(mode, voice.ask(mode.prompt, ::phase))
+                    } else evaluate(mode, if (mode == VoiceTestMode.TIMING) voice.askTimed(mode.prompt, ::phase) else voice.ask(mode.prompt, ::phase))
                 } catch (e: CancellationException) {
                     withContext(NonCancellable) {
                         finish(VoiceTestRecord(id, mode, VoiceTestResult(VoiceTestOutcome.CANCELLED, cancelReason)))
@@ -133,7 +134,7 @@ class VoiceTestController(
         internal fun evaluate(mode: VoiceTestMode, answer: VoiceAnswer): VoiceTestResult {
             if (answer.end == VoiceEnd.TIMEOUT) return VoiceTestResult(VoiceTestOutcome.NO_RESPONSE, "응답 대기 시간이 끝났어요", answer)
             if (answer.end == VoiceEnd.NO_MATCH || answer.text.isNullOrBlank()) return VoiceTestResult(VoiceTestOutcome.NO_MATCH, "응답 문장을 인식하지 못했어요", answer)
-            if (mode == VoiceTestMode.RESPONSE) return VoiceTestResult(VoiceTestOutcome.ANSWERED, "응답 문장을 인식했어요", answer)
+            if (mode == VoiceTestMode.RESPONSE || mode == VoiceTestMode.TIMING) return VoiceTestResult(VoiceTestOutcome.ANSWERED, "응답 문장을 인식했어요", answer)
             return when (VoiceResponse.consent(answer.text)) {
                 VoiceConsent.ACCEPT -> VoiceTestResult(VoiceTestOutcome.ACCEPTED, "안내 동의를 인식했어요. 시험에서는 경로를 변경하지 않아요", answer)
                 VoiceConsent.DECLINE -> VoiceTestResult(VoiceTestOutcome.DECLINED, "안내 거절을 인식했어요", answer)

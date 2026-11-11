@@ -91,9 +91,18 @@ class InterventionModule(
         }
         scope.launch {
             combine(repository.gear, repository.vehicleSpeed, repository.hasSpeedSignal, repository.uxRestriction) { gear, speed, known, ux ->
-                gear == GearPosition.PARK && known && speed == 0f &&
-                    ux?.source == UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization
-            }.collect { voiceTests.setAllowed(it) }
+                val reason = when {
+                    gear != GearPosition.PARK -> "P 기어가 아니에요 (현재 $gear)"
+                    !known -> "차량 속도 신호를 확인하지 못했어요"
+                    speed != 0f -> "속도가 0km/h가 아니에요 (현재 ${speed}km/h)"
+                    ux?.source != UxRestrictionSource.CAR_SERVICE -> "차량의 화면 사용 가능 상태를 확인하지 못했어요"
+                    ux.requiresDistractionOptimization -> "차량에서 화면 사용을 제한하고 있어요"
+                    else -> ""
+                }
+                if (reason.isNotEmpty() && voiceTests.state.value.running)
+                    Log.w("VoiceTest", "Gate blocked: gear=$gear speed=$speed known=$known ux=$ux")
+                (reason.isEmpty()) to reason
+            }.collect { (allowed, reason) -> voiceTests.setAllowed(allowed, reason) }
         }
         if (BuildConfig.DEBUG) scope.launch {
             repository.signalEvents.collect { event ->
@@ -196,6 +205,10 @@ class InterventionModule(
             put("details", result.message)
             put("responseMs", result.answer?.responseMs ?: JSONObject.NULL)
             put("readyLatencyMs", result.answer?.readyLatencyMs ?: JSONObject.NULL)
+            put("captureLatencyMs", result.answer?.captureLatencyMs ?: JSONObject.NULL)
+            put("epdOnBytes", result.answer?.epdOnBytes ?: JSONObject.NULL)
+            put("epdOffBytes", result.answer?.epdOffBytes ?: JSONObject.NULL)
+            put("audioBytes", result.answer?.audioBytes ?: JSONObject.NULL)
             put("responseTiming", result.answer?.responseTiming ?: JSONObject.NULL)
             put("recognitionBackend", voice.capabilities().recognitionBackend.name)
             put("inputLevelCallbacks", result.answer?.inputLevelCallbacks ?: JSONObject.NULL)

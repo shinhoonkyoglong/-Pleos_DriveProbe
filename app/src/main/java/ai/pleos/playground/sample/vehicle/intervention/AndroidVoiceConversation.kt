@@ -54,6 +54,15 @@ class AndroidVoiceConversation(context: Context) : VoiceConversation {
         speak(prompt, onPhase)
     }
 
+    override suspend fun askTimed(prompt: String, onPhase: (VoicePhase) -> Unit): VoiceAnswer = exclusive {
+        val c = capabilities()
+        if (!c.microphoneGranted) throw VoiceFailure(VoiceFailureCode.PERMISSION, "마이크 권한을 허용해 주세요")
+        if (c.recognitionBackend != SpeechBackend.PLEOS_ON_DEVICE)
+            throw VoiceFailure(VoiceFailureCode.NO_RECOGNIZER, "응답 시간 시험에는 Pleos STT SDK가 필요해요")
+        val endedAt = speak(prompt, onPhase)
+        PcmTimedRecognizer(context).listen(endedAt, onPhase)
+    }
+
     override suspend fun ask(prompt: String, onPhase: (VoicePhase) -> Unit): VoiceAnswer = exclusive {
         onPhase(VoicePhase.CHECKING)
         val capabilities = capabilities()

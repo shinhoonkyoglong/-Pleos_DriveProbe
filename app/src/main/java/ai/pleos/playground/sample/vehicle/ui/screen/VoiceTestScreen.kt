@@ -57,6 +57,7 @@ fun VoiceTestScreen(
             Button(onClick = { onStart(VoiceTestMode.CONSENT) }, enabled = idle && state.allowed) { Text("3. 동의·거절 시험") }
             OutlinedButton(onClick = onStop, enabled = state.running && state.phase != VoicePhase.SAVING) { Text("시험 중지") }
         }
+        OutlinedButton(onClick = { onStart(VoiceTestMode.TIMING) }, enabled = idle && state.allowed) { Text("4. 응답 시간 시험") }
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(state.message, style = MaterialTheme.typography.titleMedium)
@@ -64,7 +65,17 @@ fun VoiceTestScreen(
                 state.result?.let { result ->
                     Text("결과: ${voiceTestOutcomeLabel(result.outcome.name)}")
                     Text("인식 문장: ${result.answer?.text ?: "없음"}")
-                    Text("응답 시간: ${result.answer?.responseMs?.let { "${it}ms" } ?: "측정 없음"}")
+                    val estimated = result.answer?.responseTiming?.endsWith("_ESTIMATE") == true
+                    Text("응답 시간${if (estimated) " (발화 추정)" else ""}: ${result.answer?.responseMs?.let { "${it}ms" } ?: "측정 없음"}")
+                    if (state.mode == VoiceTestMode.TIMING) {
+                        Text("질문 재생 종료 → 녹음 시작 지연과 발화 시작 위치를 합산해요. 발화 검출·오디오 버퍼 지연에 따른 오차가 있어요.")
+                        Text("시간 기준: ${when (result.answer?.responseTiming) {
+                            "PCM_AUDIO_TIMESTAMP_EPD_ESTIMATE" -> "오디오 프레임 시각 + 발화 위치"
+                            "PCM_READ_RECEIPT_EPD_ESTIMATE" -> "버퍼 수신 시각 + 발화 위치 (추정)"
+                            else -> "발화 위치 또는 시간 기준 수신 없음"
+                        }}")
+                        result.answer?.captureLatencyMs?.let { Text("녹음 시작 지연 추정: ${it}ms") }
+                    }
                     if (result.answer?.responseTiming == "UNMEASURED_PLEOS_EPD_BYTE_OFFSETS") {
                         Text("Pleos SDK는 발화 위치를 오디오 바이트 단위로 제공해요. 현재 응답 시간(ms)은 계산하지 않아요.")
                         Text("입력 레벨 수신: ${result.answer.inputLevelCallbacks ?: 0}회 · 최대 RMS: ${result.answer.maxInputRms ?: "수신 없음"}")
@@ -78,13 +89,13 @@ fun VoiceTestScreen(
         }
         Text("‘응답 대기 중’이 나오면 말씀해 주세요. 무응답 시험은 질문 후 10초 동안 말하지 않으면 돼요.")
         Text("응답 시간은 질문 재생 완료부터 발화 감지까지이며 인식 엔진 준비 지연이 포함될 수 있어요. 감지 콜백이 없으면 측정 없음으로 표시해요.")
-        Text("마이크 입력은 응답·동의 시험에서 질문 재생 후 시작돼요. 화면을 나가거나 차량 상태가 바뀌면 중지돼요. 음성 원본은 앱에 저장하지 않고 인식 문장·시간·결과만 저장해요.")
+        Text("마이크 입력은 응답·동의·시간 시험에서 질문 재생 후 시작돼요. 화면을 나가거나 차량 상태가 바뀌면 중지돼요. 음성 원본은 앱에 저장하지 않고 인식 문장·시간·결과만 저장해요.")
         Text("이 시험은 차량·경로를 변경하지 않아요. 실제 운전 기록과 구분해 저장해요.")
         latest?.let {
             val details = remember(it.actionDetails) { runCatching { JSONObject(it.actionDetails) }.getOrNull() }
             Text("최근 저장된 음성 시험", style = MaterialTheme.typography.titleMedium)
             Text("${voiceTestOutcomeLabel(details?.optString("outcome"))} · ${it.userResponse ?: "인식 문장 없음"}")
-            Text("저장된 응답 시간: ${if (details == null || details.isNull("responseMs")) "측정 없음" else "${details.optLong("responseMs")}ms"}")
+            Text("저장된 응답 시간${if (details?.optString("responseTiming")?.endsWith("_ESTIMATE") == true) " (발화 추정)" else ""}: ${if (details == null || details.isNull("responseMs")) "측정 없음" else "${details.optLong("responseMs")}ms"}")
         }
     }
 }
