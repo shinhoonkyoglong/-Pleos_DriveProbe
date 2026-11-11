@@ -21,6 +21,8 @@ data class LocatedCenter(val point: GeoPoint, val address: String = "")
  * - [load]: 저장된 조건이 있으면 그 값을 보여 준다. 없으면 기본값([DriverConditionDefaults])을 채우고 현재 위치를 중심으로 읽는다.
  *   기본값은 [save] 전까지 저장하지 않는다(저장 안 됨 = 조건 미설정).
  * - 주행 중(RESTRICTED, 또는 UNKNOWN + treatUnknownDrivingAsRestricted)에는 모든 입력·저장·위치 다시 읽기를 무시한다.
+ * - 저장 중([DriverConditionSettingsState.saving])에는 입력을 무시한다. 저장이 끝나면 화면 값이 저장값으로 바뀌므로,
+ *   그 사이 입력을 받으면 사용자가 바꾼 값이 말없이 사라지기 때문이다.
  * - 스레드: 모든 메서드는 한 스레드(메인)에서 부른다는 전제다(ViewModel 의 viewModelScope).
  *
  * @param currentLocation 현재 위치 1회 조회. Mock(내비 미연결) 값은 호출하는 쪽에서 Unavailable 로 바꿔 넘긴다.
@@ -121,7 +123,8 @@ class DriverConditionSettingsController(
     }
 
     private fun edit(change: (DriverConditionForm) -> DriverConditionForm) {
-        if (_state.value.editingLocked || _state.value.loading) return
+        val current = _state.value
+        if (current.editingLocked || current.loading || current.saving) return
         _state.update { it.copy(form = change(it.form), errors = emptyList(), saveResult = null) }
     }
 

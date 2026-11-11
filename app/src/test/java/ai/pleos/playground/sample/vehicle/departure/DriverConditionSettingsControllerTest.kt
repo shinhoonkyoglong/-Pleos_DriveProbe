@@ -9,9 +9,12 @@ import com.pleos.departure.model.RoutePreference
 import com.pleos.departure.model.TimeConstraint
 import com.pleos.departure.model.UnavailableReason
 import com.pleos.departure.port.DriverConditionRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -176,6 +179,35 @@ class DriverConditionSettingsControllerTest {
         c.save()
         assertEquals(SaveResult.FAILED, c.state.value.saveResult)
         assertEquals(SaveStatus.NOT_SAVED, c.state.value.saveStatus)
+    }
+
+    @Test
+    fun whileSaving_editsAreIgnored_soStoredValueMatchesScreen() = runBlocking {
+        // 저장이 끝나기 전에 입력하면 저장 완료 시 그 입력이 말없이 사라진다 → 저장 중에는 입력을 받지 않는다(#17 리뷰 MINOR)
+        val gate = CompletableDeferred<Unit>()
+        val repo = object : DriverConditionRepository by FakeRepository() {
+            override suspend fun saveCondition(condition: DriverCondition): DataResult<DriverCondition> {
+                gate.await()
+                return DataResult.Available(condition)
+            }
+        }
+        val c = controller(repo)
+        c.load()
+        val before = c.state.value.form
+
+        val saving = launch { c.save() }
+        yield() // save() 가 saveCondition 에서 멈출 때까지 진행
+        assertTrue(c.state.value.saving)
+        c.setAvoidHighway(!before.avoidHighway)
+        c.increaseRadius()
+        assertEquals(before, c.state.value.form)
+
+        gate.complete(Unit)
+        saving.join()
+        val s = c.state.value
+        assertFalse(s.saving)
+        assertEquals(before, s.form)
+        assertEquals(SaveStatus.SAVED, s.saveStatus)
     }
 
     @Test

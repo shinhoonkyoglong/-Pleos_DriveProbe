@@ -39,6 +39,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -56,6 +60,7 @@ import com.pleos.departure.model.DrivingRestriction
 import java.util.Locale
 
 // 고령 운전자 화면 기준: 본문 26sp 이상, 터치 영역 72dp 이상, 상태는 색 + 기호 + 문구로 함께 전달한다.
+// 보조 설명(설명 문구·좌표·위치 실패 안내)도 본문 기준과 같게 둔다(#17 리뷰 MINOR).
 private val BodySize = 26.sp
 private val TitleSize = 34.sp
 private val MinTouch = 72.dp
@@ -77,7 +82,13 @@ fun DriverConditionSettingsScreen(
     viewModel: DriverConditionSettingsViewModel,
     onBack: () -> Unit
 ) {
-    LaunchedEffect(Unit) { viewModel.open() }
+    // 새로 들어왔을 때만 다시 채운다. Activity 재생성(화면 회전 등) 때는 rememberSaveable 이 true 로 복원되어
+    // ViewModel 에 남은 저장 전 입력을 지우지 않는다. 화면을 나갔다 다시 들어오면 false 로 새로 시작한다.
+    var opened by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        viewModel.open(reload = !opened)
+        opened = true
+    }
     BackHandler(onBack = onBack)
     val state = viewModel.state.collectAsStateWithLifecycle().value
 
@@ -262,7 +273,7 @@ private fun ToggleRow(
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = StrongInk)
-                Text(description, fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(description, fontSize = BodySize, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(24.dp))
             Text(
@@ -292,7 +303,7 @@ private fun RadiusRow(
             Text("허용 반경", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = StrongInk)
             Text(
                 "중심에서 이 거리 안에서만 운전해요 (${formatKm(DriverConditionDefaults.RADIUS_STEP_KM)} km씩, 최대 ${formatKm(DriverConditionDefaults.MAX_RADIUS_KM)} km)",
-                fontSize = 22.sp,
+                fontSize = BodySize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -323,11 +334,11 @@ private fun CenterRow(state: DriverConditionSettingsState, enabled: Boolean, onR
                     Text(place, fontSize = BodySize, fontWeight = FontWeight.Bold, color = StrongInk)
                     Text(
                         String.format(Locale.ROOT, "위도 %.4f, 경도 %.4f", form.centerLatitude, form.centerLongitude),
-                        fontSize = 22.sp,
+                        fontSize = BodySize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (state.locationStatus == LocationStatus.FAILED) {
-                        Text("! 지금 위치를 읽지 못해 원래 중심을 그대로 둬요", fontSize = 22.sp, color = ErrorInk)
+                        Text("! 지금 위치를 읽지 못해 원래 중심을 그대로 둬요", fontSize = BodySize, color = ErrorInk)
                     }
                 }
                 state.locationStatus == LocationStatus.FAILED ->

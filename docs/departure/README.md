@@ -61,7 +61,7 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 - **들어가는 곳**: API 탐색 화면 머리(`CatalogHeader`) 오른쪽 끝의 [운전 조건 설정] 버튼 하나. 1번 화면 구성·스타일은 그대로 두고, `AppPage`에 `DRIVER_CONDITION_SETTINGS` 값을 하나 더해 기존 `SampleApp`의 `when (uiState.page)` 분기로 띄운다. [← 돌아가기] 또는 시스템 뒤로 가기로 API 탐색 화면(이전 상태 그대로)에 돌아간다.
 - **보여 주는 값**: 저장된 조건이 있으면 그 값. 없으면 기본값(`DriverConditionDefaults` 한 곳에만 있음): 야간 운전 금지 켬, 무료도로 선호 켬, 고속도로 회피 끔, 허용 반경 50 km, 반경 중심 = 화면을 열 때 읽은 `NaviHelperRepository.getCurrentLocation()`.
   - 현재 위치를 읽지 못하거나 Mock 값(내비 미연결)이면 중심을 비우고 "현재 위치를 읽지 못했어요 — 반경 확인은 중심이 있어야 동작해요" + [다시 시도].
-  - 저장된 반경이 null(앱 기본 반경 사용)이면 `DepartureConfig.defaultAllowedRadiusMeters`(10 km)를 보여 주고, 이 화면에서 저장하면 그 값이 명시적으로 저장된다.
+  - 저장된 반경이 null(앱 기본 반경 사용)이면 `DepartureConfig.defaultAllowedRadiusMeters`(10 km)를 보여 주고, 이 화면에서 저장하면 그 값이 명시적으로 저장된다. 그래서 이후 `DepartureConfig` 기본 반경을 바꿔도 이미 저장한 사용자는 저장된 반경을 그대로 쓴다.
 - **기본값은 [저장]을 누르기 전에는 DB에 쓰지 않는다**(저장 안 됨 = 조건 미설정, 계약 §8 D-9). 그동안 화면 맨 위에 "아직 저장 안 됨 — 기본값을 채워 두었어요" 안내가 뜬다. 저장 뒤 값을 바꾸면 "바꾼 내용이 아직 저장 안 됨".
 - **검증**(계약 §4.2): 반경 > 0, 상한 300 km(`DriverConditionDefaults.MAX_RADIUS_KM`, 넘으면 "300 km 이하로 정해 주세요"), 중심 위도·경도는 둘 다 있거나 둘 다 없거나 + 범위. 반경은 [−]/[+] 5 km 눈금(5~300 km)이라 화면 조작으로는 오류가 잘 나지 않고, 저장된 이상값(예: 500 km)을 불러왔을 때 저장을 막는다. 중심 없이 저장하는 것은 허용(반경 확인 "확인 불가").
 - **주행 중**: `VehicleRepository.uxRestriction` → `DepartureMappers.drivingRestriction`이 RESTRICTED면 모든 입력·저장·위치 다시 읽기를 막고 "주행 중에는 설정을 바꿀 수 없어요". UNKNOWN(첫 값 전)은 `treatUnknownDrivingAsRestricted`(기본 true)에 따라 "차량 상태를 확인하는 중이라 아직 바꿀 수 없어요".
