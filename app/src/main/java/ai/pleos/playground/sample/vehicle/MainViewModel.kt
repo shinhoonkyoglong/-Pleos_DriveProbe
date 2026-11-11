@@ -70,6 +70,11 @@ class MainViewModel(application: Application) :
     }
 
     fun showHome() {
+        // 작업 #25 리뷰 MINOR-3: API 탐색기에서 값 구독(Start updates) 중에 [← 홈]으로 나가면 리스너가 화면 밖에서 계속 돈다.
+        // 도메인을 바꿀 때와 같은 정리 경로(showApiExplorer: 도어 구독 해제 + 탐색기 리스너 전부 해제)를 타고 홈으로 간다
+        if (_uiState.value.isSubscribed) {
+            showApiExplorer(_uiState.value.selectedDomain ?: VehicleDomain.DOOR)
+        }
         _uiState.update {
             it.copy(
                 page = AppPage.HOME,
