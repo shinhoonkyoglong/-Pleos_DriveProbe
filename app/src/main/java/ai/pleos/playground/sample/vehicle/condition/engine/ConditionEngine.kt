@@ -49,6 +49,20 @@ class ConditionEngine(
     private val hourOfDay: () -> Int = { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) },
 ) {
     private val lock = Any()
+    private var diagnosticTicks = 0L
+    private var diagnosticEvents = 0L
+    private var diagnosticSpeedEvents = 0L
+    private var diagnosticSteeringEvents = 0L
+    private var diagnosticLastInputMs = -1L
+    private var diagnosticLastTickMs = -1L
+
+    data class Diagnostics(val ticks: Long, val events: Long, val speedEvents: Long,
+        val steeringEvents: Long, val lastInputMs: Long, val lastTickMs: Long)
+
+    fun diagnostics(): Diagnostics = synchronized(lock) {
+        Diagnostics(diagnosticTicks, diagnosticEvents, diagnosticSpeedEvents,
+            diagnosticSteeringEvents, diagnosticLastInputMs, diagnosticLastTickMs)
+    }
     private val processor = ConditionProcessor(baselineStore, params)
     private var inTrip = false
     private var pendingPreDrive: ReactionVerdict? = null
@@ -105,6 +119,10 @@ class ConditionEngine(
 
     /** 신호 1건 처리. (테스트에서 직접 부를 수 있게 internal) */
     internal fun handle(e: VehicleSignalEvent) = synchronized(lock) {
+        diagnosticEvents++
+        diagnosticLastInputMs = e.timeMs
+        if (e is VehicleSignalEvent.Speed) diagnosticSpeedEvents++
+        if (e is VehicleSignalEvent.Steering) diagnosticSteeringEvents++
         when (e) {
             is VehicleSignalEvent.Steering -> processor.onSteering(e.timeMs, e.angleDeg)
             is VehicleSignalEvent.Speed -> processor.onSpeed(e.timeMs, e.speedKmh / 3.6f)
@@ -119,6 +137,8 @@ class ConditionEngine(
 
     /** nowMs까지 계산하고 상태를 내보낸다. (테스트에서 직접 부를 수 있게 internal) */
     internal fun tick(nowMs: Long): ConditionState = synchronized(lock) {
+        diagnosticTicks++
+        diagnosticLastTickMs = nowMs
         processor.tick(nowMs, hourOfDay()).also { _state.value = it }
     }
 

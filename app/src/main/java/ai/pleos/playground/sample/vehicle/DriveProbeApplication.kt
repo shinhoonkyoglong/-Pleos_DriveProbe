@@ -77,6 +77,7 @@ class DriveProbeApplication : Application() {
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)
         interventions = InterventionModule(this, vehicleRepository, appDatabase.interventionHistoryDao())
+        if (BuildConfig.DEBUG) BackgroundDiagnostics.start(this)
     }
 
     override fun onTerminate() {

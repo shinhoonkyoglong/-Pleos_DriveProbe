@@ -67,6 +67,18 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Log.i("DriveProbe", "activity onResume")
+        // Emulator-only setup, consumed before observation starts. Never records audio.
+        if (BuildConfig.DEBUG && android.os.Build.HARDWARE in setOf("ranchu", "goldfish") &&
+            intent.hasExtra("bg_probe_voice")) {
+            val prepare = intent.getBooleanExtra("bg_probe_voice", false)
+            intent.removeExtra("bg_probe_voice")
+            if (prepare) DrivingVoiceService.prepare(this) else DrivingVoiceService.stop(this)
+        }
+        if (BuildConfig.DEBUG && android.os.Build.HARDWARE in setOf("ranchu", "goldfish") &&
+            intent.getBooleanExtra("bg_probe_stages", false)) {
+            intent.removeExtra("bg_probe_stages")
+            DriveProbeApplication.instance.interventions.startBackgroundStageProbe()
+        }
         DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
     }
     override fun onPause() { Log.i("DriveProbe", "activity onPause"); super.onPause() }

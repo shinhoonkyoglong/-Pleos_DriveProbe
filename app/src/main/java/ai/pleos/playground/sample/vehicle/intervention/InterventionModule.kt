@@ -35,11 +35,13 @@ class InterventionModule(
     private val history: InterventionHistoryDao,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val probeContext = context.applicationContext
     private val voice = AndroidVoiceConversation(context.applicationContext)
     private val speech = InterventionSpeechAction(voice)
     val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save)
     private var probeRunning = false
     private var automaticWasEnabled = false
+    private var backgroundStageProbe: BackgroundStageProbe? = null
     val voiceTests = VoiceTestController(scope, voice, ::saveVoiceTest,
         onStarted = {
             automaticWasEnabled = controller.status.value.enabled
@@ -49,7 +51,21 @@ class InterventionModule(
     )
 
     fun startVoiceTest(mode: VoiceTestMode) {
-        if (BuildConfig.DEBUG && !probeRunning && !controller.isBusy) voiceTests.start(mode)
+        if (BuildConfig.DEBUG && !probeRunning && !controller.isBusy && backgroundStageProbe?.isRunning != true) voiceTests.start(mode)
+    }
+
+    fun startBackgroundStageProbe() {
+        if (!BuildConfig.DEBUG || Build.HARDWARE !in setOf("ranchu", "goldfish") ||
+            probeRunning || controller.isBusy || voiceTests.state.value.running || backgroundStageProbe?.isRunning == true) return
+        val wasEnabled = controller.status.value.enabled
+        controller.setEnabled(false)
+        backgroundStageProbe = BackgroundStageProbe(probeContext, scope,
+            assertReady = {
+                probeVehicleState().requireReady(moving = false)
+                check(DrivingVoiceService.ready.value) { "Prepare driving voice before background stage probe" }
+            }, execute = ::execute,
+            save = ::save,
+            onFinish = { controller.setEnabled(wasEnabled) }).also { it.start() }
     }
 
     private var speedSampleMs: Long? = null
@@ -62,7 +78,7 @@ class InterventionModule(
     )
 
     fun probeControl(kind: String, seat: SeatValue, moving: Boolean) {
-        if (!BuildConfig.DEBUG || probeRunning || voiceTests.state.value.running || controller.isBusy) return
+        if (!BuildConfig.DEBUG || probeRunning || voiceTests.state.value.running || controller.isBusy || backgroundStageProbe?.isRunning == true) return
         val initial = probeVehicleState()
         try { initial.requireReady(moving) } catch (e: IllegalArgumentException) {
             Log.w("Intervention", "PROBE REJECTED kind=$kind moving=$moving: ${e.message}")
@@ -145,7 +161,18 @@ class InterventionModule(
         }
     }
 
-    private suspend fun execute(level: FatigueLevel): InterventionResult = when (level) {
+    private suspend fun execute(level: FatigueLevel): InterventionResult {
+        if (BuildConfig.DEBUG) Log.i("BgProbe", "ACTION_START level=$level elapsedMs=${SystemClock.elapsedRealtime()}")
+        try {
+            val result = executeStage(level)
+            if (BuildConfig.DEBUG) Log.i("BgProbe", "ACTION_RESULT level=$level outcome=${result.outcome} elapsedMs=${SystemClock.elapsedRealtime()}")
+            return result
+        } finally {
+            if (BuildConfig.DEBUG) Log.i("BgProbe", "ACTION_END level=$level elapsedMs=${SystemClock.elapsedRealtime()}")
+        }
+    }
+
+    private suspend fun executeStage(level: FatigueLevel): InterventionResult = when (level) {
         FatigueLevel.NORMAL -> InterventionResult(InterventionOutcome.FAILED, "NORMAL에는 개입하지 않아요")
         FatigueLevel.MILD -> repository.triggerFatigueVentilationIntervention().fold(
             onSuccess = { InterventionResult(InterventionOutcome.VERIFIED, "운전석 설정 온도 1℃ 하향·풍량 1단계 증가 후 재조회 확인. 지원 범위 한계에서는 유지") },
@@ -160,6 +187,12 @@ class InterventionModule(
             put("version", 1)
             put("outcome", result.outcome.name)
             put("simulation", record.simulation)
+            if (record.sessionId.startsWith("background-probe-")) {
+                put("source", "BACKGROUND_STAGE_PROBE")
+                put("inputSource", "SYNTHETIC_REPLAY")
+                put("effects", "REAL_EMULATOR")
+                put("scoreContext", "HOUR_3_PRE_DRIVE_MUCH_SLOWER_TEST_SEED")
+            }
             put("details", result.details)
             put("responseMs", result.responseMs ?: JSONObject.NULL)
             put("responseTiming", result.voiceAnswer?.responseTiming ?: JSONObject.NULL)
@@ -181,7 +214,8 @@ class InterventionModule(
             interventionLevel = record.condition.level.ordinal,
             // Entity/server contract uses 0..100; the condition engine remains 0..1.
             fatigueScore = record.condition.score.coerceIn(0f, 1f) * 100f,
-            triggerReason = record.condition.reasons.joinToString { it.code.name }.ifEmpty { "${record.condition.level}" },
+            triggerReason = if (record.sessionId.startsWith("background-probe-")) "BACKGROUND_STAGE_PROBE"
+                else record.condition.reasons.joinToString { it.code.name }.ifEmpty { "${record.condition.level}" },
             actionDetails = details,
             userResponse = result.response,
         ))
