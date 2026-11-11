@@ -4,6 +4,7 @@ import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewM
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.VoiceTestScreen
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import android.Manifest
 import androidx.compose.foundation.layout.Column
@@ -62,9 +63,17 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStart() { super.onStart(); Log.i("DriveProbe", "activity onStart") }
-    override fun onResume() { super.onResume(); Log.i("DriveProbe", "activity onResume") }
+    override fun onResume() {
+        super.onResume()
+        Log.i("DriveProbe", "activity onResume")
+        DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
+    }
     override fun onPause() { Log.i("DriveProbe", "activity onPause"); super.onPause() }
-    override fun onStop() { Log.i("DriveProbe", "activity onStop"); super.onStop() }
+    override fun onStop() {
+        DriveProbeApplication.instance.interventions.voiceTests.cancel("앱 화면이 닫혀 음성 시험을 중지했어요")
+        Log.i("DriveProbe", "activity onStop")
+        super.onStop()
+    }
     override fun onDestroy() {
         Log.i("DriveProbe", "activity onDestroy")
         unregisterReceiver(probeReceiver)
@@ -78,6 +87,7 @@ class MainActivity : ComponentActivity() {
     private val microphonePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             Log.i("Intervention", "RECORD_AUDIO granted=$granted")
+            DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
         }
 
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
@@ -105,21 +115,37 @@ class MainActivity : ComponentActivity() {
             val latest = remember(app) { app.appDatabase.interventionHistoryDao().getLatestIntervention() }
                 .collectAsStateWithLifecycle(initialValue = null).value
             val gear = app.vehicleRepository.gear.collectAsStateWithLifecycle().value
-            var showIntervention by rememberSaveable { mutableStateOf(false) }
+            val voiceState = app.interventions.voiceTests.state.collectAsStateWithLifecycle().value
+            val voiceHistory = remember(app) { app.appDatabase.interventionHistoryDao().getLatestVoiceTest() }
+                .collectAsStateWithLifecycle(initialValue = null).value
+            var activeTab by rememberSaveable { mutableStateOf("vehicle") }
 
             VehicleSampleAppTheme {
                 Column {
                     Row(Modifier.fillMaxWidth()) {
-                        TextButton(onClick = { showIntervention = false }) { Text("차량 API") }
-                        TextButton(onClick = { showIntervention = true }) { Text("개입 상태") }
+                        TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "vehicle" }) { Text("차량 API") }
+                        TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "intervention" }) { Text("개입 상태") }
+                        if (BuildConfig.DEBUG) TextButton(onClick = {
+                            activeTab = "voice"
+                            app.interventions.voiceTests.refreshCapabilities()
+                        }) { Text("음성 시험") }
                     }
                     Box(Modifier.weight(1f)) {
-                        if (showIntervention) {
+                        if (activeTab == "voice" && BuildConfig.DEBUG) {
+                            VoiceTestScreen(
+                                state = voiceState,
+                                latest = voiceHistory,
+                                onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                onRefresh = app.interventions.voiceTests::refreshCapabilities,
+                                onStart = app.interventions::startVoiceTest,
+                                onStop = { app.interventions.voiceTests.cancel() },
+                            )
+                        } else if (activeTab == "intervention") {
                             InterventionScreen(
                                 status = intervention,
                                 latest = latest,
                                 parked = gear == GearPosition.PARK,
-                                onEnabled = app.interventions.controller::setEnabled,
+                                onEnabled = { if (!voiceState.running) app.interventions.controller.setEnabled(it) },
                                 onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
                                 onSimulate = app.interventions.controller::simulate,
                             )

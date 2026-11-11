@@ -15,8 +15,11 @@ ksp = "2.0.0-1.0.24"
 # 2번 출발 전(:departure-core) + NaviHelper 연동에서 추가
 kotlinxCoroutines = "1.9.0"
 naviHelperSdk = "3.0.5"
+textToSpeechSdk = "3.3.1"
 
 [libraries]
+pleos-text-to-speech = { group = "ai.pleos.playground", name = "TextToSpeech", version.ref = "textToSpeechSdk" }
+pleos-speech-to-text = { group = "ai.pleos.playground", name = "SpeechToText", version.ref = "textToSpeechSdk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }

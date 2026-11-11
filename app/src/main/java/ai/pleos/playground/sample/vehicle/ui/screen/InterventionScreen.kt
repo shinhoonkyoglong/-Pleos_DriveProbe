@@ -53,7 +53,11 @@ fun InterventionScreen(
         Text("최근 저장 이력", style = MaterialTheme.typography.titleMedium)
         if (latest == null) Text("아직 저장된 개입이 없어요") else {
             val details = remember(latest.actionDetails) { runCatching { JSONObject(latest.actionDetails) }.getOrNull() }
-            Text("단계 ${latest.interventionLevel} · 점수 ${latest.fatigueScore}/100 · ${if (details?.optBoolean("simulation") == true) "시연" else "실행"}")
+            if (details?.optString("source") == "VOICE_TEST") {
+                Text("음성 시험 · ${voiceTestOutcomeLabel(details.optString("outcome"))}")
+            } else {
+                Text("단계 ${latest.interventionLevel} · 점수 ${latest.fatigueScore}/100 · ${if (details?.optBoolean("simulation") == true) "시연" else "실행"}")
+            }
             Text(details?.optString("details") ?: latest.actionDetails)
             latest.userResponse?.let { Text("응답: $it") }
         }

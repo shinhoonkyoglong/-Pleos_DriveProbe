@@ -7,6 +7,7 @@ import ai.pleos.playground.sample.vehicle.data.local.dao.InterventionHistoryDao
 import ai.pleos.playground.sample.vehicle.data.local.entity.InterventionHistoryEntity
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.data.model.VehicleSignalEvent
+import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepository
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepositoryImpl
 import ai.pleos.playground.vehicle.constant.area.SeatValue
@@ -37,6 +38,18 @@ class InterventionModule(
     private val voice = AndroidVoiceConversation(context.applicationContext)
     val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save)
     private var probeRunning = false
+    private var automaticWasEnabled = false
+    val voiceTests = VoiceTestController(scope, voice, ::saveVoiceTest,
+        onStarted = {
+            automaticWasEnabled = controller.status.value.enabled
+            controller.setEnabled(false)
+        },
+        onFinished = { if (automaticWasEnabled) controller.setEnabled(true) },
+    )
+
+    fun startVoiceTest(mode: VoiceTestMode) {
+        if (BuildConfig.DEBUG && !probeRunning && !controller.status.value.running) voiceTests.start(mode)
+    }
 
     private var speedSampleMs: Long? = null
 
@@ -48,7 +61,7 @@ class InterventionModule(
     )
 
     fun probeControl(kind: String, seat: SeatValue, moving: Boolean) {
-        if (!BuildConfig.DEBUG || probeRunning) return
+        if (!BuildConfig.DEBUG || probeRunning || voiceTests.state.value.running) return
         val initial = probeVehicleState()
         try { initial.requireReady(moving) } catch (e: IllegalArgumentException) {
             Log.w("Intervention", "PROBE REJECTED kind=$kind moving=$moving: ${e.message}")
@@ -72,6 +85,16 @@ class InterventionModule(
     }
 
     init {
+        if (BuildConfig.DEBUG) scope.launch {
+            runCatching { voice.stopPreviousRecognition() }
+                .onFailure { Log.w("VoiceTest", "Previous-session cleanup failed: ${it.javaClass.simpleName}") }
+        }
+        scope.launch {
+            combine(repository.gear, repository.vehicleSpeed, repository.hasSpeedSignal, repository.uxRestriction) { gear, speed, known, ux ->
+                gear == GearPosition.PARK && known && speed == 0f &&
+                    ux?.source == UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization
+            }.collect { voiceTests.setAllowed(it) }
+        }
         if (BuildConfig.DEBUG) scope.launch {
             repository.signalEvents.collect { event ->
                 if (event is VehicleSignalEvent.Speed) speedSampleMs = event.timeMs
@@ -144,7 +167,8 @@ class InterventionModule(
             put("simulation", record.simulation)
             put("details", result.details)
             put("responseMs", result.responseMs ?: JSONObject.NULL)
-            put("responseTiming", "TTS_onDone_to_speech_onBeginning")
+            put("responseTiming", if (result.responseMs != null) "TTS_onDone_to_speech_onBeginning" else JSONObject.NULL)
+            put("recognitionBackend", voice.capabilities().recognitionBackend.name)
             put("calibrating", record.condition.isCalibrating)
         }.toString()
         val id = history.insertIntervention(InterventionHistoryEntity(
@@ -157,6 +181,39 @@ class InterventionModule(
             userResponse = result.response,
         ))
         Log.i("Intervention", "history=$id session=${record.sessionId} level=${record.condition.level} outcome=${result.outcome} simulation=${record.simulation} details=${result.details}")
+    }
+
+    private suspend fun saveVoiceTest(record: VoiceTestRecord): Long {
+        val result = record.result
+        val details = JSONObject().apply {
+            put("version", 1)
+            put("source", "VOICE_TEST")
+            put("mode", record.mode.name)
+            put("simulation", true) // Exclude manual tests from real driving reports.
+            put("audioMode", "REAL_PLATFORM_TTS_STT")
+            put("ttsBackend", voice.capabilities().ttsBackend.name)
+            put("outcome", result.outcome.name)
+            put("details", result.message)
+            put("responseMs", result.answer?.responseMs ?: JSONObject.NULL)
+            put("readyLatencyMs", result.answer?.readyLatencyMs ?: JSONObject.NULL)
+            put("responseTiming", result.answer?.responseTiming ?: JSONObject.NULL)
+            put("recognitionBackend", voice.capabilities().recognitionBackend.name)
+            put("inputLevelCallbacks", result.answer?.inputLevelCallbacks ?: JSONObject.NULL)
+            put("maxInputRms", result.answer?.maxInputRms ?: JSONObject.NULL)
+            put("recognitionEnd", result.answer?.end?.name ?: JSONObject.NULL)
+            put("error", result.error?.name ?: JSONObject.NULL)
+            put("platformCode", result.platformCode ?: result.answer?.platformCode ?: JSONObject.NULL)
+        }.toString()
+        val id = history.insertIntervention(InterventionHistoryEntity(
+            sessionId = record.id,
+            interventionLevel = if (record.mode == VoiceTestMode.CONSENT) 3 else 2,
+            fatigueScore = 0f, // Not a measured fatigue score. source=VOICE_TEST distinguishes it.
+            triggerReason = "VOICE_TEST",
+            actionDetails = details,
+            userResponse = result.answer?.text,
+        ))
+        Log.i("VoiceTest", "history=$id mode=${record.mode} outcome=${result.outcome} responseMs=${result.answer?.responseMs} error=${result.error} platformCode=${result.platformCode ?: result.answer?.platformCode}")
+        return id
     }
 
     companion object {

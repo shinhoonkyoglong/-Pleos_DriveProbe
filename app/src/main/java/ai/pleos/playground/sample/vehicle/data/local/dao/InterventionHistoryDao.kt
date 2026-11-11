@@ -16,6 +16,9 @@ interface InterventionHistoryDao {
     @Query("SELECT * FROM intervention_histories ORDER BY timestamp DESC LIMIT 1")
     fun getLatestIntervention(): Flow<InterventionHistoryEntity?>
 
+    @Query("SELECT * FROM intervention_histories WHERE triggerReason = 'VOICE_TEST' ORDER BY timestamp DESC, id DESC LIMIT 1")
+    fun getLatestVoiceTest(): Flow<InterventionHistoryEntity?>
+
     @Query("SELECT * FROM intervention_histories WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     fun getHistoriesBySession(sessionId: String): Flow<List<InterventionHistoryEntity>>
 
