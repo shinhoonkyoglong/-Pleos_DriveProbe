@@ -69,6 +69,8 @@ class DepartureScreenModelTest {
         var naviDelayMillis = 0L
         var destinationThrows: Exception? = null
         val driving = MutableStateFlow(DrivingRestriction.UNRESTRICTED)
+        var openSettingsResult: DataResult<Unit> = DataResult.Available(Unit)
+        var openSettingsCalls = 0
 
         override val vehicleRepository = object : VehicleRepository {
             override fun observeDrivingRestriction(): Flow<DrivingRestriction> = driving
@@ -84,6 +86,10 @@ class DepartureScreenModelTest {
                 DataResult.Available(TripEstimate(Duration.ofMinutes(35), 9_800, EstimateSource.SDK_MEASURED, clock.instant(), RouteOption.FREE, destination.point))
             override suspend fun getRouteState(): DataResult<RouteState> = routeState
             override fun observeRemainingTrip(): Flow<RemainingTrip> = emptyFlow()
+            override suspend fun openNaviSettings(): DataResult<Unit> {
+                openSettingsCalls++
+                return openSettingsResult
+            }
         }
         override val driverConditionRepository = object : DriverConditionRepository {
             override suspend fun getCondition(): DataResult<DriverCondition> = conditionResult
@@ -106,6 +112,22 @@ class DepartureScreenModelTest {
         }
 
     private val DepartureScreenModel.content get() = state.value.content!!
+
+    /** 작업 #28: [내비 설정 열기] → 포트 호출, 실패하면 메뉴 위치 안내용 플래그 */
+    @Test
+    fun openNaviSettings_callsPort_andFlagsFailure() = runTest {
+        val stub = Stub()
+        val m = start(stub)
+        m.openNaviSettings()
+        runCurrent()
+        assertEquals(1, stub.openSettingsCalls)
+        assertFalse(m.naviSettingsFailed.value)
+
+        stub.openSettingsResult = DataResult.Unavailable(UnavailableReason.NOT_SUPPORTED)
+        m.openNaviSettings()
+        runCurrent()
+        assertTrue(m.naviSettingsFailed.value)
+    }
 
     /** 첫 결과 전 화면 상태는 기존과 같은 Initial(빈 화면, 버튼 보임, 주행 안내 없음). */
     @Test

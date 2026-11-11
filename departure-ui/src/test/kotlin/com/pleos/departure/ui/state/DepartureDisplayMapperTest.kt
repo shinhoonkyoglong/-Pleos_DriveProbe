@@ -326,6 +326,10 @@ class DepartureDisplayMapperTest {
         val turnOn = card(RouteConditionCheck.NeedsUserAction(dest, recommended, listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), emptyList()))
         assertEquals(DepartureDisplayMapper.TOGGLE_STEPS, turnOn.steps)
         assertTrue(turnOn.showConfirmToggle)
+        // 작업 #28: 전역 설정(한 번만) 안내 + [내비 설정 열기]가 먼저, 이번 경로 단계는 그다음
+        assertTrue(turnOn.showOpenNaviSettings)
+        assertTrue(turnOn.card.lines.any { it.text == DepartureDisplayMapper.GLOBAL_TOLL_HINT })
+        assertEquals(DepartureDisplayMapper.THIS_ROUTE_STEPS_INTRO, turnOn.stepsIntro)
         assertTrue(turnOn.card.lines.any { it.text == "통행료 700원" })
         // 작업 #27: FREE + 통행료 있음(어린이 보호구역 우회만) → 유료도로 우회 켜기 안내 + 켰어요 버튼
         val freeWithToll = card(RouteConditionCheck.NeedsUserAction(dest, RouteState.Guiding(RouteOption.FREE, 700), listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), emptyList()))
@@ -336,6 +340,7 @@ class DepartureDisplayMapperTest {
         assertEquals(Tone.CAUTION, unverified.card.tone)
         assertEquals("유료도로 우회를 확인해 주세요", unverified.card.title)
         assertFalse(unverified.showConfirmToggle)
+        assertTrue("작업 #28: 확인 권함 카드에도 내비 설정 열기", unverified.showOpenNaviSettings)
         val ref = card(RouteConditionCheck.ReferenceOnly(dest, listOf(RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED)))
         assertEquals(Tone.INFO, ref.card.tone)
         assertTrue(ref.notes.single().text.startsWith("고속도로 회피는"))
@@ -360,7 +365,13 @@ class DepartureDisplayMapperTest {
         ).route!!
         assertTrue(r.steps.isEmpty())
         assertFalse(r.showConfirmToggle)
+        assertFalse("주행 중에는 내비 설정 열기 숨김(작업 #28)", r.showOpenNaviSettings)
         assertTrue(r.card.lines.any { it.text == DepartureDisplayMapper.PARKED_ONLY_GUIDE })
+        val unverified = map(
+            snapshot(route = RouteConditionCheck.TollAvoidanceUnverified(dest, RouteState.Guiding(RouteOption.FREE, null), emptyList())),
+            DisplayContext(controlsEnabled = false),
+        ).route!!
+        assertFalse(unverified.showOpenNaviSettings)
     }
 
     @Test

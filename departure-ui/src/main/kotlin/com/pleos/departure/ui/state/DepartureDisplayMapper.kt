@@ -441,10 +441,15 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
                 Tone.CAUTION, StatusIcon.QUESTION, "유료도로 우회를 확인해 주세요",
                 lines = listOf(
                     DisplayLine("이 경로의 통행료를 확인하지 못했어요"),
-                    DisplayLine("내비 경로 설정에서 '유료도로 우회'가 켜져 있는지 확인해 주세요", emphasis = true),
+                    if (ctx.controlsEnabled) {
+                        DisplayLine("내비 설정에서 '유료도로 우회'가 켜져 있는지 확인해 주세요", emphasis = true)
+                    } else {
+                        DisplayLine(PARKED_ONLY_GUIDE, emphasis = true)
+                    },
                 ),
             ),
             notes = result.notes.map(::noteLine),
+            showOpenNaviSettings = ctx.controlsEnabled,
         )
         is RouteConditionCheck.OtherRouteOption -> RouteCard(
             StatusCard(
@@ -473,6 +478,8 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         tollFareLine(result.routeState)?.let(lines::add)
         var steps = emptyList<String>()
         var confirm = false
+        var openSettings = false
+        var stepsIntro: String? = null
         for (action in result.actions) {
             when (action) {
                 RouteUserAction.TURN_ON_TOLL_AVOIDANCE -> {
@@ -480,7 +487,10 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
                         lines += DisplayLine("아직 '유료도로 우회'가 적용되지 않았어요. '적용'까지 눌렀는지 확인해 주세요", emphasis = true)
                     }
                     if (ctx.controlsEnabled) {
-                        lines += DisplayLine("무료도로로 가려면 내비에서 아래 순서대로 해 주세요", emphasis = true)
+                        // 작업 #28: 전역 설정(한 번만)을 먼저, 이번 경로만 바꾸는 방법을 그다음에
+                        lines += DisplayLine(GLOBAL_TOLL_HINT, emphasis = true)
+                        openSettings = true
+                        stepsIntro = THIS_ROUTE_STEPS_INTRO
                         steps = TOGGLE_STEPS
                         confirm = true
                     } else {
@@ -493,6 +503,8 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
             card = StatusCard(Tone.CAUTION, StatusIcon.WARNING, title, lines = lines),
             steps = steps,
             showConfirmToggle = confirm,
+            stepsIntro = stepsIntro,
+            showOpenNaviSettings = openSettings,
             notes = result.notes.map(::noteLine),
         )
     }
@@ -532,6 +544,12 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         const val REFERENCE_PREFIX = "참고: "
 
         /** 내비 "유료도로 우회" 켜는 순서(api-notes/navi-runtime-check.md §10.4 — 경로 설정 → 유료도로 우회 → 적용). */
+        /** 전역 "유료도로 우회" 안내(작업 #28). 차량 설정 → 내비게이션 → 경로 → 유료도로 우회 [실행 확인 2026-11-11] */
+        const val GLOBAL_TOLL_HINT = "처음 한 번 내비 설정에서 '유료도로 우회'를 켜 두면 다음 경로부터 무료도로로 안내해요"
+        const val THIS_ROUTE_STEPS_INTRO = "이번 경로는 내비에서 아래 순서대로 바꿔 주세요"
+        /** [내비 설정 열기]가 실패했을 때(내비 미연결 등) 보여 줄 메뉴 위치 안내 */
+        const val NAVI_SETTINGS_FALLBACK = "내비 설정을 열지 못했어요. 차량 설정 → 내비게이션 → 경로에서 '유료도로 우회'를 켜 주세요"
+
         val TOGGLE_STEPS = listOf(
             "내비 화면에서 '경로 설정'을 누르세요",
             "'유료도로 우회'를 켜세요",

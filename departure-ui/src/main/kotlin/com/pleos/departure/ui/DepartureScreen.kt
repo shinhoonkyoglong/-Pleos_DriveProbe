@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.pleos.departure.DepartureFeature
 import com.pleos.departure.ui.state.DepartureContent
+import com.pleos.departure.ui.state.DepartureDisplayMapper
 import com.pleos.departure.ui.state.DepartureScreenModel
 import com.pleos.departure.ui.state.DepartureUiState
 import com.pleos.departure.ui.state.DisplayLine
@@ -105,11 +106,14 @@ fun DepartureScreen(
         onStopOrDispose { model.onHidden() }
     }
     val state by model.state.collectAsState()
+    val naviSettingsFailed by model.naviSettingsFailed.collectAsState()
     DepartureScreenContent(
         state = state,
         onRefresh = model::refresh,
         onConfirmToggle = model::confirmTollAvoidanceTurnedOn,
         modifier = modifier,
+        onOpenNaviSettings = model::openNaviSettings,
+        naviSettingsFailed = naviSettingsFailed,
     )
 }
 
@@ -119,6 +123,8 @@ fun DepartureScreenContent(
     onRefresh: () -> Unit,
     onConfirmToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenNaviSettings: () -> Unit = {},
+    naviSettingsFailed: Boolean = false,
 ) {
     Column(
         modifier = modifier
@@ -129,6 +135,7 @@ fun DepartureScreenContent(
     ) {
         state.drivingNotice?.let { Banner(text = it, color = toneColor(Tone.CAUTION)) }
         if (state.showLoadingIndicator && state.content != null) LoadingBanner()
+        if (naviSettingsFailed && state.controlsEnabled) Banner(text = DepartureDisplayMapper.NAVI_SETTINGS_FALLBACK, color = toneColor(Tone.CAUTION))
 
         val content = state.content
         if (content == null) {
@@ -136,7 +143,7 @@ fun DepartureScreenContent(
                 if (state.showLoadingIndicator) LoadingBanner() else Text("", color = TextPrimary)
             }
         } else {
-            ResultContent(content, state.controlsEnabled, onConfirmToggle, Modifier.weight(1f))
+            ResultContent(content, state.controlsEnabled, onConfirmToggle, onOpenNaviSettings, Modifier.weight(1f))
         }
 
         if (state.controlsEnabled) {
@@ -155,6 +162,7 @@ private fun ResultContent(
     content: DepartureContent,
     controlsEnabled: Boolean,
     onConfirmToggle: () -> Unit,
+    onOpenNaviSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -169,7 +177,7 @@ private fun ResultContent(
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     content.radius?.let { CardView(it, size = if (it.secondary) CardSize.SECONDARY else CardSize.NORMAL) }
-                    content.route?.let { RouteCardView(it, controlsEnabled, onConfirmToggle) }
+                    content.route?.let { RouteCardView(it, controlsEnabled, onConfirmToggle, onOpenNaviSettings) }
                 }
             }
         }
@@ -236,8 +244,12 @@ private fun LineText(line: DisplayLine) {
 }
 
 @Composable
-private fun RouteCardView(route: RouteCard, controlsEnabled: Boolean, onConfirmToggle: () -> Unit) {
+private fun RouteCardView(route: RouteCard, controlsEnabled: Boolean, onConfirmToggle: () -> Unit, onOpenNaviSettings: () -> Unit) {
     CardView(route.card) {
+        if (route.showOpenNaviSettings && controlsEnabled) {
+            BigButton(text = "내비 설정 열기", enabled = true, onClick = onOpenNaviSettings, modifier = Modifier.fillMaxWidth())
+        }
+        route.stepsIntro?.let { LineText(DisplayLine(it, emphasis = true)) }
         route.steps.forEachIndexed { i, step ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).background(TextPrimary, CircleShape), contentAlignment = Alignment.Center) {

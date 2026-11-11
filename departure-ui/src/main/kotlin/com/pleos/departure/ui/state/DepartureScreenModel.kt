@@ -1,9 +1,13 @@
 package com.pleos.departure.ui.state
 
 import com.pleos.departure.DepartureFeature
+import com.pleos.departure.model.DataResult
 import com.pleos.departure.session.DepartureSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -21,8 +25,8 @@ import kotlinx.coroutines.plus
  * @param scope 화면 수명 범위(Compose 에서는 rememberCoroutineScope). 이 범위가 끝나면 모든 작업이 멈춘다.
  */
 class DepartureScreenModel(
-    feature: DepartureFeature,
-    scope: CoroutineScope,
+    private val feature: DepartureFeature,
+    private val scope: CoroutineScope,
 ) {
     /** 화면과 무관한 core 세션. 표시 계층을 거치지 않고 상태를 보고 싶을 때 쓴다. */
     val session: DepartureSession = feature.createSession(scope)
@@ -51,6 +55,22 @@ class DepartureScreenModel(
 
     /** 세션 기억을 지우고 다시 확인한다(예: 시연에서 Fake 시나리오 전환). */
     fun resetSession() = session.resetSession()
+
+    private val _naviSettingsFailed = MutableStateFlow(false)
+
+    /**
+     * 마지막 [openNaviSettings]가 실패했는가(내비 미연결·권한 없음 등). 화면은
+     * [DepartureDisplayMapper.NAVI_SETTINGS_FALLBACK](메뉴 위치 글 안내)을 보여 준다.
+     */
+    val naviSettingsFailed = _naviSettingsFailed.asStateFlow()
+
+    /** 사용자 [내비 설정 열기](작업 #28). 어댑터가 예외를 던져도 앱이 죽지 않게 실패로 바꾼다. */
+    fun openNaviSettings() {
+        scope.launch {
+            val result = runCatching { feature.openNaviSettings() }.getOrNull()
+            _naviSettingsFailed.value = result !is DataResult.Available
+        }
+    }
 
     companion object {
         /** 주행 중 안내 문구. 원본은 [DepartureDisplayMapper.DRIVING_NOTICE]. */

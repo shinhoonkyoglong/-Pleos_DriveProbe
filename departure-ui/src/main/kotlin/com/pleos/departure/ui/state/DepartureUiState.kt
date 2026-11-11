@@ -65,6 +65,13 @@ data class RouteCard(
     val steps: List<String> = emptyList(),
     val showConfirmToggle: Boolean = false,
     val notes: List<DisplayLine> = emptyList(),
+    /** [steps] 앞에 붙는 한 줄(예: "이번 경로는 …"). 단계가 없으면 null. */
+    val stepsIntro: String? = null,
+    /**
+     * [내비 설정 열기] 버튼을 보여 줄지(작업 #28). 차량 설정 "내비게이션" 탭을 열어 전역 "유료도로 우회"를 한 번 켜 두게 한다.
+     * 주행 중이면 false.
+     */
+    val showOpenNaviSettings: Boolean = false,
 )
 
 /**

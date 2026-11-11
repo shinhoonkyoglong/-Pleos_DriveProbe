@@ -25,6 +25,7 @@ import com.pleos.departure.model.RemainingTrip
 import com.pleos.departure.model.RouteState
 import com.pleos.departure.model.SpeakResult
 import com.pleos.departure.model.TripEstimate
+import com.pleos.departure.model.UnavailableReason
 import kotlinx.coroutines.flow.Flow
 
 // TODO(1번-연동): 임시 계약. 1번 공통 Repository 확정 시 이름·시그니처를 이 파일에서만 수정할 것.
@@ -182,6 +183,20 @@ interface NaviRepository {
      * - 화면이 보일 때만 구독한다(배터리·성능 심사 항목).
      */
     fun observeRemainingTrip(): Flow<RemainingTrip>
+
+    // TODO(1번-연동): 1번 NaviHelperRepository 에 대응 메서드가 있어야 한다(작업 #28에서 1번 앱에 openNaviSettings 추가).
+    /**
+     * 내비 설정 화면(차량 설정의 "내비게이션" 탭)을 연다(작업 #28). 사용자가 "경로 → 유료도로 우회"를 **직접** 켜도록 돕는다.
+     * 설정값을 바꾸지는 않는다 — 이 값을 읽거나 쓰는 SDK API 는 없다(api-notes/navi-route.md 끝 절).
+     *
+     * 대응: `requestNavigationScreen(NavigationScreenRequest.Settings)` [실행 확인 2026-11-11 — 차량 설정 "내비게이션" 탭이 열리고
+     * "경로" 절에 "유료도로 우회" 토글이 보임]. 권한 `pleos.car.permission.NAVI_CUSTOM_MAP`(Normal).
+     * 전역 "유료도로 우회"를 켜 두면 새 경로가 통행료 0원 경로로 안내된다 [실행 확인 1회, evidence/2026-11-11/manual-toll-free].
+     *
+     * 실패(미연결·권한 없음 등) → Unavailable. 화면은 실패 시 메뉴 위치를 글로 안내한다.
+     * 기본 구현은 "지원 안 함" — 화면 열기를 못 하는 어댑터·테스트 가짜는 구현하지 않아도 된다.
+     */
+    suspend fun openNaviSettings(): DataResult<Unit> = DataResult.Unavailable(UnavailableReason.NOT_SUPPORTED)
 }
 
 // TODO(1번-연동): 임시 계약. 1번 공통 Repository 확정 시 이름·시그니처를 이 파일에서만 수정할 것.
