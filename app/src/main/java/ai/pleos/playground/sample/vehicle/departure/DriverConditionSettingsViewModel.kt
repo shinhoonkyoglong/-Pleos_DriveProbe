@@ -6,7 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pleos.departure.model.DataResult
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -77,5 +79,20 @@ class DriverConditionSettingsViewModel(application: Application) : AndroidViewMo
 
     fun save() {
         viewModelScope.launch { controller.save() }
+    }
+
+    private val _naviSettingsFailed = MutableStateFlow(false)
+
+    /** 마지막 [openNaviSettings]가 실패했는가(내비 미연결 등). 화면은 메뉴 위치를 글로 안내한다. */
+    val naviSettingsFailed: StateFlow<Boolean> = _naviSettingsFailed.asStateFlow()
+
+    /**
+     * [내비 설정 열기](2번 작업 #28): 차량 설정 "내비게이션" 탭을 연다. 사용자가 "경로 → 유료도로 우회"를 한 번 켜 두면
+     * 다음 경로부터 무료도로로 안내된다(에뮬레이터 실측). 주행 중에는 화면이 버튼을 숨긴다.
+     */
+    fun openNaviSettings() {
+        viewModelScope.launch {
+            _naviSettingsFailed.value = app.naviHelperRepository.openNaviSettings().isFailure
+        }
     }
 }

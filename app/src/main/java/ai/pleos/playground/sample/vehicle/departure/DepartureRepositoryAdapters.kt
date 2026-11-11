@@ -87,6 +87,13 @@ class DriveProbeNaviAdapter(
      * Mock 값(isMock)은 다른 조회와 같이 [acceptMockValues] 가 true 일 때만 내보낸다(1번 Impl 은 Mock 을 이 상태에 넣지 않지만 방어).
      * 2번 core 유스케이스는 지금 이 Flow 를 쓰지 않는다(화면 표시용 계약).
      */
+    /** 2번 [내비 설정 열기] ← 1번 openNaviSettings(requestNavigationScreen(Settings)). 실패 사유는 다른 조회와 같은 규칙으로 바꾼다 */
+    override suspend fun openNaviSettings(): DataResult<Unit> =
+        naviHelperRepository.openNaviSettings().fold(
+            onSuccess = { DataResult.Available(Unit) },
+            onFailure = { DepartureMappers.unavailable(it) },
+        )
+
     override fun observeRemainingTrip(): Flow<RemainingTrip> =
         naviHelperRepository.currentDestination
             .filterNotNull()
