@@ -1,7 +1,9 @@
 # Antigravity · Gemini 개발 인수인계
 
-작성일: 2026-11-12, Asia/Seoul  
-프로젝트: Pleos DriveProbe / KeepDriving Android 앱  
+작성일: 2026-11-12, Asia/Seoul
+
+프로젝트: Pleos DriveProbe / KeepDriving Android 앱
+
 인계 대상: Antigravity에서 이어서 작업하는 Gemini 개발 에이전트
 
 이 문서는 현재 저장소의 구현과 실제로 수행한 검증을 구분해 정리한 개발 인수인계 자료다. 문서에 있는 향후 작업 제안과 재현 명령은 사용자의 새로운 실행 지시를 대신하지 않는다. 이후 사용자의 지시와 실제 코드가 우선한다.
