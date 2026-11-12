@@ -28,15 +28,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import ai.pleos.playground.sample.vehicle.navigation.toHistoryJson
 
 class InterventionModule(
     context: Context,
     private val repository: VehicleRepository,
     private val history: InterventionHistoryDao,
+    restNavigation: ai.pleos.playground.sample.vehicle.navigation.RestNavigation,
+    removeProbeWaypoint: suspend (ai.pleos.playground.sample.vehicle.navigation.RestPlace,
+        ai.pleos.playground.sample.vehicle.navigation.RestNaviSnapshot,() -> Unit) -> ai.pleos.playground.sample.vehicle.navigation.RestNaviSnapshot,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val voice = AndroidVoiceConversation(context.applicationContext)
     private val speech = InterventionSpeechAction(voice)
+    private val drivingSpeech = DangerNavigationAction(speech, restNavigation::prepareProposal, restNavigation::accept, restNavigation::discard)
     val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save)
     private var probeRunning = false
     private var automaticWasEnabled = false
@@ -46,6 +51,27 @@ class InterventionModule(
             controller.setEnabled(false)
         },
         onFinished = { if (automaticWasEnabled) controller.setEnabled(true) },
+    )
+
+    val navigationWriteProbe=ai.pleos.playground.sample.vehicle.navigation.ServiceAreaWriteProbe(
+        restNavigation,removeProbeWaypoint,
+        requireParked={
+            check(BuildConfig.DEBUG && Build.HARDWARE in setOf("ranchu","goldfish")) { "휴게소 추가 시험은 Debug 에뮬레이터 전용이에요" }
+            val ux=repository.uxRestriction.value
+            check(repository.gear.value==GearPosition.PARK && repository.hasSpeedSignal.value && repository.vehicleSpeed.value==0f &&
+                ux?.source==UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization) { "P·속도 0·화면 사용 가능 상태를 유지해 주세요" }
+        },
+        begin={
+            check(!probeRunning && !voiceTests.state.value.running && !controller.isBusy) { "다른 개입·시험이 끝난 뒤 실행해 주세요" }
+            val enabled=controller.status.value.enabled
+            controller.setEnabled(false);probeRunning=true
+            enabled
+        },
+        finish={enabled->probeRunning=false;controller.setEnabled(enabled)},
+    )
+
+    val navigationProbeController=ai.pleos.playground.sample.vehicle.navigation.NavigationProbeController(
+        scope,navigationWriteProbe::run,ai.pleos.playground.sample.vehicle.navigation.NavigationProbePreferences(context.applicationContext),
     )
 
     fun startVoiceTest(mode: VoiceTestMode) {
@@ -151,13 +177,13 @@ class InterventionModule(
             onSuccess = { InterventionResult(InterventionOutcome.VERIFIED, "운전석 설정 온도 1℃ 하향·풍량 1단계 증가 후 재조회 확인. 지원 범위 한계에서는 유지") },
             onFailure = { InterventionResult(InterventionOutcome.FAILED, "공조 개입 실패: ${it.message}. 일부 설정은 이미 적용됐을 수 있어요") },
         )
-        FatigueLevel.CAUTION, FatigueLevel.DANGER -> speech.execute(level)
+        FatigueLevel.CAUTION, FatigueLevel.DANGER -> drivingSpeech.execute(level)
     }
 
     private suspend fun save(record: InterventionRecord) {
         val result = record.result
         val details = JSONObject().apply {
-            put("version", 1)
+            put("version", 2)
             put("outcome", result.outcome.name)
             put("simulation", record.simulation)
             put("details", result.details)
@@ -171,6 +197,7 @@ class InterventionModule(
             put("recognitionEnd", result.voiceAnswer?.end?.name ?: JSONObject.NULL)
             put("consent", result.consent?.name ?: JSONObject.NULL)
             put("navigationStatus", result.navigationStatus ?: JSONObject.NULL)
+            put("navigation", result.navigation?.toHistoryJson() ?: JSONObject.NULL)
             put("error", result.error?.name ?: JSONObject.NULL)
             put("platformCode", result.platformCode ?: result.voiceAnswer?.platformCode ?: JSONObject.NULL)
             put("recognitionBackend", voice.capabilities().recognitionBackend.name)

@@ -53,9 +53,10 @@
     <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_WINDSHIELD_WIPERS" />
 
-    <!-- NaviHelper 조회(getDestinationInfo·getRouteStateInfo·getCurrentLocationInfo·requestTrip) — 2번 출발 전 연동. protectionLevel="normal".
-         requestRoute 등 경로 설정용 NAVI_ROUTE_SEARCH 는 SDK 로 호출하는 곳이 없어 선언하지 않는다(필요한 권한만 선언 — Pleos 심사 정책). -->
+    <!-- NaviHelper 조회: NAVI_ROUTE. DANGER 명시 동의 뒤 addWaypoint: NAVI_ROUTE_SEARCH(normal).
+         일반 음성 시험과 Replay에서는 경로 쓰기 API를 호출하지 않는다. -->
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
 
     <application
         android:name=".DriveProbeApplication"
@@ -71,6 +72,8 @@
         <uses-library android:name="android.car" android:required="false" />
         <service android:name=".intervention.DrivingVoiceService"
             android:exported="false" android:foregroundServiceType="microphone" />
+        <service android:name=".navigation.NavigationProbeService"
+            android:exported="false" android:foregroundServiceType="shortService" />
 
         <activity
             android:name=".MainActivity"

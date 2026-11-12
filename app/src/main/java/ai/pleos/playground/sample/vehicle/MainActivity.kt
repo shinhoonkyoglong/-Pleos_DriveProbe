@@ -5,8 +5,10 @@ import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScree
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.VoiceTestScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.RestNavigationScreen
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.intervention.DrivingVoiceService
+import ai.pleos.playground.sample.vehicle.navigation.NavigationProbeService
 import android.Manifest
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -117,6 +119,7 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = null).value
             val gear = app.vehicleRepository.gear.collectAsStateWithLifecycle().value
             val voiceState = app.interventions.voiceTests.state.collectAsStateWithLifecycle().value
+            val navigationProbe = app.interventions.navigationProbeController.state.collectAsStateWithLifecycle().value
             val drivingVoicePrepared = DrivingVoiceService.ready.collectAsStateWithLifecycle().value
             val drivingVoiceError = DrivingVoiceService.error.collectAsStateWithLifecycle().value
             val voiceHistory = remember(app) { app.appDatabase.interventionHistoryDao().getLatestVoiceTest() }
@@ -132,9 +135,18 @@ class MainActivity : ComponentActivity() {
                             activeTab = "voice"
                             app.interventions.voiceTests.refreshCapabilities()
                         }) { Text("음성 시험") }
+                        if (BuildConfig.DEBUG) TextButton(onClick = {
+                            app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요")
+                            activeTab = "navigation"
+                        }) { Text("내비 조회") }
                     }
                     Box(Modifier.weight(1f)) {
-                        if (activeTab == "voice" && BuildConfig.DEBUG) {
+                        if (activeTab == "navigation" && BuildConfig.DEBUG) {
+                            RestNavigationScreen(app.restNavigation, app.serviceAreaReview, navigationProbe,
+                                onStartProbe={NavigationProbeService.start(this@MainActivity)},
+                                onCancelProbe={app.interventions.navigationProbeController.cancel()},
+                                allowed=voiceState.allowed && !voiceState.running && !intervention.running)
+                        } else if (activeTab == "voice" && BuildConfig.DEBUG) {
                             VoiceTestScreen(
                                 state = voiceState,
                                 latest = voiceHistory,

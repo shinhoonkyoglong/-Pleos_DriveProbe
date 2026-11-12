@@ -14,6 +14,12 @@ import com.pleos.departure.DepartureConfig
 import com.pleos.departure.DepartureFeature
 import com.pleos.departure.port.DriverConditionRepository
 import java.time.Clock
+import ai.pleos.playground.sample.vehicle.navigation.RestNavigation
+import ai.pleos.playground.sample.vehicle.navigation.PleosTbtServiceAreaSource
+import android.os.SystemClock
+import ai.pleos.playground.sample.vehicle.navigation.ReviewedServiceAreas
+import ai.pleos.playground.sample.vehicle.navigation.ReviewedServiceAreaPreferences
+import ai.pleos.playground.sample.vehicle.navigation.ServiceAreaReview
 
 /**
  * 전역 의존성(Repository, Database) 관리 Application 클래스
@@ -30,6 +36,12 @@ class DriveProbeApplication : Application() {
         private set
 
     lateinit var naviHelperRepository: NaviHelperRepository
+        private set
+
+    lateinit var restNavigation: RestNavigation
+        private set
+
+    lateinit var serviceAreaReview: ServiceAreaReview
         private set
 
     /** 2번 '출발 전' 동작 수치. departureFeature 와 운전자 조건 설정 화면이 같은 값을 쓴다 */
@@ -72,11 +84,20 @@ class DriveProbeApplication : Application() {
         }
 
         // 3. NaviHelper Repository 초기화
-        naviHelperRepository = NaviHelperRepositoryImpl(this) // context: NaviHelper SDK 연결용(조회 계열)
+        val navi = NaviHelperRepositoryImpl(this)
+        naviHelperRepository = navi
+        val reviewed=ReviewedServiceAreas(ReviewedServiceAreaPreferences(this),System::currentTimeMillis)
+        serviceAreaReview=ServiceAreaReview(navi,reviewed) {
+            val ux=vehicleRepository.uxRestriction.value
+            vehicleRepository.gear.value==ai.pleos.playground.sample.vehicle.data.model.GearPosition.PARK &&
+                vehicleRepository.hasSpeedSignal.value && vehicleRepository.vehicleSpeed.value==0f &&
+                ux?.source==ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization
+        }
+        restNavigation = RestNavigation(navi, PleosTbtServiceAreaSource(navi,reviewed), SystemClock::elapsedRealtime)
 
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)
-        interventions = InterventionModule(this, vehicleRepository, appDatabase.interventionHistoryDao())
+        interventions = InterventionModule(this, vehicleRepository, appDatabase.interventionHistoryDao(), restNavigation,navi::removeProbeWaypoint)
     }
 
     override fun onTerminate() {

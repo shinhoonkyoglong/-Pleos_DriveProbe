@@ -25,6 +25,7 @@ data class InterventionResult(
     val navigationStatus: String? = null,
     val error: VoiceFailureCode? = null,
     val platformCode: Int? = null,
+    val navigation: ai.pleos.playground.sample.vehicle.navigation.RestNavigationResult? = null,
 )
 
 data class InterventionRecord(
@@ -128,7 +129,7 @@ class InterventionController(
                 if (simulation) InterventionResult(InterventionOutcome.SIMULATED, "${condition.level} 시연: 차량·음성·내비 호출 없음")
                 else execute(condition.level)
             } catch (e: CancellationException) {
-                val cancelled = InterventionResult(InterventionOutcome.CANCELLED, "주행 종료·상태 변경·개입 중지로 취소됨. 이미 적용된 차량 설정은 유지될 수 있음")
+                val cancelled = (e as? InterventionCancelled)?.result ?: InterventionResult(InterventionOutcome.CANCELLED, "주행 종료·상태 변경·개입 중지로 취소됨. 이미 적용된 차량 설정은 유지될 수 있음")
                 withContext(NonCancellable) { persist(InterventionRecord(id, condition, simulation, cancelled), token) }
                 throw e
             } catch (e: Exception) {

@@ -45,7 +45,8 @@ interface NaviHelperRepository {
     ): Result<RouteInfo>
 
     /**
-     * 3단계 피로 개입: 가장 가까운 졸음쉼터/휴게소로 즉각 경로 전환 및 안내 시작
+     * 기존 시연용 목업: 앱 내부 상태만 바꾼다. 실제 SDK 안내가 아니다.
+     * 실제 DANGER 경유지 처리는 navigation.RestNavigation을 사용한다.
      */
     suspend fun guideToNearestRestArea(): Result<RestAreaInfo>
 

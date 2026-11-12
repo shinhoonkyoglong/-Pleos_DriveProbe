@@ -5,10 +5,10 @@ import kotlinx.coroutines.CancellationException
 
 /** Shared by real automatic interventions and explicitly selected parked flow tests. */
 class InterventionSpeechAction(private val voice: VoiceConversation) {
-    suspend fun execute(level: FatigueLevel, phase: (VoicePhase) -> Unit = {}): InterventionResult {
+    suspend fun execute(level: FatigueLevel, phase: (VoicePhase) -> Unit = {}, promptOverride: String? = null): InterventionResult {
         require(level == FatigueLevel.CAUTION || level == FatigueLevel.DANGER)
         return try {
-            val answer = voice.askTimed(prompt(level), phase)
+            val answer = voice.askTimed(promptOverride ?: prompt(level), phase)
             evaluate(level, answer)
         } catch (e: CancellationException) {
             throw e
@@ -20,10 +20,13 @@ class InterventionSpeechAction(private val voice: VoiceConversation) {
         }
     }
 
+    /** Playback only; an unavailable route lookup must not ask for meaningless consent. */
+    suspend fun announce(message: String) { voice.play(message) }
+
     companion object {
         fun prompt(level: FatigueLevel): String = when (level) {
             FatigueLevel.CAUTION -> "피로 징후가 감지됐어요. 질문이 끝나면 괜찮아요라고 말씀해 주세요."
-            FatigueLevel.DANGER -> "휴식이 필요해 보여요. 쉼터 안내를 원하시면 안내해 줘, 원치 않으시면 아니요라고 말씀해 주세요."
+            FatigueLevel.DANGER -> "휴게소 안내 동의 음성 시험입니다. 원하시면 추가해 줘, 원치 않으시면 아니요라고 말씀해 주세요."
             else -> error("This action only handles CAUTION and DANGER")
         }
 
@@ -38,7 +41,7 @@ class InterventionSpeechAction(private val voice: VoiceConversation) {
                 return result(InterventionOutcome.ANSWERED, "응답 문장과 발화 시간 추정치를 기록했어요. 피로 점수는 변경하지 않았어요")
             return when (val consent = VoiceResponse.consent(answer.text)) {
                 VoiceConsent.ACCEPT -> result(InterventionOutcome.ACCEPTED,
-                    "쉼터 안내 동의를 받았어요. 쉼터 검색·내비 연동 준비 중으로 경로는 변경하지 않았어요", consent, "NOT_CONNECTED")
+                    "음성 동의만 확인했어요. 실제 휴게소 제안·경로 변경은 하지 않았어요", consent, "NOT_CONNECTED")
                 VoiceConsent.DECLINE -> result(InterventionOutcome.DECLINED, "쉼터 안내를 거절했어요", consent, "NOT_REQUESTED")
                 VoiceConsent.UNKNOWN -> result(InterventionOutcome.UNKNOWN_RESPONSE,
                     "안내 동의 여부를 확인하지 못했어요. 경로는 변경하지 않았어요", consent, "NOT_REQUESTED")

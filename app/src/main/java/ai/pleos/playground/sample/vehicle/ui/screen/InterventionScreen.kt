@@ -51,7 +51,7 @@ fun InterventionScreen(
             Button(onClick = { onEnabled(!status.enabled) }) { Text(if (status.enabled) "개입 중지" else "개입 재개") }
             OutlinedButton(onClick = onMicrophone, enabled = parked) { Text("마이크 권한 허용") }
         }
-        Text("음성 확인은 기기의 한국어 TTS·음성 인식 서비스가 필요해요. 쉼터 검색·실제 내비 연동은 준비 중이에요.")
+        Text("현재 경로에서 시설·노선·방향을 확인 등록한 휴게소를 TBT 순서로 선택해요. 실제 ETA와 함께 제안하고 동의하면 경유지를 추가해요. 시설 확인이 없거나 경로가 바뀌면 자동 추가하지 않아요.")
         Text("자동 차량 제어는 실제 주행 모드의 유효한 D 기어 데이터에서 실행돼요. 시연 모드는 차량을 조작하지 않아요.")
         if (BuildConfig.DEBUG) {
             Text("시연 확인 — 차량·음성·내비 호출 없이 이력만 저장")

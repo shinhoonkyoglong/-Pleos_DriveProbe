@@ -9,6 +9,12 @@ import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TripInfo
 import ai.pleos.playground.navi.data.TripRequest
+import ai.pleos.playground.navi.constants.WaypointIndex
+import ai.pleos.playground.navi.data.RequestWaypointInfo
+import ai.pleos.playground.navi.data.WaypointInfo
+import ai.pleos.playground.navi.data.TBTInfo
+import ai.pleos.playground.navi.data.BookmarkInfo
+import ai.pleos.playground.sample.vehicle.navigation.*
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import ai.pleos.playground.sample.vehicle.data.model.DrivingConditions
@@ -32,6 +38,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.math.asin
@@ -50,7 +59,7 @@ import ai.pleos.playground.navi.constants.NaviMode as SdkNaviMode
 class NaviHelperRepositoryImpl(
     context: Context? = null,
     private val enableMockFallback: Boolean = true
-) : NaviHelperRepository {
+) : NaviHelperRepository, RestNavigationPort {
 
     private val tag = "NaviHelperRepository"
 
@@ -135,6 +144,7 @@ class NaviHelperRepositoryImpl(
         return Result.success(calculatedRoute)
     }
 
+    /** Legacy mock-only API; production DANGER uses RestNavigationPort instead. */
     override suspend fun guideToNearestRestArea(): Result<RestAreaInfo> {
         val closest = _nearestRestAreas.value.minByOrNull { it.distanceKm }
             ?: return Result.failure(IllegalStateException("주변에 안내 가능한 졸음쉼터가 없습니다."))
@@ -218,6 +228,12 @@ class NaviHelperRepositoryImpl(
     @Volatile private var pendingRouteState: CompletableDeferred<RouteStateInfo>? = null
     @Volatile private var pendingLocation: CompletableDeferred<CurrentLocationInfo>? = null
     @Volatile private var pendingTrip: CompletableDeferred<TripInfo>? = null
+    @Volatile private var pendingWaypoints: CompletableDeferred<List<WaypointInfo>>? = null
+    @Volatile private var pendingTbt: CompletableDeferred<List<TBTInfo>>? = null
+    @Volatile private var pendingBookmarks: CompletableDeferred<List<BookmarkInfo>>? = null
+    @Volatile private var routingCompletionCount = 0L
+    @Volatile private var routeWriteInProgress = false
+    @Volatile private var routeWriteError: NaviErrorCode? = null
 
     /**
      * 현재 경로의 onRouteStarted.tollFare 캐시. 다시 조회할 수 없는 값이라 리스너로 받아 둔다.
@@ -238,6 +254,17 @@ class NaviHelperRepositoryImpl(
     @Volatile private var mockRouteOption: String = "RECOMMENDED"
 
     private val naviListener = object : NaviHelperEventListener {
+        override fun onBookmarkInfo(bookmarkInfoList: List<BookmarkInfo>) { pendingBookmarks?.complete(bookmarkInfoList) }
+        override fun onTBTInfo(tbtInfoList: List<TBTInfo>) {
+            pendingTbt?.complete(tbtInfoList)
+        }
+
+        override fun onRoutingCompleted() { routingCompletionCount++ }
+
+        override fun onWayPointInfo(waypointInfoList: List<WaypointInfo>) {
+            pendingWaypoints?.complete(waypointInfoList)
+        }
+
         override fun onRouteStarted(routeStartInfo: RouteStartInfo) {
             synchronized(tollFareLock) {
                 tollFare = routeStartInfo.tollFare
@@ -272,6 +299,8 @@ class NaviHelperRepositoryImpl(
 
         override fun onError(errorCode: NaviErrorCode) {
             Log.w(tag, "NaviHelper onError: $errorCode")
+            if (routeWriteInProgress && errorCode != NaviErrorCode.CAUSE_SEARCH_TRIP &&
+                errorCode != NaviErrorCode.CAUSE_LOW_BATTERY) routeWriteError = errorCode
             if (errorCode == NaviErrorCode.CAUSE_SEARCH_TRIP) {
                 pendingTrip?.completeExceptionally(
                     NaviHelperException(NaviHelperException.Reason.SERVICE_ERROR, "requestTrip 실패: $errorCode")
@@ -356,6 +385,186 @@ class NaviHelperRepositoryImpl(
 
     override fun injectMockDestination(destination: NaviDestinationInfo?) {
         mockDestination = destination
+    }
+
+    // Strict navigation port: no mock fallback and no independent SDK instance/listener.
+    override suspend fun location(): NaviLocation = getCurrentLocation().getOrThrow()
+    override suspend fun estimate(place: RestPlace): NaviTripInfo {
+        requireRealConnection()
+        return requestMutex.withLock {
+            val trip=awaitCallback<TripInfo>("requestTrip",TRIP_TIMEOUT_MS,{pendingTrip=it}) {
+                it.requestTrip(TripRequest(latitude=place.latitude,longitude=place.longitude,
+                    poiId=place.poiId,poiName=place.name,poiSubId=place.poiSubId))
+            }.getOrThrow()
+            val state=routeStateLocked().getOrThrow()
+            NaviTripInfo(trip.distance,trip.eta.toLong(),state.routeOption)
+        }
+    }
+
+    @Volatile private var nativeBookmarkCount: Int? = null
+    override val lastNativeBookmarkCount: Int? get() = nativeBookmarkCount
+
+    override suspend fun serviceAreaPlaces(): List<RestPlace> {
+        requireRealConnection()
+        return requestMutex.withLock {
+            nativeBookmarkCount=null
+            val received=awaitCallback<List<BookmarkInfo>>("getBookmarkInfo",DESTINATION_TIMEOUT_MS,{pendingBookmarks=it}) { it.getBookmarkInfo() }.getOrThrow()
+            nativeBookmarkCount=received.size
+            received.filter { NaviTbtEntry("TURN_ENTER_SERVICEAREA",41,0.0,it.name).facilityKind()==TbtFacilityKind.SERVICE_AREA }
+                .filter { RestNavigation.validCoordinates(it.latitude,it.longitude) }.map {
+                    RestPlace("NAVI_BOOKMARK:${it.poiProvider}:${it.poiId}:${it.latitude}:${it.longitude}",it.name,it.latitude,it.longitude,
+                        "미확인","","",it.address,"",it.poiId,it.poiSubId ?: "",it.poiProvider)
+                }.distinctBy { it.id }
+        }
+    }
+
+    override suspend fun snapshot(): RestNaviSnapshot {
+        requireRealConnection()
+        return requestMutex.withLock { restSnapshotLocked() }
+    }
+
+    override suspend fun tbtRoute(): NaviTbtRoute {
+        requireRealConnection()
+        return requestMutex.withLock {
+            // Raw TBT discovery must not depend on the still-unverified empty-waypoint callback.
+            val before = restSnapshotLocked(includeWaypoints = false)
+            val entries = awaitCallback<List<TBTInfo>>("getTBTInfo", DESTINATION_TIMEOUT_MS, { pendingTbt = it }) {
+                it.getTBTInfo()
+            }.getOrThrow()
+            val capturedAt = android.os.SystemClock.elapsedRealtime()
+            val after = restSnapshotLocked(includeWaypoints = false)
+            val sameDestination = if (before.destination == null) after.destination == null
+                else RestNavigation.sameDestination(before.destination, after.destination)
+            if (before.routeId != after.routeId || !sameDestination ||
+                before.state.routeOption != after.state.routeOption || before.state.naviMode != after.state.naviMode ||
+                !RestNavigation.sameWaypoints(before.waypoints, after.waypoints))
+                throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"안내 목록 조회 중 경로가 바뀌었어요. 다시 조회해 주세요")
+            NaviTbtRoute(before.routeId,capturedAt,entries.map { NaviTbtEntry(it.type.name,it.type.value,it.distance,it.description) })
+        }
+    }
+
+    private suspend fun requireRealConnection() {
+        if (!ensureConnected()) throw RestNavigationFailure(RestNavigationStatus.UNAVAILABLE, "내비 서비스에 연결하지 못했어요")
+    }
+
+    private suspend fun restSnapshotLocked(includeWaypoints: Boolean = true): RestNaviSnapshot {
+        val destination = awaitCallback<DestinationInfo>("getDestinationInfo", DESTINATION_TIMEOUT_MS, { pendingDestination = it }) {
+            it.getDestinationInfo()
+        }.getOrThrow().let(::toNaviDestination)
+        val state = routeStateLocked().getOrThrow()
+        val waypoints = if (includeWaypoints) awaitCallback<List<WaypointInfo>>("getWaypointInfo", DESTINATION_TIMEOUT_MS, { pendingWaypoints = it }) {
+            it.getWaypointInfo()
+        }.getOrThrow().map {
+            NaviWaypoint(it.latitude,it.longitude,it.name,it.poiId,it.poiSubId.orEmpty(),it.poiProvider,
+                it.displayLatitude,it.displayLongitude)
+        } else emptyList()
+        val location = awaitCallback<CurrentLocationInfo>("getCurrentLocationInfo", LOCATION_TIMEOUT_MS, { pendingLocation = it }) {
+            it.getCurrentLocationInfo()
+        }.getOrThrow()
+        return RestNaviSnapshot(destination, state, waypoints, routeId = location.routeId)
+    }
+
+    override suspend fun addFirstWaypoint(
+        candidate: RestCandidate, expected: RestNaviSnapshot, dispatched: () -> Unit,
+    ): RestNaviSnapshot {
+        requireRealConnection()
+        return requestMutex.withLock {
+            val fresh = restSnapshotLocked()
+            RestNavigation.validateSnapshot(fresh)
+            if (expected.routeId != fresh.routeId || !RestNavigation.sameDestination(expected.destination, fresh.destination) ||
+                !RestNavigation.sameWaypoints(expected.waypoints, fresh.waypoints) ||
+                expected.state.routeOption != fresh.state.routeOption)
+                throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED, "검색 중 목적지·경유지·경로 옵션이 바뀌어 쉼터 요청을 취소했어요")
+            require(!candidate.trip.isMock && RestNavigation.validCoordinates(candidate.place.latitude, candidate.place.longitude))
+            val helper = naviHelper ?: throw RestNavigationFailure(RestNavigationStatus.UNAVAILABLE, "내비 연결이 끊겼어요")
+            val completedBefore = routingCompletionCount
+            val confirmation=WaypointWriteConfirmation(expected,candidate.place)
+            var lastObserved: RestNaviSnapshot? = null
+            routeWriteError = null
+            routeWriteInProgress = true
+            try {
+                withContext(Dispatchers.Main) {
+                    currentCoroutineContext().ensureActive()
+                    // Construct first: malformed input must not be recorded as a dispatched write.
+                    val request = RequestWaypointInfo(
+                        latitude = candidate.place.latitude, longitude = candidate.place.longitude,
+                        poiName = candidate.place.name, waypointIndex = WaypointIndex.FIRST,
+                        poiId = candidate.place.poiId, address = candidate.place.address, poiSubId = candidate.place.poiSubId,
+                        poiProvider = candidate.place.poiProvider,
+                    )
+                    // Conservative boundary: if Binder throws, the service may still have received the request.
+                    dispatched()
+                    helper.addWaypoint(request)
+                }
+                val confirmed = withTimeoutOrNull(30_000L) {
+                    var result: RestNaviSnapshot? = null
+                    while (result == null) {
+                        currentCoroutineContext().ensureActive()
+                        routeWriteError?.let { throw RestNavigationFailure(RestNavigationStatus.REQUEST_FAILED, "내비 경유지 요청 오류: $it. 적용 여부를 내비에서 확인해 주세요", lastObserved) }
+                        val observed = restSnapshotLocked()
+                        lastObserved = observed
+                        val verified=confirmation.observe(observed,routingCompletionCount > completedBefore)
+                        Log.i("NaviWaypointProbe","ADD_READBACK ${confirmation.diagnostic}")
+                        if (verified) {
+                            Log.i("NaviWaypointProbe","ADD_VERIFIED evidence=${if(routingCompletionCount > completedBefore) "EVENT_AND_READBACK" else "STABLE_READBACK"}")
+                            result = observed
+                        } else delay(500)
+                    }
+                    result
+                }
+                confirmed ?: run {
+                    val diagnostic="${confirmation.diagnostic} routingCompleted=${routingCompletionCount > completedBefore} " +
+                        (lastObserved?.let { waypointObservationDiagnostic(expected,candidate.place,it) } ?: "NO_SNAPSHOT")
+                    Log.w("NaviWaypointProbe","ADD_UNCONFIRMED $diagnostic")
+                    throw RestNavigationFailure(RestNavigationStatus.REQUEST_UNCONFIRMED,
+                        "경유지 요청 후 완료 확인이 안 됐어요. $diagnostic",lastObserved)
+                }
+            } catch (e: SecurityException) {
+                throw RestNavigationFailure(RestNavigationStatus.PERMISSION_DENIED, "경유지 제어 권한이 없어요")
+            } catch (e: NaviHelperException) {
+                throw RestNavigationFailure(
+                    if (e.reason == NaviHelperException.Reason.PERMISSION_DENIED) RestNavigationStatus.PERMISSION_DENIED else RestNavigationStatus.REQUEST_UNCONFIRMED,
+                    "쉼터 요청 확인 중 오류가 발생했어요: ${e.message}",
+                    lastObserved,
+                )
+            } finally {
+                routeWriteInProgress = false
+                routeWriteError = null
+            }
+        }
+    }
+
+    /** Debug instrumentation cleanup only. Never remove a waypoint after an unrelated user change. */
+    suspend fun removeProbeWaypoint(place: RestPlace, original: RestNaviSnapshot,beforeDispatch: () -> Unit = {}): RestNaviSnapshot {
+        check(ai.pleos.playground.sample.vehicle.BuildConfig.DEBUG)
+        requireRealConnection()
+        return requestMutex.withLock {
+            val observed = restSnapshotLocked()
+            if (!RestNavigation.sameDestination(original.destination, observed.destination) ||
+                original.state.routeOption != observed.state.routeOption || original.state.naviMode != observed.state.naviMode ||
+                original.waypoints.isNotEmpty() || observed.waypoints.size != 1 ||
+                !RestNavigation.waypointMatches(place, observed.waypoints.firstOrNull())) {
+                val diagnostic=waypointObservationDiagnostic(original,place,observed)
+                Log.w("NaviWaypointProbe","CLEANUP_CONTEXT_MISMATCH $diagnostic")
+                throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,
+                    "시험 경유지와 현재 경로가 달라 자동 정리하지 않았어요. $diagnostic",observed)
+            }
+            withContext(Dispatchers.Main) {
+                currentCoroutineContext().ensureActive()
+                beforeDispatch()
+                naviHelper!!.removeWaypoint(WaypointIndex.FIRST)
+            }
+            withTimeoutOrNull(30_000L) {
+                var restored: RestNaviSnapshot? = null
+                while (restored == null) {
+                    val snapshot = restSnapshotLocked()
+                    if (RestNavigation.sameDestination(original.destination, snapshot.destination) && snapshot.waypoints.isEmpty() &&
+                        snapshot.state.naviMode == original.state.naviMode && snapshot.state.routeOption == original.state.routeOption) restored = snapshot
+                    else delay(500)
+                }
+                restored
+            } ?: throw RestNavigationFailure(RestNavigationStatus.REQUEST_UNCONFIRMED, "시험 경유지 삭제 요청 후 원래 상태 복원을 확인하지 못했어요")
+        }
     }
 
     override fun injectMockRouteOption(routeOption: String) {
