@@ -229,6 +229,7 @@ class DepartureSession(
         val applied = when (route) {
             is RouteConditionCheck.Satisfied -> route.routeState.appliedOption
             is RouteConditionCheck.OtherRouteOption -> route.routeState.appliedOption
+            is RouteConditionCheck.TollAvoidanceUnverified -> route.routeState.appliedOption
             is RouteConditionCheck.NeedsUserAction -> route.routeState.appliedOption
             RouteConditionCheck.NoRouteCondition,
             RouteConditionCheck.DestinationNotSet,

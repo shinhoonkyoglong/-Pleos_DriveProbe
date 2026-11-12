@@ -1,6 +1,9 @@
 package ai.pleos.playground.sample.vehicle
 
+import ai.pleos.playground.sample.vehicle.departure.DepartureHomeViewModel
 import ai.pleos.playground.sample.vehicle.departure.DriverConditionSettingsViewModel
+import ai.pleos.playground.sample.vehicle.ui.screen.DepartureDetailScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.DepartureHomeScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
 import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
@@ -17,12 +20,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import ai.pleos.playground.sample.vehicle.ui.kd.KdAppViewModel
+import ai.pleos.playground.sample.vehicle.ui.kd.KeepDrivingApp
+import ai.pleos.playground.sample.vehicle.ui.kd.ReactionCheckViewModel
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
+import com.pleos.departure.ui.DepartureHomeCard
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -86,6 +94,9 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val driverConditionViewModel: DriverConditionSettingsViewModel by viewModels()
+    private val departureHomeViewModel: DepartureHomeViewModel by viewModels()
+    private val kdViewModel: KdAppViewModel by viewModels()
+    private val reactionViewModel: ReactionCheckViewModel by viewModels()
 
     private val microphonePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -126,82 +137,118 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = null).value
             var activeTab by rememberSaveable { mutableStateOf("vehicle") }
 
-            VehicleSampleAppTheme {
-                Column {
-                    Row(Modifier.fillMaxWidth()) {
-                        TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "vehicle" }) { Text("차량 API") }
-                        TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "intervention" }) { Text("개입 상태") }
-                        if (BuildConfig.DEBUG) TextButton(onClick = {
-                            activeTab = "voice"
-                            app.interventions.voiceTests.refreshCapabilities()
-                        }) { Text("음성 시험") }
-                        if (BuildConfig.DEBUG) TextButton(onClick = {
-                            app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요")
-                            activeTab = "navigation"
-                        }) { Text("내비 조회") }
+            // 앱 첫 화면 = '계속운전' 홈(ui/kd). 2번 '출발 전' 카드·상세 화면은 홈 안의 슬롯에 넣는다.
+            // 2번 홈(DepartureHomeScreen)과 1번 API 탐색기는 [개발자 도구] 안에서 그대로 쓸 수 있다
+            KeepDrivingApp(
+                appViewModel = kdViewModel,
+                reactionViewModel = reactionViewModel,
+                departureCard = { modifier, onOpen ->
+                    DepartureHomeCard(model = departureHomeViewModel.model, onOpen = onOpen, modifier = modifier)
+                },
+                departureDetail = { onBack ->
+                    DepartureDetailScreen(model = departureHomeViewModel.model, onBack = onBack)
+                },
+                driverCondition = { onBack ->
+                    VehicleSampleAppTheme {
+                        DriverConditionSettingsScreen(viewModel = driverConditionViewModel, onBack = onBack)
                     }
-                    Box(Modifier.weight(1f)) {
-                        if (activeTab == "navigation" && BuildConfig.DEBUG) {
-                            RestNavigationScreen(app.restNavigation, app.serviceAreaReview, navigationProbe,
-                                onStartProbe={NavigationProbeService.start(this@MainActivity)},
-                                onCancelProbe={app.interventions.navigationProbeController.cancel()},
-                                allowed=voiceState.allowed && !voiceState.running && !intervention.running)
-                        } else if (activeTab == "voice" && BuildConfig.DEBUG) {
-                            VoiceTestScreen(
-                                state = voiceState,
-                                latest = voiceHistory,
-                                onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-                                onRefresh = app.interventions.voiceTests::refreshCapabilities,
-                                onStart = app.interventions::startVoiceTest,
-                                onStop = { app.interventions.voiceTests.cancel() },
-                            )
-                        } else if (activeTab == "intervention") {
-                            InterventionScreen(
-                                status = intervention,
-                                latest = latest,
-                                parked = gear == GearPosition.PARK,
-                                voicePrepared = drivingVoicePrepared,
-                                voicePreparationError = drivingVoiceError,
-                                onPrepareVoice = {
-                                    if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-                                        DrivingVoiceService.prepare(this@MainActivity)
-                                    else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                },
-                                onReleaseVoice = { DrivingVoiceService.stop(this@MainActivity) },
-                                onEnabled = { enabled ->
-                                    if (!voiceState.running) {
-                                        app.interventions.controller.setEnabled(enabled)
-                                        if (!enabled) DrivingVoiceService.stop(this@MainActivity)
+                },
+                devTools = {
+                    VehicleSampleAppTheme {
+                        Column {
+                            Row(Modifier.fillMaxWidth()) {
+                                TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "vehicle" }) { Text("차량 API") }
+                                TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "intervention" }) { Text("개입 상태") }
+                                if (BuildConfig.DEBUG) TextButton(onClick = {
+                                    activeTab = "voice"
+                                    app.interventions.voiceTests.refreshCapabilities()
+                                }) { Text("음성 시험") }
+                                if (BuildConfig.DEBUG) TextButton(onClick = {
+                                    app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요")
+                                    activeTab = "navigation"
+                                }) { Text("내비 조회") }
+                            }
+                            Box(Modifier.weight(1f)) {
+                                if (activeTab == "navigation" && BuildConfig.DEBUG) {
+                                    RestNavigationScreen(app.restNavigation, app.serviceAreaReview, navigationProbe,
+                                        onStartProbe={NavigationProbeService.start(this@MainActivity)},
+                                        onCancelProbe={app.interventions.navigationProbeController.cancel()},
+                                        allowed=voiceState.allowed && !voiceState.running && !intervention.running)
+                                } else if (activeTab == "voice" && BuildConfig.DEBUG) {
+                                    DisposableEffect(Unit) {
+                                        onDispose { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요") }
                                     }
-                                },
-                                onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-                                onSimulate = app.interventions.controller::simulate,
-                            )
-                        } else {
-                            SampleApp(
-                                uiState = uiState,
-                                onOpenDomain = viewModel::showApiExplorer,
-                                onSelectFeature = viewModel::selectFeature,
-                                onSearchFeatures = viewModel::searchFeatures,
-                                onRunCapability = viewModel::runFeatureCapability,
-                                onRunRead = viewModel::runFeatureRead,
-                                onRunSet = viewModel::runFeatureSet,
-                                onStartUpdates = viewModel::startFeatureUpdates,
-                                onStopUpdates = viewModel::stopFeatureUpdates,
-                                onBackToFeatureList = viewModel::backToFeatureList,
-                                onDismissError = viewModel::dismissError,
-                                onOpenDriverCondition = viewModel::showDriverConditionSettings,
-                                driverConditionSettings = {
-                                    DriverConditionSettingsScreen(
-                                        viewModel = driverConditionViewModel,
-                                        onBack = viewModel::closeDriverConditionSettings
+                                    VoiceTestScreen(
+                                        state = voiceState,
+                                        latest = voiceHistory,
+                                        onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                        onRefresh = app.interventions.voiceTests::refreshCapabilities,
+                                        onStart = app.interventions::startVoiceTest,
+                                        onStop = { app.interventions.voiceTests.cancel() },
+                                    )
+                                } else if (activeTab == "intervention") {
+                                    InterventionScreen(
+                                        status = intervention,
+                                        latest = latest,
+                                        parked = gear == GearPosition.PARK,
+                                        voicePrepared = drivingVoicePrepared,
+                                        voicePreparationError = drivingVoiceError,
+                                        onPrepareVoice = {
+                                            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                                                DrivingVoiceService.prepare(this@MainActivity)
+                                            else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        },
+                                        onReleaseVoice = { DrivingVoiceService.stop(this@MainActivity) },
+                                        onEnabled = { enabled ->
+                                            if (!voiceState.running) {
+                                                app.interventions.controller.setEnabled(enabled)
+                                                if (!enabled) DrivingVoiceService.stop(this@MainActivity)
+                                            }
+                                        },
+                                        onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                        onSimulate = app.interventions.controller::simulate,
+                                    )
+                                } else {
+                                    SampleApp(
+                                        uiState = uiState,
+                                        onOpenDomain = viewModel::showApiExplorer,
+                                        onSelectFeature = viewModel::selectFeature,
+                                        onSearchFeatures = viewModel::searchFeatures,
+                                        onRunCapability = viewModel::runFeatureCapability,
+                                        onRunRead = viewModel::runFeatureRead,
+                                        onRunSet = viewModel::runFeatureSet,
+                                        onStartUpdates = viewModel::startFeatureUpdates,
+                                        onStopUpdates = viewModel::stopFeatureUpdates,
+                                        onBackToFeatureList = viewModel::backToFeatureList,
+                                        onDismissError = viewModel::dismissError,
+                                        onGoHome = viewModel::showHome,
+                                        home = {
+                                            DepartureHomeScreen(
+                                                model = departureHomeViewModel.model,
+                                                onOpenDepartureDetail = viewModel::showDepartureDetail,
+                                                onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                                                onOpenApiExplorer = viewModel::openApiExplorer
+                                            )
+                                        },
+                                        departureDetail = {
+                                            DepartureDetailScreen(
+                                                model = departureHomeViewModel.model,
+                                                onBack = viewModel::showHome
+                                            )
+                                        },
+                                        driverConditionSettings = {
+                                            DriverConditionSettingsScreen(
+                                                viewModel = driverConditionViewModel,
+                                                onBack = viewModel::closeDriverConditionSettings
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                            }
                         }
                     }
-                }
-            }
+                },
+            )
         }
     }
 }

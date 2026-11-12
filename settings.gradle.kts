@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 rootProject.name = "VehicleSampleApp"
 include(":app")
 include(":departure-core") // 2번 출발 전 핵심 로직(순수 Kotlin/JVM)
+include(":departure-ui") // 2번 출발 전 화면(Compose, :departure-core 에만 의존)

@@ -89,6 +89,13 @@ interface NaviHelperRepository {
     suspend fun getRouteStateInfo(): Result<NaviRouteState>
 
     /**
+     * 차량 설정의 "내비게이션" 탭을 연다 (requestNavigationScreen(NavigationScreenRequest.Settings), 권한 NAVI_CUSTOM_MAP).
+     * 그 화면 "경로" 절에 전역 "유료도로 우회" 토글이 있다(에뮬레이터 실측 2026-11-11). 설정값은 바꾸지 않는다.
+     * 미연결이면 failure(UNAVAILABLE) — Mock 으로 성공을 지어내지 않는다(화면을 연 것처럼 보이면 안 되므로).
+     */
+    suspend fun openNaviSettings(): Result<Unit>
+
+    /**
      * 안내를 시작하지 않는 사전 ETA (requestTrip(TripRequest) → onTripInfo). 경로 옵션은 지정할 수 없다(TripRequest 에 필드 없음).
      * poiName/poiId 빈 문자열은 허용된다(실측).
      */

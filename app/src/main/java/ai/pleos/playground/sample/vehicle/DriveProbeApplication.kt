@@ -4,6 +4,7 @@ import android.app.Application
 import ai.pleos.playground.sample.vehicle.intervention.InterventionModule
 import ai.pleos.playground.sample.vehicle.condition.ConditionModule
 import ai.pleos.playground.sample.vehicle.data.local.AppDatabase
+import ai.pleos.playground.sample.vehicle.data.repository.DemoNaviFallbackRepository
 import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepository
 import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryImpl
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepository
@@ -36,6 +37,10 @@ class DriveProbeApplication : Application() {
         private set
 
     lateinit var naviHelperRepository: NaviHelperRepository
+        private set
+
+    /** 휴게소 등록·경유지 쓰기·기기 시험은 예시 데이터 없는 동일 SDK 연결을 공유한다. */
+    lateinit var realNaviHelperRepository: NaviHelperRepositoryImpl
         private set
 
     lateinit var restNavigation: RestNavigation
@@ -85,7 +90,9 @@ class DriveProbeApplication : Application() {
 
         // 3. NaviHelper Repository 초기화
         val navi = NaviHelperRepositoryImpl(this)
-        naviHelperRepository = navi
+        realNaviHelperRepository = navi
+        // 출발 전 화면의 debug 시연만 예시 조회를 허용한다. 실제 내비 작업에는 navi를 직접 넘긴다.
+        naviHelperRepository = if (BuildConfig.DEBUG) DemoNaviFallbackRepository(navi) else navi
         val reviewed=ReviewedServiceAreas(ReviewedServiceAreaPreferences(this),System::currentTimeMillis)
         serviceAreaReview=ServiceAreaReview(navi,reviewed) {
             val ux=vehicleRepository.uxRestriction.value

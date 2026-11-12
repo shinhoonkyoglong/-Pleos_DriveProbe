@@ -9,7 +9,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.pleos.departure.model.DriverCondition
 import com.pleos.departure.model.RouteConditionCheck
 import com.pleos.departure.model.RouteConstraint
-import com.pleos.departure.model.RouteNote
 import com.pleos.departure.model.RoutePreference
 import com.pleos.departure.model.RouteUserAction
 import kotlinx.coroutines.delay
@@ -42,7 +41,7 @@ import org.junit.runner.RunWith
  *   -Pandroid.testInstrumentationRunnerArguments.expectedRouteOption=FREE
  * ```
  * 판정(무료도로 선호 조건, ConditionRouteUseCase):
- *  - FREE: Satisfied. tollFare 를 관측했으면 0, 못 했으면 notes 에 TOLL_FARE_NOT_OBSERVED
+ *  - FREE: tollFare 를 관측해 0 이면 Satisfied, 못 했으면 TollAvoidanceUnverified(2번 작업 #27 — FREE 는 어린이 보호구역 우회만 켜도 옴)
  *  - RECOMMENDED: NeedsUserAction[TURN_ON_TOLL_AVOIDANCE]
  * 모든 관측값은 logcat 태그 [TAG] 로 남기고, 실패는 모아서 마지막에 한 번에 실패시킨다.
  */
@@ -115,16 +114,13 @@ class TollAvoidanceToggleCheckTest {
             val result = feature.conditionRoute.check(RoutePreference.of(RouteConstraint.PREFER_TOLL_FREE))
             log("2 conditionRoute=$result")
             if (expected == "FREE") {
-                val sat = result as? RouteConditionCheck.Satisfied
-                check("2-satisfied", sat != null, "result=$result (기대 Satisfied)")
-                if (sat != null) {
-                    val toll = sat.routeState.tollFare
-                    check(
-                        "2-tollNote",
-                        if (toll == null) RouteNote.TOLL_FARE_NOT_OBSERVED in sat.notes else toll == 0,
-                        "tollFare=$toll notes=${sat.notes} (기대 0, 또는 null 이면 TOLL_FARE_NOT_OBSERVED)",
-                    )
+                // 2번 작업 #27: 통행료 0원이 확인돼야 충족. 못 받았으면 '확인 필요'(TollAvoidanceUnverified)
+                val ok = when (result) {
+                    is RouteConditionCheck.Satisfied -> result.routeState.tollFare == 0
+                    is RouteConditionCheck.TollAvoidanceUnverified -> result.routeState.tollFare == null
+                    else -> false
                 }
+                check("2-free", ok, "result=$result (기대 tollFare 0 → Satisfied, 모름 → TollAvoidanceUnverified)")
             } else {
                 val need = result as? RouteConditionCheck.NeedsUserAction
                 check(

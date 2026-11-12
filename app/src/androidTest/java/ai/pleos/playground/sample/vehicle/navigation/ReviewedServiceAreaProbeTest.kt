@@ -3,7 +3,6 @@ package ai.pleos.playground.sample.vehicle.navigation
 import ai.pleos.playground.sample.vehicle.DriveProbeApplication
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
-import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryImpl
 import android.os.Build
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -56,7 +55,7 @@ class ReviewedServiceAreaProbeTest {
                     app.restNavigation.discard(p)
                     if(issued) withContext(NonCancellable) {
                         requireParked()
-                        val restored=(app.naviHelperRepository as NaviHelperRepositoryImpl).removeProbeWaypoint(p.candidate.place,p.before,::requireParked)
+                        val restored=app.realNaviHelperRepository.removeProbeWaypoint(p.candidate.place,p.before,::requireParked)
                         log("REVIEWED_CLEANUP_CONFIRMED restored=$restored")
                     }
                 }

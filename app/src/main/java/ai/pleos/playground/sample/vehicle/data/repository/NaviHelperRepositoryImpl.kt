@@ -5,6 +5,7 @@ import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.NavigationScreenRequest
 import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TripInfo
@@ -333,6 +334,23 @@ class NaviHelperRepositoryImpl(
             return fallback("getRouteStateInfo") { mockRouteState() }
         }
         return requestMutex.withLock { routeStateLocked() }
+    }
+
+    override suspend fun openNaviSettings(): Result<Unit> {
+        if (!ensureConnected()) {
+            return Result.failure(NaviHelperException(NaviHelperException.Reason.UNAVAILABLE, "NaviHelper 서비스 미연결: openNaviSettings"))
+        }
+        val helper = naviHelper
+            ?: return Result.failure(NaviHelperException(NaviHelperException.Reason.UNAVAILABLE, "NaviHelper 없음: openNaviSettings"))
+        return try {
+            withContext(Dispatchers.Main) { helper.requestNavigationScreen(NavigationScreenRequest.Settings) }
+            Log.i(tag, "openNaviSettings 요청")
+            Result.success(Unit)
+        } catch (e: SecurityException) {
+            Result.failure(NaviHelperException(NaviHelperException.Reason.PERMISSION_DENIED, "openNaviSettings 권한 없음", e))
+        } catch (e: Exception) {
+            Result.failure(NaviHelperException(NaviHelperException.Reason.SERVICE_ERROR, "openNaviSettings 실패: ${e.message}", e))
+        }
     }
 
     override suspend fun requestTrip(

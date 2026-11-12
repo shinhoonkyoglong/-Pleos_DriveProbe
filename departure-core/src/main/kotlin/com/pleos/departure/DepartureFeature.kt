@@ -1,5 +1,6 @@
 package com.pleos.departure
 
+import com.pleos.departure.model.DataResult
 import com.pleos.departure.model.DrivingRestriction
 import com.pleos.departure.session.DepartureSession
 import com.pleos.departure.usecase.ConditionRouteUseCase
@@ -65,6 +66,12 @@ class DepartureFeature(
      */
     fun createSession(scope: CoroutineScope): DepartureSession = DepartureSession(this, scope)
 
+    /**
+     * 내비 설정 화면을 연다(작업 #28). 무료도로 안내의 [내비 설정 열기] 버튼용. 주행 중에는 화면이 버튼을 숨긴다.
+     * @see NaviRepository.openNaviSettings
+     */
+    suspend fun openNaviSettings(): DataResult<Unit> = dependencies.naviRepository.openNaviSettings()
+
     /** 주행 규제 상태. 화면은 RESTRICTED 이면(기본 설정에서는 UNKNOWN 도) 조작 요소를 숨긴다. */
     fun observeDrivingRestriction(): Flow<DrivingRestriction> = dependencies.vehicleRepository.observeDrivingRestriction()
 
@@ -74,6 +81,10 @@ class DepartureFeature(
         //   경로 교체 중·안내 없음의 0 값 목적지는 둘 다 NotSet.
         // 0.8.0(#12b): 포트 시그니처 변경 없음. 세션 동작(재확인·주기 갱신·실패 처리·세션 기억)을 ui 에서 core 로 옮겨 공개 API 추가 —
         //   DepartureFeature.createSession, session 패키지(DepartureSession, DepartureSessionState, CheckOutcome, RecheckProgress).
-        const val VERSION: String = "0.8.0"
+        // 0.9.0(#27): 포트 시그니처 변경 없음. 도메인 모델 변경 — RouteConditionCheck.TollAvoidanceUnverified 추가(FREE + 통행료 모름),
+        //   RouteUserAction.REVIEW_TOLL_ON_ROUTE·RouteNote.TOLL_FARE_NOT_OBSERVED 삭제. 무료도로 충족 = FREE + tollFare 0 일 때만.
+        //   when 으로 RouteConditionCheck 를 전부 처리하는 소비자는 새 분기를 추가해야 한다.
+        // 0.10.0(#28): NaviRepository.openNaviSettings() 추가(기본 구현 = NOT_SUPPORTED), DepartureFeature.openNaviSettings() 추가.
+        const val VERSION: String = "0.10.0"
     }
 }

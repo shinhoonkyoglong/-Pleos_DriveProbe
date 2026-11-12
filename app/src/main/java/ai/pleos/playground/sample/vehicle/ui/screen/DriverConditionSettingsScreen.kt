@@ -91,6 +91,7 @@ fun DriverConditionSettingsScreen(
     }
     BackHandler(onBack = onBack)
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val naviSettingsFailed = viewModel.naviSettingsFailed.collectAsStateWithLifecycle().value
 
     DriverConditionSettingsContent(
         state = state,
@@ -101,7 +102,9 @@ fun DriverConditionSettingsScreen(
         onIncreaseRadius = viewModel::increaseRadius,
         onDecreaseRadius = viewModel::decreaseRadius,
         onRefreshLocation = viewModel::refreshLocation,
-        onSave = viewModel::save
+        onSave = viewModel::save,
+        onOpenNaviSettings = viewModel::openNaviSettings,
+        naviSettingsFailed = naviSettingsFailed
     )
 }
 
@@ -115,7 +118,9 @@ fun DriverConditionSettingsContent(
     onIncreaseRadius: () -> Unit,
     onDecreaseRadius: () -> Unit,
     onRefreshLocation: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onOpenNaviSettings: () -> Unit = {},
+    naviSettingsFailed: Boolean = false
 ) {
     val editable = !state.editingLocked && !state.loading
     val form = state.form
@@ -171,6 +176,10 @@ fun DriverConditionSettingsContent(
                 enabled = editable,
                 onChange = onPreferTollFreeChange
             )
+            // 2번 작업 #28: 앱이 내비 설정을 바꿀 수 없어(SDK 없음) 전역 '유료도로 우회'를 사용자가 한 번 켜 두도록 안내한다
+            if (form.preferTollFree && editable) {
+                NaviTollSettingHint(failed = naviSettingsFailed, onOpen = onOpenNaviSettings)
+            }
             ToggleRow(
                 title = "고속도로 회피",
                 description = "고속도로를 되도록 피해요(내비 기능 한계로 완전히 피하지는 못할 수 있어요)",
@@ -366,6 +375,43 @@ private fun CenterRow(state: DriverConditionSettingsState, enabled: Boolean, onR
                 else -> "지금 위치로 정하기"
             }
             Text(label, fontSize = BodySize, color = StrongInk)
+        }
+    }
+}
+
+/** 무료도로 선호가 켜져 있을 때: 내비 전역 '유료도로 우회'를 한 번 켜 두라는 안내 + [내비 설정 열기] */
+@Composable
+private fun NaviTollSettingHint(failed: Boolean, onOpen: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("navi-toll-setting-hint"),
+        shape = RoundedCornerShape(16.dp),
+        color = InfoContainer,
+        border = BorderStroke(2.dp, StrongInk)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "ⓘ 내비 설정에서 '유료도로 우회'도 한 번 켜 두세요. 다음 경로부터 무료도로로 안내해요",
+                fontSize = BodySize,
+                fontWeight = FontWeight.Bold,
+                color = StrongInk
+            )
+            if (failed) {
+                Text(
+                    "! 내비 설정을 열지 못했어요. 차량 설정 → 내비게이션 → 경로에서 '유료도로 우회'를 켜 주세요",
+                    fontSize = BodySize,
+                    color = ErrorInk
+                )
+            }
+            OutlinedButton(
+                onClick = onOpen,
+                modifier = Modifier.heightIn(min = MinTouch).testTag("open-navi-settings"),
+                border = BorderStroke(2.dp, StrongInk)
+            ) {
+                Text("내비 설정 열기", fontSize = BodySize, color = StrongInk)
+            }
         }
     }
 }

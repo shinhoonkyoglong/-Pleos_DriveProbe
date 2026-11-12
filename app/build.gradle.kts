@@ -86,6 +86,7 @@ dependencies {
     // 2번 출발 전 연동: NaviHelper SDK(내비 목적지·경로 상태·ETA·위치 조회) + 핵심 로직 모듈
     implementation(libs.navihelper.sdk)
     implementation(project(":departure-core"))
+    implementation(project(":departure-ui"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

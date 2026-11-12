@@ -3,7 +3,6 @@ package ai.pleos.playground.sample.vehicle.navigation
 import ai.pleos.playground.sample.vehicle.DriveProbeApplication
 import ai.pleos.playground.sample.vehicle.data.model.GearPosition
 import ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource
-import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryImpl
 import android.os.Build
 import android.util.Log
 import android.util.Base64
@@ -20,7 +19,7 @@ class NaviWaypointProbeTest {
     @Test fun queryOrExplicitWaypointProbe() = runBlocking {
         val args = InstrumentationRegistry.getArguments()
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as DriveProbeApplication
-        val navi = app.naviHelperRepository as NaviHelperRepositoryImpl
+        val navi = app.realNaviHelperRepository
         val tbt=navi.tbtRoute()
         Log.i(TAG,"TBT routeId=${tbt.routeId} entries=${tbt.entries.size} serviceAreaHints=${tbt.serviceAreaHints.size} unclassifiedFacilities=${tbt.unclassifiedServiceFacilities.size} reachesArrival=${tbt.reachesArrival}")
         tbt.entries.forEachIndexed { index,entry -> Log.i(TAG,"TBT[$index] type=${entry.type} code=${entry.typeValue} distanceMeters=${entry.distanceMeters} description=${entry.description}") }

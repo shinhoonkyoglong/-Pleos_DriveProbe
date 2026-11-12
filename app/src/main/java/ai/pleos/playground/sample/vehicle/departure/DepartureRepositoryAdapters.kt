@@ -81,6 +81,13 @@ class DriveProbeNaviAdapter(
     override suspend fun getRouteState(): DataResult<RouteState> =
         DepartureMappers.routeState(naviHelperRepository.getRouteStateInfo(), acceptMockValues)
 
+    /** 2번 [내비 설정 열기] ← 1번 openNaviSettings(requestNavigationScreen(Settings)). 실패 사유는 다른 조회와 같은 규칙으로 바꾼다 */
+    override suspend fun openNaviSettings(): DataResult<Unit> =
+        naviHelperRepository.openNaviSettings().fold(
+            onSuccess = { DataResult.Available(Unit) },
+            onFailure = { DepartureMappers.unavailable(it) },
+        )
+
     /**
      * 안내 중 남은 거리·시간 ← 1번 currentDestination(요청 응답·푸시로 갱신되는 마지막 목적지).
      * 목적지 없음(null, 경로 취소 때의 0 값 푸시 포함)은 내보내지 않는다. tollFare 는 SDK 값이 늘 0이라 0으로 둔다(유료 판단에 쓰지 않음).

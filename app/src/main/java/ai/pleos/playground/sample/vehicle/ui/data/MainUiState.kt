@@ -68,8 +68,11 @@ data class RuntimeVersions(
 )
 
 enum class AppPage {
+    /** 앱 첫 화면(작업 #25): 2번 '오늘 운전해도 되나요?' 카드 + 큰 버튼(운전 조건 설정, API 탐색기) */
     HOME,
     API_EXPLORER,
+    /** 2번 '출발 전' 확인 전체 화면(작업 #25). 홈 카드를 누르면 연다 */
+    DEPARTURE_DETAIL,
     /** 2번 '출발 전' 운전자 조건 설정 화면(작업 #17) */
     DRIVER_CONDITION_SETTINGS
 }

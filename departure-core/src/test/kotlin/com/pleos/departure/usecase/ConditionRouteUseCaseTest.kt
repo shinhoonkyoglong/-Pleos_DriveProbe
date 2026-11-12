@@ -84,17 +84,34 @@ class ConditionRouteUseCaseTest {
         assertEquals(RouteOption.SCHOOL_ZONE, r.routeState.appliedOption)
     }
 
-    /** MAJOR-4: tollFare 는 다시 조회할 수 없다 → 모르면 FREE 만으로 충족, 참고 안내를 붙인다. */
+    /**
+     * 작업 #27: FREE 는 "어린이 보호구역 우회"만 켜도 온다(실측) → 통행료를 모르면 충족이 아니라 '확인 필요'.
+     * (이전 MAJOR-4 결정 "모르면 FREE 만으로 충족"을 뒤집는다)
+     */
     @Test
-    fun freeWithUnknownToll_isSatisfiedWithNote() {
-        val r = check(navi(guiding(RouteOption.FREE, null)), tollFree) as RouteConditionCheck.Satisfied
-        assertEquals(listOf(RouteNote.TOLL_FARE_NOT_OBSERVED), r.notes)
+    fun freeWithUnknownToll_isUnverified_notSatisfied() {
+        val r = check(navi(guiding(RouteOption.FREE, null)), tollFree)
+        assertTrue(r is RouteConditionCheck.TollAvoidanceUnverified)
+        assertTrue((r as RouteConditionCheck.TollAvoidanceUnverified).notes.isEmpty())
     }
 
     @Test
-    fun freeButTollReported_isNotSatisfied() {
+    fun freeWithUnknownToll_keepsHighwayNote() {
+        val r = check(navi(guiding(RouteOption.FREE, null)), both) as RouteConditionCheck.TollAvoidanceUnverified
+        assertEquals(listOf(RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED), r.notes)
+    }
+
+    /** 작업 #27: FREE + 통행료 있음 = 유료도로 우회가 꺼져 있음(어린이 보호구역 우회만 켠 실측: 700원) → 켜 달라고 안내 */
+    @Test
+    fun freeButTollReported_asksToTurnOnTollAvoidance() {
         val r = check(navi(guiding(RouteOption.FREE, 700)), tollFree) as RouteConditionCheck.NeedsUserAction
-        assertEquals(listOf(RouteUserAction.REVIEW_TOLL_ON_ROUTE), r.actions)
+        assertEquals(listOf(RouteUserAction.TURN_ON_TOLL_AVOIDANCE), r.actions)
+    }
+
+    @Test
+    fun freeWithZeroToll_isSatisfied() {
+        val r = check(navi(guiding(RouteOption.FREE, 0)), tollFree) as RouteConditionCheck.Satisfied
+        assertTrue(r.notes.isEmpty())
     }
 
     // --- 고속도로 회피: 보장 불가, 결코 충족 아님 ---
@@ -115,6 +132,7 @@ class ConditionRouteUseCaseTest {
             val notes = when (r) {
                 is RouteConditionCheck.Satisfied -> r.notes
                 is RouteConditionCheck.NeedsUserAction -> r.notes
+                is RouteConditionCheck.TollAvoidanceUnverified -> r.notes // 작업 #27: FREE + 통행료 모름
                 else -> error("unexpected $r")
             }
             assertTrue("$state", RouteNote.AVOID_HIGHWAY_NOT_GUARANTEED in notes)

@@ -64,10 +64,17 @@ class MainViewModel(application: Application) :
                 )
             }
             showApiExplorer(VehicleDomain.DOOR)
+            // 작업 #25: API 탐색 상태는 위에서 준비만 하고, 첫 화면은 홈으로 둔다
+            showHome()
         }
     }
 
     fun showHome() {
+        // 작업 #25 리뷰 MINOR-3: API 탐색기에서 값 구독(Start updates) 중에 [← 홈]으로 나가면 리스너가 화면 밖에서 계속 돈다.
+        // 도메인을 바꿀 때와 같은 정리 경로(showApiExplorer: 도어 구독 해제 + 탐색기 리스너 전부 해제)를 타고 홈으로 간다
+        if (_uiState.value.isSubscribed) {
+            showApiExplorer(_uiState.value.selectedDomain ?: VehicleDomain.DOOR)
+        }
         _uiState.update {
             it.copy(
                 page = AppPage.HOME,
@@ -120,8 +127,18 @@ class MainViewModel(application: Application) :
         _uiState.update { it.copy(page = AppPage.DRIVER_CONDITION_SETTINGS) }
     }
 
-    /** 운전자 조건 설정 화면에서 돌아가기 — 열기 전 API 탐색 화면으로 */
+    /** 운전자 조건 설정 화면에서 돌아가기 — 진입점이 홈 하나뿐이라 홈으로(작업 #25) */
     fun closeDriverConditionSettings() {
+        showHome()
+    }
+
+    /** 홈 카드 → 2번 '출발 전' 확인 전체 화면(작업 #25) */
+    fun showDepartureDetail() {
+        _uiState.update { it.copy(page = AppPage.DEPARTURE_DETAIL) }
+    }
+
+    /** API 탐색기로(홈의 개발용 버튼). 이미 준비된 탐색 상태를 그대로 보여 준다(작업 #25) */
+    fun openApiExplorer() {
         _uiState.update { it.copy(page = AppPage.API_EXPLORER) }
     }
 
