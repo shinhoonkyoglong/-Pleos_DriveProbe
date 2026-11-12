@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.content.ContextCompat
+import ai.pleos.playground.sample.vehicle.MainActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -32,6 +33,9 @@ class DrivingVoiceService : Service() {
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setContentTitle("계속운전 · 주행 음성 준비됨")
                 .setContentText("피로 개입의 질문·응답 중에만 마이크를 사용해요")
+                .setContentIntent(PendingIntent.getActivity(this, 0,
+                    Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 .setOngoing(true)
                 .addAction(Notification.Action.Builder(null, "음성 준비 해제", stop).build())
                 .build()
@@ -70,6 +74,7 @@ class DrivingVoiceService : Service() {
                 _error.value = "마이크 권한을 허용한 뒤 주행 음성을 준비해 주세요"
                 return
             }
+            _error.value = null
             try { ContextCompat.startForegroundService(context, Intent(context, DrivingVoiceService::class.java)) }
             catch (e: Exception) { _error.value = "음성 준비를 시작하지 못했어요: ${e.javaClass.simpleName}" }
         }

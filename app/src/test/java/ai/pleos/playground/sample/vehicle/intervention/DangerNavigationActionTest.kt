@@ -10,6 +10,20 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DangerNavigationActionTest {
+    @Test fun `route application phase starts only after consent and before the route request`() = runTest {
+        for (answer in listOf("추가해 줘", "아니요")) {
+            val phases = mutableListOf<VoicePhase>()
+            var writes = 0
+            val action = DangerNavigationAction(InterventionSpeechAction(Voice(VoiceAnswer(answer, 500))), { proposal }, {
+                assertEquals(VoicePhase.APPLYING_ROUTE, phases.last())
+                writes++
+                RestNavigationResult(RestNavigationStatus.VERIFIED_WAYPOINT, "추가 확인")
+            }, {})
+            action.execute(FatigueLevel.DANGER) { phases += it }
+            assertEquals(if (answer == "추가해 줘") 1 else 0, writes)
+            assertEquals(answer == "추가해 줘", VoicePhase.APPLYING_ROUTE in phases)
+        }
+    }
     private val candidate=RestCandidate(RestPlace("A","시험 휴게소",37.4,127.1,"","","","",""),NaviTripInfo(8000,480,"FREE"),8000)
     private val route=RestNaviSnapshot(NaviDestinationInfo(37.55,126.97,"목적지","","poi"),NaviRouteState(NaviMode.ROUTE_GUIDING,"FREE",0),emptyList(),"route-A")
     private val proposal=RestProposal("test-proposal",candidate,route,1000,61000,1000,"SYNTHETIC_TEST_SOURCE")

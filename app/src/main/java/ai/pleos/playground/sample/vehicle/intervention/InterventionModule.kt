@@ -39,10 +39,21 @@ class InterventionModule(
         ai.pleos.playground.sample.vehicle.navigation.RestNaviSnapshot,() -> Unit) -> ai.pleos.playground.sample.vehicle.navigation.RestNaviSnapshot,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val settings = context.applicationContext.getSharedPreferences("driving_assist_settings", Context.MODE_PRIVATE)
     private val voice = AndroidVoiceConversation(context.applicationContext)
     private val speech = InterventionSpeechAction(voice)
     private val drivingSpeech = DangerNavigationAction(speech, restNavigation::prepareProposal, restNavigation::accept, restNavigation::discard)
-    val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save)
+    val controller = InterventionController(scope, SystemClock::elapsedRealtime, ::execute, ::save).apply {
+        setEnabled(settings.getBoolean("automaticEnabled", true))
+    }
+    private val _voicePhase = kotlinx.coroutines.flow.MutableStateFlow(VoicePhase.IDLE)
+    val voicePhase: kotlinx.coroutines.flow.StateFlow<VoicePhase> = _voicePhase
+
+    /** User preference only; temporary diagnostic suspension still uses the controller directly. */
+    fun setAutomaticEnabled(enabled: Boolean) {
+        settings.edit().putBoolean("automaticEnabled", enabled).apply()
+        controller.setEnabled(enabled)
+    }
     private var probeRunning = false
     private var automaticWasEnabled = false
     val voiceTests = VoiceTestController(scope, voice, ::saveVoiceTest,
@@ -72,6 +83,34 @@ class InterventionModule(
 
     val navigationProbeController=ai.pleos.playground.sample.vehicle.navigation.NavigationProbeController(
         scope,navigationWriteProbe::run,ai.pleos.playground.sample.vehicle.navigation.NavigationProbePreferences(context.applicationContext),
+    )
+
+    private fun requireDangerProbeReady() {
+        check(BuildConfig.DEBUG && Build.HARDWARE in setOf("ranchu", "goldfish")) { "DANGER 통합 시험은 Debug 에뮬레이터 전용이에요" }
+        val ux = repository.uxRestriction.value
+        check(repository.gear.value == GearPosition.PARK && repository.hasSpeedSignal.value &&
+            repository.vehicleSpeed.value == 0f && ux?.source == UxRestrictionSource.CAR_SERVICE &&
+            !ux.requiresDistractionOptimization) { "P·속도 0·차량 화면 사용 가능 상태를 유지해 주세요" }
+        check(DrivingVoiceService.ready.value) { "먼저 주행 음성을 준비해 주세요" }
+    }
+
+    private val dangerProbeAction = DangerNavigationAction(speech, restNavigation::prepareProposal,
+        { restNavigation.acceptForProbe(it, ::requireDangerProbeReady) }, restNavigation::discard)
+
+    val dangerNavigationProbe = DangerNavigationProbeController(scope, ::requireDangerProbeReady,
+        begin = {
+            check(!probeRunning && !voiceTests.state.value.running && !controller.isBusy && !navigationProbeController.isBusy) {
+                "다른 개입·시험이 끝난 뒤 실행해 주세요"
+            }
+            val enabled = controller.status.value.enabled
+            controller.setEnabled(false)
+            probeRunning = true
+            enabled
+        },
+        finish = { enabled -> probeRunning = false; controller.setEnabled(enabled) },
+        execute = { phase -> dangerProbeAction.execute(FatigueLevel.DANGER, phase) },
+        save = ::saveDangerProbe,
+        store = DangerNavigationProbePreferences(context.applicationContext),
     )
 
     fun startVoiceTest(mode: VoiceTestMode) {
@@ -131,6 +170,10 @@ class InterventionModule(
                 (reason.isEmpty()) to reason
             }.collect { (allowed, reason) -> voiceTests.setAllowed(allowed, reason) }
         }
+        scope.launch {
+            combine(voiceTests.state, DrivingVoiceService.ready) { state, ready -> state.allowed && ready }
+                .collect { allowed -> if (!allowed) dangerNavigationProbe.cancel() }
+        }
         if (BuildConfig.DEBUG) scope.launch {
             repository.signalEvents.collect { event ->
                 if (event is VehicleSignalEvent.Speed) speedSampleMs = event.timeMs
@@ -174,10 +217,12 @@ class InterventionModule(
     private suspend fun execute(level: FatigueLevel): InterventionResult = when (level) {
         FatigueLevel.NORMAL -> InterventionResult(InterventionOutcome.FAILED, "NORMAL에는 개입하지 않아요")
         FatigueLevel.MILD -> repository.triggerFatigueVentilationIntervention().fold(
-            onSuccess = { InterventionResult(InterventionOutcome.VERIFIED, "운전석 설정 온도 1℃ 하향·풍량 1단계 증가 후 재조회 확인. 지원 범위 한계에서는 유지") },
+            onSuccess = { InterventionResult(InterventionOutcome.VERIFIED, "공조 전원 ON·AUTO OFF 확인 후 운전석 설정 온도 1℃ 하향·풍량 1단계 증가를 재조회 확인. 지원 범위 한계에서는 유지") },
             onFailure = { InterventionResult(InterventionOutcome.FAILED, "공조 개입 실패: ${it.message}. 일부 설정은 이미 적용됐을 수 있어요") },
         )
-        FatigueLevel.CAUTION, FatigueLevel.DANGER -> drivingSpeech.execute(level)
+        FatigueLevel.CAUTION, FatigueLevel.DANGER -> try {
+            drivingSpeech.execute(level) { _voicePhase.value = it }
+        } finally { _voicePhase.value = VoicePhase.IDLE }
     }
 
     private suspend fun save(record: InterventionRecord) {
@@ -213,6 +258,29 @@ class InterventionModule(
             userResponse = result.response,
         ))
         Log.i("Intervention", "history=$id session=${record.sessionId} level=${record.condition.level} outcome=${result.outcome} simulation=${record.simulation} details=${result.details}")
+    }
+
+    private suspend fun saveDangerProbe(id: String, result: InterventionResult): Long {
+        val details = JSONObject().apply {
+            put("version", 2); put("source", "DANGER_NAVIGATION_PROBE")
+            put("revision", DANGER_PROBE_REVISION); put("simulation", true)
+            put("inputSource", "MANUAL_PARKED_TRIGGER"); put("effects", "REAL_EMULATOR")
+            put("executionPath", "DANGER_NAVIGATION_ACTION")
+            put("outcome", result.outcome.name); put("details", result.details)
+            put("consent", result.consent?.name ?: JSONObject.NULL)
+            put("navigationStatus", result.navigationStatus ?: JSONObject.NULL)
+            put("navigation", result.navigation?.toHistoryJson() ?: JSONObject.NULL)
+            put("responseMs", result.responseMs ?: JSONObject.NULL)
+            put("responseTiming", result.voiceAnswer?.responseTiming ?: JSONObject.NULL)
+            put("error", result.error?.name ?: JSONObject.NULL)
+            put("platformCode", result.platformCode ?: JSONObject.NULL)
+        }.toString()
+        val row = history.insertIntervention(InterventionHistoryEntity(
+            sessionId = id, interventionLevel = 3, fatigueScore = 0f,
+            triggerReason = "DANGER_NAVIGATION_PROBE", actionDetails = details, userResponse = result.response,
+        ))
+        Log.i("DangerProbe", "history=$row run=$id outcome=${result.outcome} consent=${result.consent} navigation=${result.navigationStatus} requestIssued=${result.navigation?.requestIssued == true}")
+        return row
     }
 
     private suspend fun saveVoiceTest(record: VoiceTestRecord): Long {

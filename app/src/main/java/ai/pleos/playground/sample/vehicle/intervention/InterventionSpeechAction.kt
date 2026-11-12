@@ -21,7 +21,7 @@ class InterventionSpeechAction(private val voice: VoiceConversation) {
     }
 
     /** Playback only; an unavailable route lookup must not ask for meaningless consent. */
-    suspend fun announce(message: String) { voice.play(message) }
+    suspend fun announce(message: String, phase: (VoicePhase) -> Unit = {}) { voice.play(message, phase) }
 
     companion object {
         fun prompt(level: FatigueLevel): String = when (level) {

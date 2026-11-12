@@ -34,6 +34,9 @@ fun KeepDrivingApp(
     devTools: @Composable () -> Unit,
     departureCard: (@Composable (Modifier, onOpen: () -> Unit) -> Unit)? = null,
     departureDetail: (@Composable (onBack: () -> Unit) -> Unit)? = null,
+    assistState: DrivingAssistState = DrivingAssistState(),
+    drivingAssist: @Composable (onBack: () -> Unit) -> Unit = {},
+    restStopSettings: @Composable (onBack: () -> Unit) -> Unit = {},
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
     val home = appViewModel::home
@@ -45,13 +48,16 @@ fun KeepDrivingApp(
                 onOpen = appViewModel::open,
                 onDismissTripEnd = appViewModel::dismissTripEnd,
                 onSkipCheck = appViewModel::skipCheckToday,
+                assistSummary = assistState.summary,
                 departureCard = { m ->
                     val open = { appViewModel.open(KdPage.DEPARTURE_DETAIL) }
                     if (departureCard != null) departureCard(m, open) else DeparturePlaceholderCard(m, open)
                 },
             )
             KdPage.REACTION_CHECK -> ReactionCheckScreen(reactionViewModel, isReplay = state.vehicle.isReplay, onBack = home)
-            KdPage.DRIVING -> DrivingScreen(state)
+            KdPage.DRIVING -> DrivingScreen(state, assistState)
+            KdPage.DRIVING_ASSIST -> drivingAssist(home)
+            KdPage.REST_STOP_SETTINGS -> restStopSettings { appViewModel.open(KdPage.DRIVING_ASSIST) }
             KdPage.RECORDS -> RecordsScreen(state, onOpen = appViewModel::open, onBack = home)
             KdPage.FAMILY_SUMMARY -> FamilySummaryScreen(state, onBack = { appViewModel.open(KdPage.RECORDS) })
             KdPage.REPORT -> ReportScreen(state, onBack = { appViewModel.open(KdPage.RECORDS) })

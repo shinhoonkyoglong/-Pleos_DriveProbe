@@ -126,11 +126,26 @@ internal class VehicleControlClient(private val vehicle: () -> Vehicle?) {
         Unit
     }
 
-    /** MILD policy: lower setpoint by 1 C and raise fan by one supported step. Windows are opt-in. */
+    /** MILD: power ON, AUTO OFF, then lower setpoint by 1 C and raise fan by one supported step. */
     suspend fun mild(): Result<Unit> = controlResult {
         val seat = SeatValue.ROW_1_LEFT
         val (temperatureArea, t) = temperatureBounds(seat)
         val (fanArea, f) = fanBounds(seat)
+        val (powerConfig, powerAreas) = request<Pair<CapabilityConfig, List<SeatArea>>>("power capability before MILD") { ok, fail ->
+            sdk().getHVAC().checkHvacPowerCapabilities(onComplete = { c, a -> ok(c to a) }, onFailed = fail)
+        }
+        val (autoConfig, autoAreas) = request<Pair<CapabilityConfig, List<SeatArea>>>("auto capability before MILD") { ok, fail ->
+            sdk().getHVAC().checkHvacAutoCapabilities(onComplete = { c, a -> ok(c to a) }, onFailed = fail)
+        }
+        writable(powerConfig); writable(autoConfig)
+        val powerArea = selectSeat(powerAreas.associateWith { Unit }, seat).first
+        val autoArea = selectSeat(autoAreas.associateWith { Unit }, seat).first
+        prepareManualHvac(
+            readPower = { request<Boolean>("power before MILD") { ok, fail -> sdk().getHVAC().getHvacPowerState(powerArea, ok, fail) } },
+            enablePower = { power(true, seat).getOrThrow(); Unit },
+            readAuto = { request<Boolean>("auto before MILD") { ok, fail -> sdk().getHVAC().getHvacAutoState(autoArea, ok, fail) } },
+            disableAuto = { auto(false, seat).getOrThrow(); Unit },
+        )
         val beforeTemperature = request<Float>("read temperature before") { ok, fail ->
             sdk().getHVAC().getHvacTemperature(temperatureArea, TemperatureUnit.CELSIUS, ok, fail)
         }

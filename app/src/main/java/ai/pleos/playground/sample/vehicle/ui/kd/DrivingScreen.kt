@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.json.JSONObject
 
 /**
  * 주행 중 화면. Pleos 주행 중 주의 분산 가이드에 맞춰:
@@ -38,7 +39,7 @@ import androidx.compose.ui.unit.sp
  * - 글자 최소 32sp, 움직이는 효과 없음
  */
 @Composable
-fun DrivingScreen(state: KdUiState) {
+fun DrivingScreen(state: KdUiState, assist: DrivingAssistState = DrivingAssistState()) {
     val vehicle = state.vehicle
     val condition = vehicle.condition
     val status = condition.level.toStatus()
@@ -57,6 +58,7 @@ fun DrivingScreen(state: KdUiState) {
     ) {
         Row(Modifier.align(Alignment.TopStart).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("주행 중", style = Kd.Title.copy(color = Kd.InkMuted), modifier = Modifier.weight(1f))
+            KdTag(assist.summary, color = if (assist.automaticEnabled && assist.voiceReady) Kd.Good else Kd.Caution)
             if (vehicle.isReplay) KdTag("시연 모드")
         }
 
@@ -77,6 +79,7 @@ fun DrivingScreen(state: KdUiState) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("연속 운전 ${formatMinutes(condition.drivingMinutes)}", style = Kd.Title)
+                assistVoiceMessage(assist.phase)?.let { Text(it, style = Kd.Body.copy(color = Kd.Accent)) }
                 if (condition.isCalibrating) {
                     Text("평소 기록을 모으는 중이에요", style = Kd.BodyMuted.copy(fontSize = 28.sp))
                 }
@@ -122,11 +125,10 @@ private fun LevelGauge(level: FatigueLevel, modifier: Modifier = Modifier) {
     }
 }
 
-private fun interventionLine(h: InterventionHistoryEntity): String = when (h.interventionLevel) {
-    1 -> "환기를 해 드렸어요 · 온도 조금 낮춤, 바람 세게"
-    2 -> "안전 확인 질문을 드렸어요"
-    3 -> "쉼터 안내를 여쭤봤어요"
-    else -> "도움을 드렸어요"
+private fun interventionLine(h: InterventionHistoryEntity): String {
+    val details = runCatching { JSONObject(h.actionDetails) }.getOrNull()
+    return interventionSummary(h.interventionLevel, details?.optString("outcome"),
+        details?.optString("consent"), details?.optString("navigationStatus"))
 }
 
 private const val RECENT_INTERVENTION_MS = 5 * 60 * 1000L
