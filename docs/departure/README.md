@@ -72,6 +72,29 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 
 ![내비 설정 열림](images/navi-settings-opened.jpg)
 
+### 2.0.2 끝난 주행 조건 준수 판정 — 5번 주행 기록용 (작업 #29, core 0.11.0)
+5번 `ComplianceSource`(`trip/source/TripDataSources.kt`의 `TODO(2번 연동)`)가 `MockComplianceSource` 대신 부를 함수입니다. 2번은 함수만 제공하고, 연결은 5번이 합니다.
+
+```kotlin
+val result = DriveProbeApplication.instance.departureFeature.evaluateTripCompliance(
+    startedAt = Instant.ofEpochMilli(trip.startedAt),
+    endedAt = Instant.ofEpochMilli(trip.endedAt),
+    location = null, // 출발지를 알면 넘김. 없으면 집(반경 기준점) → 서울시청
+) // DataResult<TripCompliance>
+```
+
+| 결과 | 5번 `ComplianceStatus` 권장 |
+|---|---|
+| `Unavailable` (조건 조회 실패) | `UNKNOWN` |
+| `overall == VIOLATED` (`violations`에 NO_NIGHT_DRIVING 등) | `VIOLATED` |
+| `overall == KEPT` | `COMPLIED`. 단 `hasUnjudged`면 판정한 조건만 말할 것("모두 지킴" 금지) |
+| `overall == NOT_JUDGED` / `NOT_APPLICABLE` (조건 없음, 야간 조건 꺼짐 포함) | `UNKNOWN` |
+
+- 야간 = 실제 일몰부터 다음 일출 전까지(출발 마감과 같은 기준). 1초라도 걸치면 위반. 야간 조건이 없는 운전자는 위반이 아님
+- 고속도로·반경은 주행 경로·위치 기록이 없어 `NOT_JUDGED`
+- 판정 기준은 **지금 저장된** 운전자 조건
+- 자세한 규칙: 2번 저장소 `docs/pleos/integration-guide.md` "5번 연동 — 주행 조건 준수 판정"
+
 ### 2.1 운전자 조건 설정 화면 (작업 #17)
 
 | 기본값(저장된 조건이 없을 때) | 저장 후 |
