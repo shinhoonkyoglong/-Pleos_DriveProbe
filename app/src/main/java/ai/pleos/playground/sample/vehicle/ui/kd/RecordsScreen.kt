@@ -2,6 +2,8 @@ package ai.pleos.playground.sample.vehicle.ui.kd
 
 import ai.pleos.playground.sample.vehicle.data.local.entity.InterventionHistoryEntity
 import ai.pleos.playground.sample.vehicle.data.local.entity.ReactionScoreEntity
+import ai.pleos.playground.sample.vehicle.trip.ui.KdTripSection
+import ai.pleos.playground.sample.vehicle.trip.ui.rememberTripWeekNumbers
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +26,10 @@ import androidx.compose.ui.unit.dp
 data class TrendPoint(val label: String, val valueMs: Long)
 
 /**
- * 주행 후 '내 기록'. 기획서 3장 주행 후: 컨디션 추이 + 가족 안심 요약 + 조건 해제 리포트로 가는 입구.
+ * 주행 후 '내 기록'. 기획서 3장 주행 후: 컨디션 추이 + 가족 안심 요약 + 운전 리포트로 가는 입구.
  *
- * 실제 데이터: 반응 체크(reaction_scores), 개입 이력(intervention_histories).
- * 아직 저장하는 곳이 없는 값(주행 횟수·조건 준수율)은 [KdDemoData] 예시값을 쓰고 화면에 '예시'라고 표시한다.
+ * 실제 데이터: 반응 체크(reaction_scores), 개입 이력(intervention_histories),
+ * 주행 횟수·조건 준수율·주행 요약은 5번 주행 기록(TripModule, trip/ui/KdTripSection.kt).
  */
 @Composable
 fun RecordsScreen(state: KdUiState, onOpen: (KdPage) -> Unit, onBack: () -> Unit) {
@@ -36,6 +38,7 @@ fun RecordsScreen(state: KdUiState, onOpen: (KdPage) -> Unit, onBack: () -> Unit
     val weekInterventions = state.interventions.filter { it.timestamp >= weekAgo }
     val restSuggestions = weekInterventions.count { it.interventionLevel == 3 }
     val trend = reactionTrend(state.reactionHistory)
+    val tripWeek = rememberTripWeekNumbers() // [5번] 운전 횟수·조건 준수율(주행 기록)
 
     KdScreen(scrollable = true, testTag = "kd-records") {
         KdTopBar("내 기록", onBack = onBack)
@@ -44,16 +47,18 @@ fun RecordsScreen(state: KdUiState, onOpen: (KdPage) -> Unit, onBack: () -> Unit
             KdCard(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("이번 주", style = Kd.Title, modifier = Modifier.weight(1f))
-                    KdTag("운전 횟수·준수율은 예시")
+                    tripWeek.tag?.let { KdTag(it) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap)) {
-                    KdStat("${KdDemoData.weekTrips}회", "운전", Modifier.weight(1f))
-                    KdStat("${KdDemoData.weekCompliancePercent}%", "조건 준수", Modifier.weight(1f), tone = KdTone.GOOD)
+                    KdStat(tripWeek.trips, "운전", Modifier.weight(1f))
+                    KdStat(tripWeek.compliance, "조건 준수", Modifier.weight(1f), tone = tripWeek.complianceTone)
                     KdStat("${restSuggestions}회", "휴식 권고", Modifier.weight(1f))
                     KdStat("${weekInterventions.size}회", "도움 받은 횟수", Modifier.weight(1f))
                 }
             }
         }
+
+        KdTripSection() // [5번] 최근 주행 요약 + 가족에게 보내기 + 지난 주행
 
         KdCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -75,8 +80,8 @@ fun RecordsScreen(state: KdUiState, onOpen: (KdPage) -> Unit, onBack: () -> Unit
                 minHeight = 128.dp,
             )
             KdButton(
-                "조건 해제 리포트",
-                subText = "재평가 때 낼 수 있는 요약",
+                "운전 리포트",
+                subText = "8주 동안의 변화를 그래프로",
                 onClick = { onOpen(KdPage.REPORT) },
                 style = KdButtonStyle.SECONDARY,
                 modifier = Modifier.weight(1f).testTag("kd-records-report"),

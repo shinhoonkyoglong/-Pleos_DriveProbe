@@ -1,5 +1,6 @@
 package ai.pleos.playground.sample.vehicle.ui.kd
 
+import ai.pleos.playground.sample.vehicle.trip.ui.KdDrivingReportSection
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -120,46 +121,27 @@ private fun ShareRow(label: String, shared: Boolean) {
     }
 }
 
-/** 조건 해제 리포트: 재평가 때 낼 수 있는 월별 요약 표 */
+/**
+ * 운전 리포트: 최근 8주 운전을 주별 그래프와 변화 문장으로 보여준다.
+ * [5번] 리포트 본문은 trip/ui/KdDrivingReportSection.kt(주행 기록 데이터). 조건부 면허는 시행 전이라 "조건 해제 근거"로 내세우지 않는다.
+ */
 @Composable
 fun ReportScreen(state: KdUiState, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val trend = reactionTrend(state.reactionHistory)
     KdScreen(scrollable = true, testTag = "kd-report") {
-        KdTopBar("조건 해제 리포트", onBack = onBack, backLabel = "← 내 기록") { KdTag("목업 · 예시 데이터") }
-        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
-            KdCard(Modifier.weight(1f)) {
-                KdStat("4개월", "기록 기간")
-            }
-            KdCard(Modifier.weight(1f)) {
-                KdStat("70회", "운전 횟수")
-            }
-            KdCard(Modifier.weight(1f)) {
-                KdStat("98%", "조건 준수율", tone = KdTone.GOOD)
-            }
-            KdCard(Modifier.weight(1f)) {
-                KdStat("352ms", "반응 속도(8월 378ms)", tone = KdTone.GOOD)
-            }
-        }
+        KdTopBar("운전 리포트", onBack = onBack, backLabel = "← 내 기록")
+
+        KdDrivingReportSection() // [5번] 8주 운전 리포트(그래프·변화 문장·운전 조건)
 
         KdCard(Modifier.fillMaxWidth()) {
-            Text("월별 기록", style = Kd.Title)
-            TableRow(listOf("월", "운전", "조건 준수", "반응 속도", "피로 경고"), header = true)
-            KdDemoData.months.forEach {
-                KdDivider()
-                TableRow(listOf(it.month, "${it.trips}회", "${it.compliance}%", "${it.reactionMs}ms", "${it.warnings}회"))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("출발 전 반응 속도 추이", style = Kd.Title, modifier = Modifier.weight(1f))
+                if (trend.isDemo) KdTag("예시 데이터")
             }
-        }
-
-        KdCard(Modifier.fillMaxWidth()) {
-            Text("출발 전 반응 속도 추이", style = Kd.Title)
             ReactionTrendChart(trend.points, Modifier.fillMaxWidth().height(260.dp))
         }
 
-        Text(
-            "이 리포트는 차량이 자동으로 기록한 값이에요. 재평가 때 참고 자료로 낼 수 있어요(공식 인정 여부는 기관마다 달라요).",
-            style = Kd.BodyMuted,
-        )
         KdButton(
             "PDF로 저장 (준비 중)",
             onClick = {},

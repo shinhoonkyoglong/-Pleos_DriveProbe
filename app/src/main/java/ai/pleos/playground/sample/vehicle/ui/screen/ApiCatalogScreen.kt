@@ -275,6 +275,7 @@ private fun CatalogHeader(
                     VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
                     ReadyPill(isInitialized)
                     HomeEntryButton(onGoHome)
+                    ai.pleos.playground.sample.vehicle.trip.ui.TripRecordsEntryButton() // [5번 임시] 주행 기록 입구. 팀원 UI 이식 후 삭제
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -293,6 +294,7 @@ private fun CatalogHeader(
                         VersionChip(label = "SDK", version = runtimeVersions.sdkVersion)
                         VersionChip(label = "Vehicle Service", version = runtimeVersions.vehicleServiceVersion)
                         HomeEntryButton(onGoHome)
+                        ai.pleos.playground.sample.vehicle.trip.ui.TripRecordsEntryButton() // [5번 임시] 주행 기록 입구. 팀원 UI 이식 후 삭제
                     }
                 }
             }
