@@ -71,6 +71,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- [주행 후] 주행 종료 요약 화면 (5번). 앱 안에서만 연다 -->
+        <activity android:name=".trip.ui.TripSummaryActivity" android:exported="false" />
     </application>
 
 </manifest>
