@@ -1,0 +1,11 @@
+# 빌드 변형
+- manifest에서 uses-library(android.car, required=false) 제거(useLibrary는 유지): 빌드·실행 모두 정상, Car 연결·값 조회 동일
+  (15:48:30 sync-immediate current requiresDO=false active=0x0)
+- build.gradle.kts에서 useLibrary("android.car") 제거: 컴파일 실패
+  e: UxrActivity.kt:4:16 Unresolved reference 'car'.  (import android.car.* 전부, 'Car', 'CarUxRestrictions' 동일)
+# 경계 동작 (edge 모드, 에뮬레이터)
+15:49:46.489 edge automotive=true connected=true            (hasSystemFeature android.hardware.type.automotive)
+15:49:46.490 edge bogusManager=null                          (getCarManager("no_such_service"))
+15:49:46.492 edge afterDisconnect connected=false           (car.disconnect() 후)
+15:49:46.493 edge afterDisconnect manager=null              (disconnect 후 getCarManager -> 예외 없이 null)
+# 프로브 APK: uses-permission 0개 (aapt2 dump permissions는 패키지명만 출력)

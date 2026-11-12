@@ -1,0 +1,14 @@
+# p7 (프로브 로그 발췌: STEP·route 콜백·onError·onDrivingInfo + getDestinationInfo 폴링 값 전환점. 폴링 전체는 약 0.7초 간격 onDestinationInfo)
+11-10 10:54:33.219 I/PleosProbe(18798): [probe-runner] >>> STEP initialize start
+11-10 10:54:33.699 I/PleosProbe(18798): [probe-runner] <<< STEP initialize done in 479ms
+11-10 10:54:37.704 I/PleosProbe(18798): [probe-runner] >>> STEP requestRoute(37.5547,126.9707,RECOMMENDED,서울역) start
+11-10 10:54:45.476 I/PleosProbe(18798): [binder:18798_4] CB onDrivingInfo DrivingInfo(destination=DrivingState(name=, duration=0, distance=0, remainDestinationChargingValue=0, isChargingStation=false, isRecommendedChargingStation=
+11-10 10:54:46.165 I/PleosProbe(18798): [binder:18798_4] CB onRouteStarted RouteStartInfo(duration=3300, distance=23000, tollFare=700, name=서울역, remainDestinationChargingValue=74378)
+11-10 10:54:46.165 I/PleosProbe(18798): [probe-runner] <<< STEP requestRoute(37.5547,126.9707,RECOMMENDED,서울역) done in 8461ms
+11-10 10:54:46.165 I/PleosProbe(18798): [binder:18798_4] CB onRouteEnded
+11-10 10:54:46.169 I/PleosProbe(18798): [binder:18798_1] CB onNavigationStatus ROUTE_DRIVE
+11-10 10:54:46.776 I/PleosProbe(18798): [binder:18798_1] CB onDrivingInfo DrivingInfo(destination=DrivingState(name=서울역, duration=3300, distance=23000, remainDestinationChargingValue=74378, isChargingStation=false, isRecomme
+--- onDestinationInfo 값 전환점
+11-10 10:54:34.769 lat=0.0 name= remainTime=0
+11-10 10:54:46.257 lat=37.5547 name=서울역 remainTime=3300
+last: 11-10 10:55:12.890 lat=37.5547 name=서울역 remainTime=3300

@@ -1,0 +1,11 @@
+# Virtual Console 브릿지 활성화(d 키) 후, life 모드 프로브 실행 중 기어 전환. 시각은 기기 시계.
+[host] before Drive: device 15:47:56
+POST /vehicle/gear?gear=Drive -> actual.value=Drive timestamp_ms=1794293276311 (=15:47:56.311)
+[host] Park: device 15:48:00
+POST /vehicle/gear?gear=Park  -> actual.value=Park  timestamp_ms=1794293280479 (=15:48:00.479)
+--- logcat UxrProbe
+15:47:53.671 life current   requiresDO=false active=0x0 maxLen=120 maxItems=21 maxDepth=3
+15:47:56.327 life LISTENER  requiresDO=true  active=0x50 maxLen=120 maxItems=21 maxDepth=3   (Drive POST 후 약 16ms)
+15:48:00.515 life LISTENER  requiresDO=false active=0x0 maxLen=120 maxItems=21 maxDepth=3   (Park POST 후 약 36ms)
+--- dumpsys car_service (종료 후)
+Current Driving State: 0 / Display id: 0 UXR: DO: false UxR: 0

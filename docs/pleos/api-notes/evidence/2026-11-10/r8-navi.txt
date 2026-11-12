@@ -1,0 +1,9 @@
+11-10 09:20:04.043 I/NavigationUseCase$reRouteManager( 3586): deRouteStatus: DeRouteStatus(status=StatusBeforeOnRoute, deRouteDistance=0.0, isServiceAreaMode=false)
+11-10 09:20:06.401 D/NavigationUseCase( 3586): TASUseCase, onCurrentLocationInfoRequest called
+11-10 09:20:06.401 D/NavigationUseCase( 3586): routeId: 2737dd01-dc9c-11f1-95d7-72e3ec72fa29
+11-10 09:20:08.614 I/navi_engine( 3586): navi_service::traffic_svc::store: [traffic][store] CheckRoadEventsPeriodically: check_timers=1, epoc=79, error=None
+11-10 09:20:09.043 I/NavigationUseCase$reRouteManager( 3586): deRouteStatus: DeRouteStatus(status=StatusBeforeOnRoute, deRouteDistance=0.0, isServiceAreaMode=false)
+11-10 09:20:09.537 I/navi_engine( 3586): navi_service::guidance_svc::guidance_logging: [guidance] current turn Onboarding, RG_TURN_LEFT, 4, Imm/82.6, toll_fee:0, need_speech:false
+11-10 09:20:09.537 I/navi_engine( 3586): navi_service::guidance_svc::guidance_logging: [guidance] current drivelane Onboarding, 0/4/0, Imm/82.6, 2/0/0 [RoadLaneColorNone A,N,N,N/N,N,N,N] [A,N,N,N/RS,N,N,N] [N,N,N,N/N,N,N,N]
+11-10 09:20:09.537 I/navi_engine( 3586): navi_service::guidance_svc::guidance_logging: [guidance] current tc Onboarding, 30/32, Prep/offset=481.1/524.3, pass_time=17/tc_time=14
+11-10 09:20:09.537 I/navi_engine( 3586): navi_service::guidance_svc::guidance_logging: [guidance] cur_ratio=0.0, soc_zero_ratio=0.0

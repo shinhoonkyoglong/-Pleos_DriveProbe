@@ -1,0 +1,160 @@
+package ai.probe.pleos
+
+import ai.pleos.playground.navi.constants.NaviErrorCode
+import ai.pleos.playground.navi.constants.NavigationStatus
+import ai.pleos.playground.navi.constants.RouteOption
+import ai.pleos.playground.navi.data.CurrentLocationInfo
+import ai.pleos.playground.navi.data.DestinationArrivedInfo
+import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.DrivingInfo
+import ai.pleos.playground.navi.data.RouteInfo
+import ai.pleos.playground.navi.data.RouteStartInfo
+import ai.pleos.playground.navi.data.RouteStateInfo
+import ai.pleos.playground.navi.data.TripInfo
+import ai.pleos.playground.navi.data.TripRequest
+import ai.pleos.playground.navi.helper.NaviHelper
+import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
+import android.app.Activity
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+/**
+ * NaviHelper 런타임 확인용 프로브. UI 없음. 모든 결과는 logcat 태그 PleosProbe.
+ *
+ * 실행할 단계는 인텐트 extra "steps"(쉼표 구분)로 바꿀 수 있다. 기본값 DEFAULT_STEPS.
+ *   adb shell am start -n ai.probe.pleos/.ProbeActivity --es steps "init,state,dest,loc,release"
+ * 단계: init, state, dest, loc, routeEmpty, routeFilled, trip, cancel, wait<초>, route:lat:lon:OPT:name, opt:OPT, tripEmpty, release
+ * 각 단계는 대응 콜백 또는 10초 타임아웃까지 기다린다.
+ */
+class ProbeActivity : Activity() {
+
+    private val main = Handler(Looper.getMainLooper())
+    private lateinit var navi: NaviHelper
+
+    @Volatile private var pending: Pair<String, CountDownLatch>? = null
+
+    private fun log(msg: String) = Log.i(TAG, "[${Thread.currentThread().name}] $msg")
+
+    /** 콜백이 기다리던 이름과 같으면 대기 해제 */
+    private fun signal(name: String) {
+        val p = pending
+        if (p != null && p.first == name) p.second.countDown()
+    }
+
+    private val listener = object : NaviHelperEventListener {
+        override fun onRouteStarted(routeStartInfo: RouteStartInfo) { log("CB onRouteStarted $routeStartInfo"); signal("route") }
+        override fun onRouteEnded() { log("CB onRouteEnded") }
+        override fun onRoutingCompleted() { log("CB onRoutingCompleted") }
+        override fun onReRouteEnded() { log("CB onReRouteEnded") }
+        override fun onRouteOptionChanged(routeOption: RouteOption) { log("CB onRouteOptionChanged $routeOption") }
+        override fun onRouteCancelled() { log("CB onRouteCancelled"); signal("cancel") }
+        override fun onDestinationChanged() { log("CB onDestinationChanged") }
+        override fun onDestinationArrived(destinationArrivedInfo: DestinationArrivedInfo) { log("CB onDestinationArrived $destinationArrivedInfo") }
+        override fun onError(errorCode: NaviErrorCode) { log("CB onError $errorCode"); pending?.second?.countDown() }
+        override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) { log("CB onCurrentLocationInfo $currentLocationInfo"); signal("loc") }
+        override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) { log("CB onRouteStateInfo $routeStateInfo"); signal("state") }
+        override fun onDestinationInfo(destinationInfo: DestinationInfo) { log("CB onDestinationInfo $destinationInfo"); signal("dest") }
+        override fun onDrivingInfo(drivingInfo: DrivingInfo) { log("CB onDrivingInfo $drivingInfo") }
+        override fun onNavigationStatus(status: NavigationStatus) { log("CB onNavigationStatus $status") }
+        override fun onTripInfo(tripInfo: TripInfo) {
+            log("CB onTripInfo distance=${tripInfo.distance} eta=${tripInfo.eta} soc=${tripInfo.estimatedSocAtDest} " +
+                "energy=${tripInfo.energyConsumption} nowEpochSec=${System.currentTimeMillis() / 1000} " +
+                "trafficCount=${tripInfo.summary.trafficConditions.size} routePointCount=${tripInfo.summary.routePoints.size}")
+            signal("trip")
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val steps = (intent.getStringExtra("steps") ?: DEFAULT_STEPS).split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        log("=== probe start steps=$steps nowEpochSec=${System.currentTimeMillis() / 1000}")
+        navi = NaviHelper(applicationContext)
+        Thread({ runSteps(steps) }, "probe-runner").start()
+    }
+
+    /** 메인 스레드에서 SDK 호출 → 러너 스레드에서 콜백 대기 */
+    private fun step(name: String, waitFor: String?, call: () -> Unit) {
+        val latch = CountDownLatch(1)
+        pending = (waitFor ?: "none") to latch
+        log(">>> STEP $name start")
+        main.post {
+            try { call() } catch (t: Throwable) { log("!!! STEP $name threw ${t.javaClass.name}: ${t.message}"); latch.countDown() }
+        }
+        val start = System.currentTimeMillis()
+        val ok = if (waitFor == null) { Thread.sleep(1500); true } else latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
+        log("<<< STEP $name ${if (ok) "done" else "TIMEOUT(${TIMEOUT_SEC}s)"} in ${System.currentTimeMillis() - start}ms")
+        pending = null
+        Thread.sleep(1000) // 늦게 오는 부수 콜백도 로그에 남도록
+    }
+
+    private fun runSteps(steps: List<String>) {
+        for (s in steps) {
+            when {
+                s == "init" -> step("initialize", "init") {
+                    navi.initialize(
+                        onConnected = { log("CB initialize.onConnected"); navi.addListener(listener); log("addListener done"); signal("init") },
+                        onFailed = { t -> log("CB initialize.onFailed ${t.javaClass.name}: ${t.message}"); signal("init") },
+                    )
+                }
+                s == "state" -> step("getRouteStateInfo", "state") { navi.getRouteStateInfo() }
+                s == "dest" -> step("getDestinationInfo", "dest") { navi.getDestinationInfo() }
+                s == "loc" -> step("getCurrentLocationInfo", "loc") { navi.getCurrentLocationInfo() }
+                s.startsWith("route:") -> {
+                    val a = s.split(":")
+                    val name = a.getOrElse(4) { "" }
+                    step("requestRoute(${a[1]},${a[2]},${a[3]},$name)", "route") {
+                        navi.requestRoute(RouteInfo(latitude = a[1].toDouble(), longitude = a[2].toDouble(),
+                            poiName = name, poiId = "", address = "", poiSubId = "", routeOption = RouteOption.valueOf(a[3])))
+                    }
+                }
+                s.startsWith("opt:") -> step("changeRouteOption(${s.substring(4)})", "none") { navi.changeRouteOption(RouteOption.valueOf(s.substring(4))) }
+                s == "tripEmpty" -> step("requestTrip(empty strings)", "trip") {
+                    navi.requestTrip(TripRequest(latitude = SEOUL_STN_LAT, longitude = SEOUL_STN_LON, poiId = "", poiName = "", poiSubId = ""))
+                }
+                s == "routeEmpty" -> step("requestRoute(empty poi strings)", "route") {
+                    navi.requestRoute(
+                        RouteInfo(
+                            latitude = SEOUL_STN_LAT, longitude = SEOUL_STN_LON,
+                            poiName = "", poiId = "", address = "", poiSubId = "",
+                            routeOption = RouteOption.RECOMMENDED,
+                        )
+                    )
+                }
+                s == "routeFilled" -> step("requestRoute(filled poi strings)", "route") {
+                    navi.requestRoute(
+                        RouteInfo(
+                            latitude = SEOUL_STN_LAT, longitude = SEOUL_STN_LON,
+                            poiName = "서울역", poiId = "probe-seoul-station", address = "서울특별시 중구 한강대로 405", poiSubId = "0",
+                            routeOption = RouteOption.RECOMMENDED,
+                        )
+                    )
+                }
+                s == "trip" -> step("requestTrip(서울역)", "trip") {
+                    navi.requestTrip(
+                        TripRequest(
+                            latitude = SEOUL_STN_LAT, longitude = SEOUL_STN_LON,
+                            poiId = "probe-seoul-station", poiName = "서울역", poiSubId = "0",
+                        )
+                    )
+                }
+                s == "cancel" -> step("cancelRoute", "cancel") { navi.cancelRoute() }
+                s.startsWith("wait") -> { val sec = s.removePrefix("wait").toLongOrNull() ?: 5; log("... wait ${sec}s"); Thread.sleep(sec * 1000) }
+                s == "release" -> step("release", null) { navi.removeListener(listener); navi.release(); log("removeListener+release done") }
+                else -> log("unknown step $s")
+            }
+        }
+        log("=== probe end")
+    }
+
+    companion object {
+        const val TAG = "PleosProbe"
+        const val TIMEOUT_SEC = 10L
+        const val SEOUL_STN_LAT = 37.5547
+        const val SEOUL_STN_LON = 126.9707
+        const val DEFAULT_STEPS = "init,state,dest,loc,routeEmpty,wait3,state,dest,trip,state,cancel,state,dest,release"
+    }
+}

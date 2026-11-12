@@ -1,0 +1,11 @@
+# 권한 선언 없음(apk에 uses-permission 0개), Park 상태, 3가지 생성 방식 (logcat -s UxrProbe)
+== life  (Car.createCar(ctx, handler, 10000, CarServiceLifecycleListener))
+15:47:23.664 lifecycle ready=true car=android.car.Car@ac564e
+15:47:23.674 life manager=android.car.drivingstate.CarUxRestrictionsManager@f178b connected=true
+15:47:23.676 life current requiresDO=false active=0x0 maxLen=120 maxItems=21 maxDepth=3
+== sync  (Car.createCar(ctx) 직후 바로 사용)
+15:47:27.849 sync createCar=android.car.Car@fd2687c connected=true
+15:47:27.850 sync-immediate current requiresDO=false active=0x0 maxLen=120 maxItems=21 maxDepth=3
+== legacy (Car.createCar(ctx, handler))
+15:47:32.735 handler createCar=android.car.Car@fd2687c connected=true
+15:47:32.736 legacy-immediate current requiresDO=false active=0x0 maxLen=120 maxItems=21 maxDepth=3

@@ -1,0 +1,5 @@
+// ProbeActivity.kt.txt 에 task #10에서 추가한 단계 (when 분기 두 개). 나머지는 ../probe/ProbeActivity.kt.txt 와 같다.
+s.startsWith("bg") -> { val sec = s.removePrefix("bg").toLongOrNull() ?: 40; log("... bg poll getDestinationInfo ${sec}s"); val end = System.currentTimeMillis() + sec * 1000
+    Thread({ while (System.currentTimeMillis() < end) { main.post { try { navi.getDestinationInfo() } catch (t: Throwable) { log("poll threw ${t.message}") } }; Thread.sleep(700) } }, "poller").start() }
+s.startsWith("poll") -> { /* 같은 폴링을 러너 스레드에서 1초 간격으로 동기 실행 */ }
+// 사용 예: run.sh p3 "init,bg50,wait3,route:37.4981:127.0282:RECOMMENDED:강남,wait35" 50

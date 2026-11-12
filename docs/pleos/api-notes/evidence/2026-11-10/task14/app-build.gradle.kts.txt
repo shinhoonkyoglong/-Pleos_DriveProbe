@@ -1,0 +1,8 @@
+plugins { id("com.android.application") }
+android {
+    namespace = "ai.probe.uxr"
+    compileSdk { version = release(37) }
+    defaultConfig { applicationId = "ai.probe.uxr"; minSdk = 28; targetSdk = 34; versionCode = 1; versionName = "1.0" }
+    useLibrary("android.car")
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
+}
