@@ -4,7 +4,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /** Drop only a direction suffix, retaining the full facility name. No fuzzy/nearest-name match. */
-fun serviceAreaBaseName(name: String): String = recognizedServiceAreaBaseName(name)
+fun serviceAreaBaseName(name: String): String = recognizedRestStopBaseName(name)
     ?: name.replace(Regex("\\s+"), "").trim()
 
 data class ReviewedServiceArea(
@@ -32,7 +32,7 @@ data class ServiceAreaReviewDiagnostics(val storedCount: Int,val matchingCount: 
 /** Prototype approval is tied to THIS route, destination and upcoming facility sequence. */
 class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private val clock: () -> Long) {
     private val mutex = Mutex()
-    private fun sequence(tbt: NaviTbtRoute) = tbt.serviceAreaHints.take(3).map { serviceAreaBaseName(it.value.description) }
+    private fun sequence(tbt: NaviTbtRoute) = tbt.restStopHints.take(3).map { serviceAreaBaseName(it.value.description) }
     private fun mismatches(value: ReviewedServiceArea, route: RestNaviSnapshot, tbt: NaviTbtRoute, now: Long): List<String> {
         val reasons=mutableListOf<String>()
         val age=now-value.reviewedAtEpochMs
@@ -73,9 +73,9 @@ class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private 
         RestNavigation.validateSnapshot(route)
         require(confirmed) { "현재 경로의 노선·진행 방향과 시설을 확인해야 해요" }
         require(route.routeId.isNotBlank() && route.routeId == tbt.routeId && tbt.reachesArrival)
-        val hint = requireNotNull(tbt.nextServiceAreaHint) { "다음 휴게소를 확인하지 못했어요" }
+        val hint = requireNotNull(tbt.nextRestStopHint) { "다음 휴게소를 확인하지 못했어요" }
         require(serviceAreaBaseName(hint.value.description) == serviceAreaBaseName(place.name)) { "제안 대상과 다른 휴게소예요" }
-        require(place.id.startsWith("NAVI_BOOKMARK:") && RestNavigation.validCoordinates(place.latitude,place.longitude))
+        require((place.id.startsWith("NAVI_BOOKMARK:") || place.id.startsWith("PUBLIC_CATALOG:")) && RestNavigation.validCoordinates(place.latitude,place.longitude))
         require(roadName.isNotBlank() && direction.isNotBlank()) { "확인한 노선과 방향을 입력해 주세요" }
         val destination = route.destination!!
         val review = ReviewedServiceArea(route.routeId,destination.latitude,destination.longitude,destination.poiId,
@@ -93,12 +93,14 @@ data class ServiceAreaReviewSession(
     val route: RestNaviSnapshot,val tbt: NaviTbtRoute,val places: List<RestPlace>,
     val receivedBookmarkCount: Int? = null,val recognizedServiceAreaCount: Int = 0,
     val recognizedServiceAreaNames: List<String> = emptyList(),
+    val facilitySource: String = "NAVI_BOOKMARK",
 )
 
 /** Parked UI coordinator; no route writes. Rechecks both native POI identity and route at confirmation. */
 class ServiceAreaReview(
     private val port: RestNavigationPort, private val reviewed: ReviewedServiceAreas,
     private val allowed: () -> Boolean = { true },
+    private val publicCandidates: suspend (NaviTbtRoute) -> List<RestPlace> = { emptyList() },
 ) {
     suspend fun load(): ServiceAreaReviewSession {
         check(allowed()) { "P·속도 0·화면 사용 가능 상태에서 시설을 확인해 주세요" }
@@ -106,10 +108,12 @@ class ServiceAreaReview(
         RestNavigation.validateSnapshot(route)
         val tbt=port.tbtRoute()
         require(tbt.routeId == route.routeId && tbt.reachesArrival) { "현재 경로의 도착까지 안내 목록을 확인해 주세요" }
-        val hint=requireNotNull(tbt.nextServiceAreaHint) { "다음 휴게소 후보가 없어요" }
-        val saved=port.serviceAreaPlaces()
+        val hint=requireNotNull(tbt.nextRestStopHint) { "다음 휴게소 후보가 없어요" }
+        val public = publicCandidates(tbt)
+        val saved=if(public.isNotEmpty()) public else port.serviceAreaPlaces()
         val places=saved.filter { serviceAreaBaseName(it.name) == serviceAreaBaseName(hint.value.description) }
-        return ServiceAreaReviewSession(route,tbt,places,port.lastNativeBookmarkCount,saved.size,saved.map { it.name }.distinct())
+        return ServiceAreaReviewSession(route,tbt,places,if(public.isNotEmpty()) null else port.lastNativeBookmarkCount,
+            saved.size,saved.map { it.name }.distinct(),if(public.isNotEmpty()) "PUBLIC_CATALOG" else "NAVI_BOOKMARK")
     }
 
     suspend fun confirm(session: ServiceAreaReviewSession,place: RestPlace,road: String,direction: String,confirmed: Boolean) {
@@ -119,7 +123,7 @@ class ServiceAreaReview(
         if (fresh.route.routeId != session.route.routeId || fresh.route.state.routeOption != session.route.state.routeOption ||
             !RestNavigation.sameDestination(fresh.route.destination,session.route.destination) ||
             !RestNavigation.sameWaypoints(fresh.route.waypoints,session.route.waypoints) ||
-            fresh.tbt.serviceAreaHints.take(3).map { it.value.description } != session.tbt.serviceAreaHints.take(3).map { it.value.description })
+            fresh.tbt.restStopHints.take(3).map { it.value.description } != session.tbt.restStopHints.take(3).map { it.value.description })
             throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"시설 확인 중 경로가 바뀌었어요. 다시 확인해 주세요")
         require(fresh.places.contains(place)) { "내비에 저장된 시설 정보가 바뀌었어요. 다시 조회해 주세요" }
         check(allowed()) { "정차 상태를 벗어나 시설 확인을 저장하지 않았어요" }

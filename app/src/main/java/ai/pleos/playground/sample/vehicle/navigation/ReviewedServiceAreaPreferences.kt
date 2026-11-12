@@ -22,9 +22,10 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
                 val row=rows.getJSONObject(index)
                 val p=row.getJSONObject("place")
                 val place=RestPlace(p.getString("id"),p.getString("name"),p.getDouble("latitude"),p.getDouble("longitude"),
-                    p.optString("roadType","미확인"),p.getString("roadName"),p.getString("direction"),p.getString("address"),"",
-                    p.getString("poiId"),p.getString("poiSubId"),p.getString("poiProvider"))
-                require(place.id.startsWith("NAVI_BOOKMARK:") && place.name.isNotBlank() &&
+                    p.optString("roadType","미확인"),p.getString("roadName"),p.getString("direction"),p.getString("address"),p.optString("dataDate",""),
+                    p.getString("poiId"),p.getString("poiSubId"),p.getString("poiProvider"),
+                    ServiceAreaKind.valueOf(p.optString("kind",ServiceAreaKind.SERVICE_AREA.name)))
+                require((place.id.startsWith("NAVI_BOOKMARK:") || place.id.startsWith("PUBLIC_CATALOG:")) && place.name.isNotBlank() &&
                     place.roadName.isNotBlank() && place.direction.isNotBlank() && RestNavigation.validCoordinates(place.latitude,place.longitude))
                 val sequence=row.getJSONArray("upcomingNames")
                 require(sequence.length() in 1..3)
@@ -47,6 +48,8 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
                 put("roadName",p.roadName);put("direction",p.direction);put("address",p.address)
                 put("roadType",p.roadType)
                 put("poiId",p.poiId);put("poiSubId",p.poiSubId);put("poiProvider",p.poiProvider)
+                put("kind",p.kind.name)
+                put("dataDate",p.dataDate)
             })
         }) }
         val result=JSONObject().apply { put("version",1);put("entries",rows) }

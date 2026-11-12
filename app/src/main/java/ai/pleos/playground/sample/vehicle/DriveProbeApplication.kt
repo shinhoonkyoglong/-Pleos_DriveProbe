@@ -94,13 +94,15 @@ class DriveProbeApplication : Application() {
         // 출발 전 화면의 debug 시연만 예시 조회를 허용한다. 실제 내비 작업에는 navi를 직접 넘긴다.
         naviHelperRepository = if (BuildConfig.DEBUG) DemoNaviFallbackRepository(navi) else navi
         val reviewed=ReviewedServiceAreas(ReviewedServiceAreaPreferences(this),System::currentTimeMillis)
-        serviceAreaReview=ServiceAreaReview(navi,reviewed) {
+        val publicCatalog=ai.pleos.playground.sample.vehicle.navigation.PublicRestStopAssets(this)
+        serviceAreaReview=ServiceAreaReview(navi,reviewed, publicCandidates=publicCatalog::candidates, allowed={
             val ux=vehicleRepository.uxRestriction.value
             vehicleRepository.gear.value==ai.pleos.playground.sample.vehicle.data.model.GearPosition.PARK &&
                 vehicleRepository.hasSpeedSignal.value && vehicleRepository.vehicleSpeed.value==0f &&
                 ux?.source==ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization
-        }
-        restNavigation = RestNavigation(navi, PleosTbtServiceAreaSource(navi,reviewed), SystemClock::elapsedRealtime)
+        })
+        restNavigation = RestNavigation(navi, PleosTbtServiceAreaSource(navi,reviewed,
+            publicCatalog), SystemClock::elapsedRealtime)
 
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)

@@ -1,7 +1,12 @@
 package ai.pleos.playground.sample.vehicle.ui.kd
 
 /** Consent alone must never be presented as a successfully applied waypoint. */
-internal fun interventionSummary(level: Int, outcome: String?, consent: String?, navigation: String?): String {
+internal fun interventionSummary(level: Int, outcome: String?, consent: String?, navigation: String?, facilityKind: String? = null): String =
+    interventionSummaryText(level,outcome,consent,navigation).let {
+        if(facilityKind == "SLEEP_REST_AREA") it.replace("휴게소", "졸음쉼터") else it
+    }
+
+private fun interventionSummaryText(level: Int, outcome: String?, consent: String?, navigation: String?): String {
     if (level == 3) {
         if (navigation == "VERIFIED_WAYPOINT") return "휴게소를 경유지로 추가했어요"
         if (navigation in setOf("REQUEST_UNCONFIRMED", "CANCELLED_AFTER_REQUEST_UNCONFIRMED"))

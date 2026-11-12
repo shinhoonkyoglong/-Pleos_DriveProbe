@@ -29,6 +29,10 @@ interface InterventionHistoryDao {
     @Query("SELECT * FROM intervention_histories WHERE actionDetails LIKE '%\"simulation\":false%' AND triggerReason NOT IN ('VOICE_TEST', 'DANGER_NAVIGATION_PROBE', 'BACKGROUND_STAGE_PROBE') ORDER BY timestamp DESC, id DESC")
     fun getDrivingHistories(): Flow<List<InterventionHistoryEntity>>
 
+    /** Exact trip ID; final inserts can occur after endedAt while voice/navigation cleanup finishes. */
+    @Query("SELECT * FROM intervention_histories WHERE sessionId = :tripId AND interventionLevel IN (2, 3) AND triggerReason NOT IN ('VOICE_TEST', 'DANGER_NAVIGATION_PROBE', 'BACKGROUND_STAGE_PROBE') ORDER BY timestamp ASC, id ASC")
+    suspend fun getRestAdviceForTrip(tripId: String): List<InterventionHistoryEntity>
+
     @Query("SELECT COUNT(*) FROM intervention_histories WHERE sessionId = :sessionId AND interventionLevel = :level")
     suspend fun countInterventionsByLevel(sessionId: String, level: Int): Int
 

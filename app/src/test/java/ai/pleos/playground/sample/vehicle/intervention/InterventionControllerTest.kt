@@ -7,9 +7,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class InterventionControllerTest {
     private val mild = ConditionState(FatigueLevel.MILD, 0.35f, false, lastWindowValid = true)
     private fun success() = InterventionResult(InterventionOutcome.VERIFIED, "verified")
@@ -110,5 +115,45 @@ class InterventionControllerTest {
         c.update(mild, true, true, false)
         assertFalse(c.status.value.running)
         scope.cancel()
+    }
+
+    @Test fun `report trip ID is used exactly and changing trip resets cooldown`() = runTest {
+        val records = mutableListOf<InterventionRecord>()
+        val c = InterventionController(this, { 0 }, { success() }, { records += it })
+        c.update(mild, true, true, false, reportTripId = "restored-trip")
+        runCurrent()
+        c.update(mild, true, true, false, reportTripId = "next-trip")
+        runCurrent()
+        assertEquals(listOf("restored-trip", "next-trip"), records.map { it.sessionId })
+    }
+
+    @Test fun `trip settlement waits for late cancellation history even after reset`() = runTest {
+        val allowSave = CompletableDeferred<Unit>()
+        val records = mutableListOf<InterventionRecord>()
+        val c = InterventionController(this, { 0 }, { awaitCancellation() }, {
+            allowSave.await()
+            records += it
+        })
+        c.update(mild, true, true, false, reportTripId = "trip")
+        runCurrent()
+        c.reset() // The gear subscriber can reset before the recorder sees P.
+        val settlement = launch { c.finishSession("trip") }
+        runCurrent()
+        assertFalse(settlement.isCompleted)
+        assertTrue(records.isEmpty())
+        allowSave.complete(Unit)
+        settlement.join()
+        assertEquals("trip", records.single().sessionId)
+        assertEquals(InterventionOutcome.CANCELLED, records.single().result.outcome)
+    }
+
+    @Test fun `settlement surfaces a failed insert even after controller reset`() = runTest {
+        val c = InterventionController(this, { 0 }, { success() }, { error("disk full") })
+        c.update(mild, true, true, false, reportTripId = "trip")
+        runCurrent()
+        c.reset()
+        val failure = runCatching { c.finishSession("trip") }.exceptionOrNull()
+        assertTrue(failure is IllegalStateException)
+        assertEquals("disk full", failure!!.cause!!.message)
     }
 }

@@ -71,8 +71,8 @@ fun RestNavigationScreen(
                 try {
                     val received=navigation.readTbtRoute()
                     tbt=received
-                    val next = received.nextServiceAreaHint?.value?.description
-                    message="TBT ${received.entries.size}개 · 휴게소 후보 ${received.serviceAreaHints.size}개 · 다음 후보 ${next ?: "확인 불가"}"
+                    val next = received.nextRestStopHint?.value?.description
+                    message="TBT ${received.entries.size}개 · 휴게소 후보 ${received.restStopHints.size}개 · 다음 후보 ${next ?: "확인 불가"}"
                 } catch(e:CancellationException){message="조회가 취소됐어요";throw e}
                 catch(e:Exception){message=e.message ?: "내비 안내 목록을 읽지 못했어요"}
             }
@@ -92,7 +92,7 @@ fun RestNavigationScreen(
             }
         }){Text("휴게소 시설 불러오기")}
         reviewSession?.let { session ->
-            Text("확인 대상: ${session.tbt.nextServiceAreaHint?.value?.description ?: "없음"}")
+            Text("확인 대상: ${session.tbt.nextRestStopHint?.value?.description ?: "없음"}")
             Text("내비 즐겨찾기 수신: ${session.receivedBookmarkCount?.toString() ?: "개수 미확인"} · 휴게소명 인식: ${session.recognizedServiceAreaCount} · 대상 일치: ${session.places.size}")
             if(session.places.isEmpty()) {
                 Text("용인휴게소, 용인휴게소(강릉방향), 용인휴게소 강릉방면 같은 표기를 지원해요. 임의 별칭은 자동 매칭하지 않아요.")
@@ -147,12 +147,12 @@ fun RestNavigationScreen(
         if (!allowed) Text("P·속도 0·차량 화면 사용 가능 상태에서 조회할 수 있어요")
         tbt?.let { received ->
             Text("내비 원본 목록 — 수신 순서",style=MaterialTheme.typography.titleMedium)
-            received.nextServiceAreaHint?.let { Text("다음 휴게소 후보: ${it.value.description}",style=MaterialTheme.typography.titleMedium) }
+            received.nextRestStopHint?.let { Text("다음 휴게소 후보: ${it.value.description}",style=MaterialTheme.typography.titleMedium) }
             received.entries.forEachIndexed { index,entry ->
                 val label=when(entry.facilityKind()) {
                     TbtFacilityKind.SERVICE_AREA -> "휴게소 후보"
                     TbtFacilityKind.NON_REST_FACILITY -> "기타 시설(제외)"
-                    TbtFacilityKind.SLEEP_REST_AREA -> "졸음쉼터(제안 제외)"
+                    TbtFacilityKind.SLEEP_REST_AREA -> "졸음쉼터 후보"
                     TbtFacilityKind.UNKNOWN_SERVICE_FACILITY -> "시설 종류 확인 필요"
                     TbtFacilityKind.MANEUVER -> entry.type
                 }

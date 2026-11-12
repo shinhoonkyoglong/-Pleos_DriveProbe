@@ -35,7 +35,7 @@ fun DrivingAssistScreen(state: DrivingAssistState, onBack: () -> Unit, onStart: 
         if (state.busy) Text("도움을 처리하고 있어요. 설정은 처리가 끝난 뒤 바꿀 수 있어요.", style = Kd.BodyMuted)
         KdCard(Modifier.fillMaxWidth()) {
             Text("휴게소 음성 안내", style = Kd.Title)
-            Text("주행 중 휴식이 필요하면 현재 경로의 다음 휴게소와 예상 시간을 알려드려요. 명확히 동의한 경우에만 그 휴게소를 경유지로 추가해요.", style = Kd.Body)
+            Text("주행 중 휴식이 필요하면 현재 경로의 다음 휴게소 또는 졸음쉼터와 예상 시간을 알려드려요. 명확히 동의한 경우에만 그 시설을 경유지로 추가해요.", style = Kd.Body)
             Text(state.candidate?.let { "최근 확인한 휴게소: ${it.place.name}" } ?: "출발 전에 안내할 휴게소의 시설·진행 방향을 확인해 주세요", style = Kd.BodyMuted)
             KdButton("휴게소 설정", onRestSettings, style = KdButtonStyle.SECONDARY,
                 enabled = state.canConfigure, modifier = Modifier.fillMaxWidth().testTag("assist-rest-settings"))
@@ -56,7 +56,7 @@ fun RestStopSettingsScreen(viewModel: DrivingAssistViewModel, state: DrivingAssi
     val editable = state.canConfigure && !state.loading
     KdScreen(scrollable = true, testTag = "kd-rest-stop-settings") {
         KdTopBar("휴게소 설정", onBack = onBack, backLabel = "← 주행 도움")
-        Text("내비에서 현재 진행 방향의 휴게소를 즐겨찾기에 저장한 뒤 불러와 주세요. 시설·노선·방향 확인은 정차 중에 할 수 있어요.", style = Kd.Body)
+        Text("공식 휴게소·졸음쉼터 데이터에서 시설 좌표를 자동으로 찾아요. 내비 안내의 진행 방향이 일치하거나 공식 양방향 시설이면 즐겨찾기 등록 없이 연결해요. 방향이 불명확하면 정차 중 확인이 필요해요.", style = Kd.Body)
         if (state.blockedReason.isNotEmpty()) KdStatusBadge(KdTone.CAUTION, state.blockedReason)
         KdButton(if (state.loading) "휴게소 확인 중" else "현재 경로의 휴게소 불러오기",
             { viewModel.loadServiceAreas() }, enabled = editable, modifier = Modifier.fillMaxWidth().testTag("rest-settings-load"))
@@ -65,7 +65,12 @@ fun RestStopSettingsScreen(viewModel: DrivingAssistViewModel, state: DrivingAssi
             KdCard(Modifier.fillMaxWidth(), borderColor = Kd.Good) {
                 KdStatusBadge(KdTone.GOOD, "안내할 시설 확인됨")
                 Text(c.place.name, style = Kd.Title)
-                Text("${c.place.roadName} · ${c.place.direction} 방향", style = Kd.Body)
+                Text(listOf(c.place.roadName, "${c.place.direction} 방향").filter { it.isNotBlank() }.joinToString(" · "), style = Kd.Body)
+                Text(when(c.verification) {
+                    "PUBLIC_CATALOG_DIRECTION_MATCH" -> "공식 시설 데이터 · 기준일 ${c.place.dataDate}"
+                    "NATIVE_TBT_EXPLICIT_DIRECTION" -> "내비 방향 표기·시설 자동 일치"
+                    else -> "직접 확인한 시설"
+                }, style = Kd.BodyMuted)
                 Text("최근 조회 예상 소요 시간 약 ${(c.trip.etaSeconds - 1) / 60 + 1}분", style = Kd.BodyMuted)
                 Text("실제 음성 제안 직전에 경로와 소요 시간을 다시 확인해요.", style = Kd.BodyMuted)
             }

@@ -47,10 +47,12 @@ class RestNavigationTest {
         assertEquals(0,f.writes);assertEquals(0,f.estimates)
     }
 
-    @Test fun `excludes sleep rest areas opposite direction off route and already passed`()=runTest {
+    @Test fun `includes sleep rest areas but excludes other facilities opposite direction off route and already passed`()=runTest {
         val f=Fixture()
         f.batch=f.batch.copy(areas=listOf(area(10).copy(kind=ServiceAreaKind.SLEEP_REST_AREA),area(20).copy(sameDirection=false),
             area(30).copy(onCurrentRoute=false),area(-10),area(0),area(3_000)))
+        assertEquals(10,f.nav.prepareProposal().candidate.distanceAlongRouteMeters)
+        f.batch=f.batch.copy(areas=f.batch.areas.map { if(it.kind==ServiceAreaKind.SLEEP_REST_AREA) it.copy(kind=ServiceAreaKind.OTHER) else it })
         assertEquals(3_000,f.nav.prepareProposal().candidate.distanceAlongRouteMeters)
     }
 

@@ -15,6 +15,7 @@ import ai.pleos.playground.navi.data.RequestWaypointInfo
 import ai.pleos.playground.navi.data.WaypointInfo
 import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.data.BookmarkInfo
+import ai.pleos.playground.navi.data.RecentDestinationInfo
 import ai.pleos.playground.sample.vehicle.navigation.*
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
@@ -232,6 +233,7 @@ class NaviHelperRepositoryImpl(
     @Volatile private var pendingWaypoints: CompletableDeferred<List<WaypointInfo>>? = null
     @Volatile private var pendingTbt: CompletableDeferred<List<TBTInfo>>? = null
     @Volatile private var pendingBookmarks: CompletableDeferred<List<BookmarkInfo>>? = null
+    @Volatile private var pendingRecentFacilities: CompletableDeferred<List<RecentDestinationInfo>>? = null
     @Volatile private var routingCompletionCount = 0L
     @Volatile private var routeWriteInProgress = false
     @Volatile private var routeWriteError: NaviErrorCode? = null
@@ -256,6 +258,7 @@ class NaviHelperRepositoryImpl(
 
     private val naviListener = object : NaviHelperEventListener {
         override fun onBookmarkInfo(bookmarkInfoList: List<BookmarkInfo>) { pendingBookmarks?.complete(bookmarkInfoList) }
+        override fun onRecentDestinationInfo(recentDestinationInfoList: List<RecentDestinationInfo>) { pendingRecentFacilities?.complete(recentDestinationInfoList) }
         override fun onTBTInfo(tbtInfoList: List<TBTInfo>) {
             pendingTbt?.complete(tbtInfoList)
         }
@@ -428,11 +431,28 @@ class NaviHelperRepositoryImpl(
             nativeBookmarkCount=null
             val received=awaitCallback<List<BookmarkInfo>>("getBookmarkInfo",DESTINATION_TIMEOUT_MS,{pendingBookmarks=it}) { it.getBookmarkInfo() }.getOrThrow()
             nativeBookmarkCount=received.size
-            received.filter { NaviTbtEntry("TURN_ENTER_SERVICEAREA",41,0.0,it.name).facilityKind()==TbtFacilityKind.SERVICE_AREA }
+            received.filter { recognizedRestStopBaseName(it.name)!=null }
                 .filter { RestNavigation.validCoordinates(it.latitude,it.longitude) }.map {
                     RestPlace("NAVI_BOOKMARK:${it.poiProvider}:${it.poiId}:${it.latitude}:${it.longitude}",it.name,it.latitude,it.longitude,
-                        "미확인","","",it.address,"",it.poiId,it.poiSubId ?: "",it.poiProvider)
+                        "미확인","","",it.address,"",it.poiId,it.poiSubId ?: "",it.poiProvider, kind=if(it.name.contains("졸음쉼터")) ServiceAreaKind.SLEEP_REST_AREA else ServiceAreaKind.SERVICE_AREA)
                 }.distinctBy { it.id }
+        }
+    }
+
+    override suspend fun automaticServiceAreaPlaces(): List<RestPlace> {
+        requireRealConnection()
+        var favoritesAvailable = true
+        val favorites = try { serviceAreaPlaces() } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { favoritesAvailable = false; emptyList() }
+        val recent = try { requestMutex.withLock {
+            awaitCallback<List<RecentDestinationInfo>>("getRecentDestinationInfo", DESTINATION_TIMEOUT_MS, { pendingRecentFacilities=it }) {
+                it.getRecentDestinationInfo()
+            }.getOrThrow()
+        } } catch (e: CancellationException) { throw e } catch (e: Exception) { if (!favoritesAvailable) throw e else return favorites }
+        return favorites + recent.filter { recognizedRestStopBaseName(it.name) != null &&
+            RestNavigation.validCoordinates(it.latitude, it.longitude) }.map {
+            RestPlace("NAVI_RECENT:${it.poiProvider}:${it.poiId}:${it.latitude}:${it.longitude}", it.name, it.latitude, it.longitude,
+                "미확인", "", "", it.address, "", it.poiId, it.poiSubId ?: "", it.poiProvider, kind=if(it.name.contains("졸음쉼터")) ServiceAreaKind.SLEEP_REST_AREA else ServiceAreaKind.SERVICE_AREA)
         }
     }
 

@@ -14,23 +14,21 @@ import ai.pleos.playground.sample.vehicle.trip.source.RestAdviceSource
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * 3번 컨디션 엔진을 **구독만** 해서 주행 1회를 기록한다.
@@ -51,6 +49,8 @@ class TripRecorder(
     private val accumulator: TripAccumulator = TripAccumulator(),
     private val checkpoints: TripCheckpointStore = TripCheckpointStore.NONE,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val onTripStarted: suspend (ConditionEngine, String) -> Unit = { _, _ -> },
+    private val onTripEnding: suspend (String) -> Unit = {},
 ) {
     private val lock = Mutex()
     private var job: Job? = null
@@ -84,7 +84,21 @@ class TripRecorder(
                     waitForPark = false
                 }
                 Log.i(TAG, "observing engine isReplay=${engine.isReplay}")
-                observe(engine)
+                try {
+                    observe(engine)
+                } finally {
+                    // Mode changes also stop and settle the old intervention before binding a new ID.
+                    withContext(NonCancellable) {
+                        lock.withLock {
+                            accumulator.snapshot()?.let { snap ->
+                                runCatching { onTripEnding(snap.tripId) }
+                                    .onFailure { Log.e(TAG, "discarded trip intervention cleanup failed", it) }
+                                accumulator.abort()
+                                clearCheckpoint()
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -112,12 +126,15 @@ class TripRecorder(
                     pendingRecovery?.let { snap ->
                         pendingRecovery = null
                         recoverLocked(snap, driving, engine.isReplay)
+                        if (accumulator.isInTrip) onTripStarted(engine, snap.tripId)
                     }
                     if (!driving) waitForPark = false
                     if (driving && !accumulator.isInTrip && !waitForPark) {
                         accumulator.start(isDemo = engine.isReplay, current = state)
                         Log.i(TAG, "trip started demo=${engine.isReplay}")
                         lastCheckpointAt = 0L // 시작하자마자 한 번 저장
+                        checkpointLocked() // Persist the common ID before any intervention can start.
+                        onTripStarted(engine, accumulator.snapshot()!!.tripId)
                     }
                     accumulator.onState(state)
                     if (!driving && accumulator.isInTrip) finishLocked("gear P")
@@ -164,17 +181,26 @@ class TripRecorder(
      * @param endedAt  종료 시각(기본 지금)
      * @param announce false면 [lastRecord]를 바꾸지 않는다(요약 화면 자동 표시 안 함)
      */
-    private suspend fun finishLocked(reason: String, endedAt: Long = clock(), announce: Boolean = true) {
-        val trip = accumulator.finish(endedAt) ?: return
-        val record = buildRecord(
-            trip = trip,
-            rest = restAdviceSource.countFor(trip),
-            compliance = complianceSource.evaluate(trip),
-            preDrive = preDriveSource.checkFor(trip),
-        )
-        runCatching { dao.insert(record) }
-            .onSuccess { clearCheckpoint() } // 저장에 실패하면 중간 저장을 남겨 다음 실행 때 다시 시도
-            .onFailure { Log.e(TAG, "trip save failed", it) }
+    private suspend fun finishLocked(reason: String, endedAt: Long = clock(), announce: Boolean = true) = withContext(NonCancellable) {
+        val snapshot = accumulator.snapshot()?.copy(savedAt = endedAt) ?: return@withContext
+        // Keep the final snapshot if aggregation or DB storage fails. Never announce an unsaved report.
+        runCatching { checkpoints.save(snapshot) }.onFailure { Log.w(TAG, "final checkpoint failed", it) }
+        val trip = accumulator.finish(endedAt) ?: return@withContext
+        val record = try {
+            onTripEnding(trip.tripId)
+            val completed = buildRecord(
+                trip = trip,
+                rest = restAdviceSource.countFor(trip),
+                compliance = complianceSource.evaluate(trip),
+                preDrive = preDriveSource.checkFor(trip),
+            )
+            dao.insert(completed)
+            clearCheckpoint()
+            completed
+        } catch (e: Exception) {
+            Log.e(TAG, "trip aggregation/save failed; checkpoint retained", e)
+            return@withContext
+        }
         if (announce) _lastRecord.value = record
         Log.i(TAG, "trip finished ($reason) $record")
         val summary = TripSummaryContent.from(record)
@@ -225,16 +251,7 @@ class TripRecorder(
         /** 3번 엔진 0~1 → 4번 개입 이력과 같은 0~100 */
         private fun Float.toScore100(): Float = coerceIn(0f, 1f) * 100f
 
-        /**
-         * 현재 컨디션 엔진. ConditionModule은 모드 전환 때 엔진을 새로 만들지만 알림 Flow가 없어서
-         * 1초마다 참조가 바뀌었는지 확인한다.
-         * TODO(4번 머지 후): ConditionModule.engines Flow가 생기면 그것으로 교체
-         */
-        fun conditionEngines(pollMs: Long = 1_000L): Flow<ConditionEngine> = flow {
-            while (currentCoroutineContext().isActive) {
-                if (ConditionModule.isInitialized) emit(ConditionModule.engine)
-                delay(pollMs)
-            }
-        }.distinctUntilChanged { a, b -> a === b }
+        /** The same engine stream as automatic interventions, including mode changes. */
+        fun conditionEngines(): Flow<ConditionEngine> = ConditionModule.engines.filterNotNull()
     }
 }

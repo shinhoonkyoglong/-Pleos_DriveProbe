@@ -59,18 +59,24 @@ class InterventionController(
     private var action: Job? = null
     private var activeLevel = FatigueLevel.NORMAL
     private var generation = 0
-    private val inFlight = mutableSetOf<Job>()
-    val isBusy: Boolean get() = inFlight.any { !it.isCompleted }
+    private val inFlight = mutableMapOf<Job, String>()
+    private val historyFailures = mutableMapOf<String, Exception>()
+    val isBusy: Boolean get() = inFlight.keys.any { !it.isCompleted }
 
     fun setEnabled(enabled: Boolean) {
         if (!enabled) cancelAction()
         _status.value = _status.value.copy(enabled = enabled, running = if (enabled) _status.value.running else false)
     }
 
-    fun update(condition: ConditionState, tripActive: Boolean, forward: Boolean, simulation: Boolean) {
+    fun update(condition: ConditionState, tripActive: Boolean, forward: Boolean, simulation: Boolean,
+        reportTripId: String? = null) {
         if (!tripActive) {
             if (sessionId != null) reset()
             return
+        }
+        if (reportTripId != null && sessionId != reportTripId) {
+            reset()
+            sessionId = reportTripId
         }
         if (sessionId == null) sessionId = UUID.randomUUID().toString()
         _status.value = _status.value.copy(sessionId = sessionId, level = condition.level)
@@ -109,6 +115,13 @@ class InterventionController(
         _status.value = _status.value.copy(sessionId = null, level = FatigueLevel.NORMAL)
     }
 
+    /** Stop this trip and wait for cancellation cleanup AND the final Room insert. */
+    suspend fun finishSession(id: String) {
+        if (sessionId == id) reset()
+        inFlight.filterValues { it == id }.keys.toList().forEach { it.join() }
+        historyFailures.remove(id)?.let { throw IllegalStateException("개입 이력 저장 실패: $id", it) }
+    }
+
     private fun cancelAction() {
         if (action?.isActive != true) return
         generation++
@@ -121,7 +134,7 @@ class InterventionController(
         val token = ++generation
         activeLevel = condition.level
         _status.value = _status.value.copy(running = true, message = "${condition.level} 개입 실행 중", historyError = null)
-        val predecessors = inFlight.filter { !it.isCompleted }
+        val predecessors = inFlight.keys.filter { !it.isCompleted }
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val result = try {
                 // Cancellation cleanup can suspend while stopping a microphone/SDK session.
@@ -139,7 +152,7 @@ class InterventionController(
             if (token == generation) _status.value = _status.value.copy(running = false, message = result.details, result = result)
         }
         action = job
-        inFlight += job
+        inFlight[job] = id
         job.invokeOnCompletion { inFlight -= job }
         job.start()
     }
@@ -150,6 +163,7 @@ class InterventionController(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (!record.simulation) historyFailures[record.sessionId] = e
             if (token == generation) _status.value = _status.value.copy(historyError = "이력 저장 실패: ${e.message}")
         }
     }

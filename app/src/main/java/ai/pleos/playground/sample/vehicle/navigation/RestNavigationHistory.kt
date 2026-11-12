@@ -10,7 +10,7 @@ fun RestNavigationResult.toHistoryJson(): JSONObject = JSONObject().apply {
     put("requestIssued", requestIssued)
     put("source", source)
     put("error", error ?: JSONObject.NULL)
-    put("selectionPolicy", "NEXT_FORWARD_SERVICE_AREA_ON_CURRENT_ROUTE")
+    put("selectionPolicy", "NEXT_FORWARD_REST_STOP_ON_CURRENT_ROUTE")
     put("routeMembershipVerified", proposal != null)
     put("directionMatchVerified", proposal != null)
     put("proposalId", proposal?.id ?: JSONObject.NULL)
@@ -29,6 +29,8 @@ fun RestNavigationResult.toHistoryJson(): JSONObject = JSONObject().apply {
         put("routeMatchMethod", c.verification)
         put("etaSource", "POINT_TO_POINT_NAVI_REQUEST_TRIP")
         put("poiId", c.place.poiId);put("poiProvider",c.place.poiProvider)
+        put("facilityKind",c.place.kind.name)
+        put("nativePoiAvailable",c.place.poiId.isNotBlank())
         put("isMock", c.trip.isMock)
     } } ?: JSONObject.NULL)
     fun snapshot(value: RestNaviSnapshot?): Any = value?.let { s -> JSONObject().apply {

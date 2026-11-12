@@ -15,6 +15,7 @@ data class RestPlace(
     val roadType: String, val roadName: String, val direction: String,
     val address: String, val dataDate: String,
     val poiId: String = "", val poiSubId: String = "", val poiProvider: String = "",
+    val kind: ServiceAreaKind = ServiceAreaKind.SERVICE_AREA,
 )
 data class NaviWaypoint(
     val latitude: Double, val longitude: Double, val name: String,
@@ -55,7 +56,7 @@ data class RestProposal(
     val id: String, val candidate: RestCandidate, val before: RestNaviSnapshot,
     val createdAtMs: Long, val expiresAtMs: Long, val observedAtMs: Long, val source: String,
 ) {
-    val prompt: String get() = "휴식이 필요해 보여요. 현재 경로의 다음 휴게소는 ${candidate.place.name}예요. " +
+    val prompt: String get() = "휴식이 필요해 보여요. 현재 경로의 다음 휴게시설은 ${candidate.place.name}예요. " +
         "내비 예상 소요 시간은 약 ${(candidate.trip.etaSeconds - 1) / 60 + 1}분이에요. 경유지로 추가할까요? 원하시면 추가해 줘, 원치 않으시면 아니요라고 말씀해 주세요."
 }
 enum class RestNavigationStatus {
@@ -84,6 +85,8 @@ interface RestNavigationPort {
     /** Actual facility ETA query. Point-to-point ETA does not prove current-route membership. */
     suspend fun estimate(place: RestPlace): NaviTripInfo
     suspend fun serviceAreaPlaces(): List<RestPlace> = emptyList()
+    /** Real native facilities available without a new search-provider key. */
+    suspend fun automaticServiceAreaPlaces(): List<RestPlace> = serviceAreaPlaces()
     val lastNativeBookmarkCount: Int? get() = null
     suspend fun tbtRoute(): NaviTbtRoute = throw RestNavigationFailure(RestNavigationStatus.UNAVAILABLE,"내비 안내 목록 조회를 지원하지 않아요")
     suspend fun addFirstWaypoint(candidate: RestCandidate, expected: RestNaviSnapshot, dispatched: () -> Unit): RestNaviSnapshot
@@ -143,7 +146,7 @@ class RestNavigation(
         val age = clock() - batch.observedAtMs
         if (age < 0 || age > SOURCE_MAX_AGE_MS) throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA, "현재 경로의 최신 휴게소 정보를 확인하지 못했어요")
         if (!batch.complete || batch.source.isBlank()) throw RestNavigationFailure(RestNavigationStatus.INCOMPLETE_ROUTE_DATA, "경로상 다음 휴게소를 판단할 정보가 부족해요")
-        val eligible = batch.areas.filter { it.kind == ServiceAreaKind.SERVICE_AREA && it.onCurrentRoute && it.sameDirection &&
+        val eligible = batch.areas.filter { it.kind in setOf(ServiceAreaKind.SERVICE_AREA,ServiceAreaKind.SLEEP_REST_AREA) && it.onCurrentRoute && it.sameDirection &&
             (it.distanceAlongRouteMeters == null || it.distanceAlongRouteMeters > 0) &&
             (it.routeOrder?.let { order -> order >= 0 } ?: (it.distanceAlongRouteMeters != null)) }
         // Never skip an earlier malformed service area and claim a later one is the next.

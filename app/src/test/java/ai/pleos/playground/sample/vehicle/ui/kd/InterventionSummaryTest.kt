@@ -4,6 +4,10 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class InterventionSummaryTest {
+    @Test fun sleepStopSuccessAndUncertaintyUseTheActualFacilityKind() {
+        assertEquals("졸음쉼터를 경유지로 추가했어요",interventionSummary(3,"ACCEPTED","ACCEPT","VERIFIED_WAYPOINT","SLEEP_REST_AREA"))
+        assertEquals("졸음쉼터 추가에 동의했지만 적용은 확인되지 않았어요",interventionSummary(3,"ACCEPTED","ACCEPT",null,"SLEEP_REST_AREA"))
+    }
     @Test fun consentAloneDoesNotClaimWaypointSuccess() {
         assertEquals("휴게소 추가에 동의했지만 적용은 확인되지 않았어요", interventionSummary(3, "ACCEPTED", "ACCEPT", "CONTEXT_CHANGED"))
         assertEquals("휴게소 추가에 동의했지만 적용은 확인되지 않았어요", interventionSummary(3, "ACCEPTED", "ACCEPT", null))

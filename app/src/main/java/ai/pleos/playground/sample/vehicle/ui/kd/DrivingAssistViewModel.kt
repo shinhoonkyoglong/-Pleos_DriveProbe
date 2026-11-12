@@ -49,7 +49,7 @@ internal fun assistVoiceMessage(phase: VoicePhase): String? = when (phase) {
     VoicePhase.SPEAKING -> "음성 안내 중 · 질문이 끝난 뒤 답해 주세요"
     VoicePhase.WAITING -> "응답을 기다리고 있어요 · 지금 말씀해 주세요"
     VoicePhase.LISTENING -> "응답을 듣고 있어요"
-    VoicePhase.APPLYING_ROUTE -> "휴게소 경유지 적용을 확인하고 있어요"
+    VoicePhase.APPLYING_ROUTE -> "휴게시설 경유지 적용을 확인하고 있어요"
     else -> null
 }
 
@@ -139,26 +139,34 @@ class DrivingAssistViewModel(application: Application) : AndroidViewModel(applic
     fun loadServiceAreas() = lookup {
         _state.update { it.copy(session = null, selected = null, confirmed = false, candidate = null,
             road = "", direction = "", routeMessage = "현재 안내 경로의 휴게소를 확인하고 있어요") }
-        val session = app.serviceAreaReview.load()
+        val found = preview()
+        if (found && _state.value.candidate?.verification == "PUBLIC_CATALOG_DIRECTION_MATCH") return@lookup
+        val session = try { app.serviceAreaReview.load() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (found) return@lookup else throw e }
         requireEditable()
-        _state.update { it.copy(session = session, routeMessage = if (session.places.isEmpty())
-            "다음 휴게소를 내비 즐겨찾기에 저장한 뒤 다시 불러와 주세요" else "진행 방향에 맞는 시설을 직접 선택해 주세요") }
-        preview()
+        _state.update { it.copy(session = session, routeMessage = if (found) it.routeMessage else if (session.places.isEmpty())
+            "자동 확인 가능한 시설이 없어요. 휴게소를 내비 즐겨찾기에 저장하고 직접 확인해 주세요" else "자동 확인하지 못했어요. 진행 방향에 맞는 시설을 직접 선택해 주세요") }
     }
 
-    private suspend fun preview() {
-        try {
+    private suspend fun preview(): Boolean {
+        return try {
             // preview() cannot mint or invalidate the proposal currently used by a voice conversation.
             val candidate = app.restNavigation.preview().first()
             requireEditable()
-            _state.update { it.copy(candidate = candidate, routeMessage = "이 경로에서 안내할 휴게소를 확인했어요") }
+            _state.update { it.copy(candidate = candidate, routeMessage = if(candidate.verification == "PUBLIC_CATALOG_DIRECTION_MATCH")
+                "앱에 포함된 공식 데이터에서 시설 좌표·방향을 자동으로 확보했어요" else if (candidate.verification == "NATIVE_TBT_EXPLICIT_DIRECTION")
+                "내비의 방향 표기와 시설 정보를 자동으로 연결했어요" else "직접 확인한 이 경로의 휴게소를 불러왔어요") }
+            true
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { _state.update { it.copy(candidate = null, routeMessage = e.message ?: "휴게소를 다시 확인해 주세요") } }
+        catch (e: Exception) { _state.update { it.copy(candidate = null, routeMessage = e.message ?: "휴게소를 다시 확인해 주세요") }; false }
     }
 
     fun select(place: RestPlace) {
         if (!_state.value.canConfigure || _state.value.loading || _state.value.session?.places?.contains(place) != true) return
-        _state.update { it.copy(selected = place, confirmed = false) }
+        _state.update { it.copy(selected = place, confirmed = false,
+            road = if(place.id.startsWith("PUBLIC_CATALOG:")) place.roadName else it.road,
+            direction = if(place.id.startsWith("PUBLIC_CATALOG:")) place.direction else it.direction) }
     }
     fun road(value: String) { if (_state.value.canConfigure && !_state.value.loading) _state.update { it.copy(road = value.take(100), confirmed = false) } }
     fun direction(value: String) { if (_state.value.canConfigure && !_state.value.loading) _state.update { it.copy(direction = value.take(100), confirmed = false) } }

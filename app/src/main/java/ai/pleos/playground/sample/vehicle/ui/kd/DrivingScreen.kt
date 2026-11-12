@@ -128,7 +128,8 @@ private fun LevelGauge(level: FatigueLevel, modifier: Modifier = Modifier) {
 private fun interventionLine(h: InterventionHistoryEntity): String {
     val details = runCatching { JSONObject(h.actionDetails) }.getOrNull()
     return interventionSummary(h.interventionLevel, details?.optString("outcome"),
-        details?.optString("consent"), details?.optString("navigationStatus"))
+        details?.optString("consent"), details?.optString("navigationStatus"),
+        details?.optJSONObject("navigation")?.optJSONObject("candidate")?.optString("facilityKind"))
 }
 
 private const val RECENT_INTERVENTION_MS = 5 * 60 * 1000L

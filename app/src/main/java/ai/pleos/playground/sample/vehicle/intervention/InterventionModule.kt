@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import ai.pleos.playground.sample.vehicle.navigation.toHistoryJson
 
@@ -48,6 +49,18 @@ class InterventionModule(
     }
     private val _voicePhase = kotlinx.coroutines.flow.MutableStateFlow(VoicePhase.IDLE)
     val voicePhase: kotlinx.coroutines.flow.StateFlow<VoicePhase> = _voicePhase
+
+    private data class ReportSession(val engine: ai.pleos.playground.sample.vehicle.condition.engine.ConditionEngine, val id: String)
+    private val reportSession = kotlinx.coroutines.flow.MutableStateFlow<ReportSession?>(null)
+
+    /** TripRecorder owns the ID, including restored checkpoints. All controller access stays on Main. */
+    suspend fun bindReportTrip(engine: ai.pleos.playground.sample.vehicle.condition.engine.ConditionEngine, id: String) =
+        withContext(Dispatchers.Main.immediate) { reportSession.value = ReportSession(engine, id) }
+
+    suspend fun finishReportTrip(id: String) = withContext(Dispatchers.Main.immediate) {
+        if (reportSession.value?.id == id) reportSession.value = null
+        controller.finishSession(id)
+    }
 
     /** User preference only; temporary diagnostic suspension still uses the controller directly. */
     fun setAutomaticEnabled(enabled: Boolean) {
@@ -185,10 +198,15 @@ class InterventionModule(
                 try {
                     combine(engine.state, engine.isDriving, engine.signals.gear) { state, active, gear -> Triple(state, active, gear) }
                         .combine(DrivingVoiceService.ready) { input, prepared -> input to prepared }
-                        .collect { (input, prepared) ->
+                        .combine(reportSession) { input, session -> input to session }
+                        .collect { (voiceInput, session) ->
+                            val (input, prepared) = voiceInput
                             val (state, active, gear) = input
                             val voiceAllowed = engine.isReplay || state.level < FatigueLevel.CAUTION || prepared
-                            controller.update(state, active, gear == GearPosition.DRIVE && voiceAllowed, simulation = engine.isReplay)
+                            // Recheck the current binding so queued emissions cannot restart a finished trip.
+                            val bound = session != null && session.engine === engine && reportSession.value === session
+                            controller.update(state, active && bound, gear == GearPosition.DRIVE && voiceAllowed,
+                                simulation = engine.isReplay, reportTripId = session?.id?.takeIf { bound })
                         }
                 } finally {
                     controller.reset()
