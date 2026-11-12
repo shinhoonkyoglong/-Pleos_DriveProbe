@@ -82,6 +82,21 @@ class InterventionControllerTest {
         scope.cancel()
     }
 
+    @Test fun `invalid window during active intervention keeps running until level becomes normal`() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val records = mutableListOf<InterventionRecord>()
+        val c = InterventionController(scope, { 0 }, { awaitCancellation() }, { records += it })
+        c.update(mild, true, true, false)
+        assertTrue(c.status.value.running)
+        c.update(mild.copy(lastWindowValid = false), true, true, false)
+        assertTrue(c.status.value.running)
+        assertTrue(records.isEmpty())
+        c.update(mild.copy(level = FatigueLevel.NORMAL, lastWindowValid = false), true, true, false)
+        assertFalse(c.status.value.running)
+        assertEquals(InterventionOutcome.CANCELLED, records.single().result.outcome)
+        scope.cancel()
+    }
+
     @Test fun `higher level interrupts old action without waiting for cooldown`() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val calls = mutableListOf<FatigueLevel>()

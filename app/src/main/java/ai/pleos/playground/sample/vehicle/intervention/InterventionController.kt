@@ -81,10 +81,11 @@ class InterventionController(
         if (sessionId == null) sessionId = UUID.randomUUID().toString()
         _status.value = _status.value.copy(sessionId = sessionId, level = condition.level)
         if (!_status.value.enabled) return
-        if (!forward || !condition.lastWindowValid || condition.level == FatigueLevel.NORMAL) {
+        if (!forward || condition.level == FatigueLevel.NORMAL) {
             cancelAction()
             return
         }
+        if (!condition.lastWindowValid) return
         if (action?.isActive == true && condition.level <= activeLevel) return
         if (!policy.take(condition.level, condition.lastWindowValid, forward, clock())) return
         cancelAction()
