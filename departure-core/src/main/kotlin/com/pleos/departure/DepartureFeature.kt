@@ -2,14 +2,19 @@ package com.pleos.departure
 
 import com.pleos.departure.model.DataResult
 import com.pleos.departure.model.DrivingRestriction
+import com.pleos.departure.model.GeoPoint
+import com.pleos.departure.model.TripCompliance
+import com.pleos.departure.model.UnavailableReason
 import com.pleos.departure.session.DepartureSession
 import com.pleos.departure.usecase.ConditionRouteUseCase
 import com.pleos.departure.usecase.DepartureCheckUseCase
 import com.pleos.departure.usecase.DepartureDeadlineUseCase
 import com.pleos.departure.usecase.RadiusCheckUseCase
+import com.pleos.departure.usecase.TripComplianceUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import java.time.Clock
+import java.time.Instant
 
 /**
  * 2번 '출발 전' 기능의 외부 진입점. 표시 계층(:departure-ui 또는 1번 쪽 화면)은 이 객체만 받아서 동작한다.
@@ -54,6 +59,28 @@ class DepartureFeature(
         clock = dependencies.clock,
     )
 
+    /** 끝난 주행의 조건 준수 판정(작업 #29). 순수 계산 — 운전자 조건을 직접 넘길 때 쓴다. */
+    val tripCompliance: TripComplianceUseCase = TripComplianceUseCase(config = dependencies.config)
+
+    /**
+     * 끝난 주행 한 번이 **지금 저장된** 운전자 조건을 지켰는지 판정한다(작업 #29, 5번 주행 기록용).
+     * - 조건 저장 이력 없음(Unavailable NO_DATA) → 조건 없음으로 보고 판정(모두 NOT_APPLICABLE)
+     * - 그 밖의 조건 조회 실패 → 그 Unavailable 을 그대로 돌려준다(호출자는 '모름'으로 저장)
+     * @param location 일몰 계산 기준 위치(주행 출발지 등). 모르면 null → 집 → 설정 기본 위치 순
+     */
+    suspend fun evaluateTripCompliance(
+        startedAt: Instant,
+        endedAt: Instant,
+        location: GeoPoint? = null,
+    ): DataResult<TripCompliance> {
+        val condition = when (val result = dependencies.driverConditionRepository.getCondition()) {
+            is DataResult.Available -> result.value
+            is DataResult.Unavailable ->
+                if (result.reason == UnavailableReason.NO_DATA) null else return result
+        }
+        return DataResult.Available(tripCompliance.evaluate(condition, startedAt, endedAt, location))
+    }
+
     /** 동작 수치(화면의 재확인 간격·로딩 표시 기준 등). */
     val config: DepartureConfig get() = dependencies.config
 
@@ -85,6 +112,8 @@ class DepartureFeature(
         //   RouteUserAction.REVIEW_TOLL_ON_ROUTE·RouteNote.TOLL_FARE_NOT_OBSERVED 삭제. 무료도로 충족 = FREE + tollFare 0 일 때만.
         //   when 으로 RouteConditionCheck 를 전부 처리하는 소비자는 새 분기를 추가해야 한다.
         // 0.10.0(#28): NaviRepository.openNaviSettings() 추가(기본 구현 = NOT_SUPPORTED), DepartureFeature.openNaviSettings() 추가.
-        const val VERSION: String = "0.10.0"
+        // 0.11.0(#29): 포트 시그니처 변경 없음. 끝난 주행 조건 준수 판정 추가 — DepartureFeature.tripCompliance·evaluateTripCompliance,
+        //   model TripCompliance·TripConditionStatus·TripConditionKind·SunReference(Source), DepartureConfig.defaultSunReferencePoint·tripNightTolerance.
+        const val VERSION: String = "0.11.0"
     }
 }
