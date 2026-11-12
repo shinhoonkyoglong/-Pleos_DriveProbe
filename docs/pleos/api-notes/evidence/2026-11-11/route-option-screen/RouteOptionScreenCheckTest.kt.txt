@@ -1,0 +1,57 @@
+package ai.pleos.playground.sample.vehicle.departure
+
+import ai.pleos.playground.navi.data.NavigationScreenRequest
+import ai.pleos.playground.navi.helper.NaviHelper
+import android.util.Log
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.fail
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+/**
+ * `requestNavigationScreen(NavigationScreenRequest.RouteOptionList)`가 내비에서 무엇을 여는지 확인(2번 '출발 전', 2026-11-11).
+ *
+ * 목적: 무료도로 미충족 안내에 [내비 경로 설정 열기] 버튼을 붙일 수 있는지. 근거는 공식 샘플 내비 앱의 호출 예시뿐이라
+ * (2번 저장소 api-notes/navi-route.md 끝 절) 실제로 "경로 설정" 시트(유료도로 우회 토글)가 열리는지 화면으로 봐야 한다.
+ *
+ * - 테스트는 호출과 예외 여부만 기록한다(태그 `RouteOptionScreen`). 열린 화면은 실행하는 쪽이 adb screencap 으로 본다.
+ * - 내비 상태(안내 중/없음)는 바꾸지 않는다. 상태별로 따로 실행한다.
+ * - 권한 `NAVI_CUSTOM_MAP`은 debug 매니페스트에만 선언(앱 기능에 쓰기로 정하면 main 으로 옮긴다).
+ * - 실행: `adb shell am instrument -w -e class ai.pleos.playground.sample.vehicle.departure.RouteOptionScreenCheckTest
+ *   ai.pleos.playground.sample.vehicle.diagnostic.test/androidx.test.runner.AndroidJUnitRunner`
+ */
+@RunWith(AndroidJUnit4::class)
+class RouteOptionScreenCheckTest {
+
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val context = instrumentation.targetContext
+
+    @Test
+    fun requestRouteOptionListScreen() {
+        val helper = NaviHelper(context)
+        val latch = CountDownLatch(1)
+        var connected = false
+        instrumentation.runOnMainSync {
+            helper.initialize(
+                onConnected = { connected = true; latch.countDown() },
+                onFailed = { t -> Log.i(TAG, "initialize.onFailed ${t.javaClass.name}: ${t.message}"); latch.countDown() },
+            )
+        }
+        latch.await(10, TimeUnit.SECONDS)
+        if (!connected) fail("NaviHelper 연결 실패")
+
+        val threw = runCatching { helper.requestNavigationScreen(NavigationScreenRequest.RouteOptionList) }.exceptionOrNull()
+        Log.i(TAG, if (threw == null) "requestNavigationScreen(RouteOptionList) 호출 성공" else "예외 ${threw.javaClass.name}: ${threw.message}")
+        // 화면이 바뀔 시간을 준다(실행하는 쪽이 이 사이에 캡처)
+        Thread.sleep(6_000)
+        runCatching { helper.release() }
+        if (threw != null) fail("requestNavigationScreen 예외: ${threw.javaClass.name}: ${threw.message}")
+    }
+
+    private companion object {
+        const val TAG = "RouteOptionScreen"
+    }
+}

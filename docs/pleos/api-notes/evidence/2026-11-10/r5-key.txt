@@ -1,0 +1,382 @@
+11-10 09:17:23.072 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001724,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:23.072 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:17:23.072 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001724,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:23.072 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:17:23.973 D/[NaviHelper][SDK]NaviHelper(16646): [main]initialize with callback
+11-10 09:17:23.973 D/[NaviHelper][SDK]c(16646): [main]connectService
+11-10 09:17:24.069 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001725,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:24.069 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:17:24.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001725,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:24.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:17:24.406 I/[NaviHelper][SDK]c(16646): [main]onServiceConnected
+11-10 09:17:24.408 I/[NaviHelper][SDK]c(16646): [main]getServiceVersion = 3.0.4
+11-10 09:17:24.408 D/[NaviHelper][SDK]c(16646): [main]registerCallbackV3
+11-10 09:17:24.408 D/[NaviHelper][SDK]NaviHelper(16646): [main]addListener ai.probe.pleos.ProbeActivity$listener$1@1c57ec6
+11-10 09:17:27.074 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001728,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:27.074 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=76
+11-10 09:17:27.074 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001728,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:27.074 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=61
+11-10 09:17:28.065 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001729,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:28.065 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=77
+11-10 09:17:28.066 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001729,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:28.066 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=60
+11-10 09:17:29.066 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001730,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:29.066 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7F
+11-10 09:17:29.067 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001730,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:29.067 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=68
+11-10 09:17:30.068 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001731,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:30.068 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7E
+11-10 09:17:30.073 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001731,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:30.073 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=69
+11-10 09:17:31.069 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001732,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:31.069 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7D
+11-10 09:17:31.070 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001732,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:31.070 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6A
+11-10 09:17:32.067 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001733,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:32.067 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7C
+11-10 09:17:32.070 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001733,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:32.070 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6B
+11-10 09:17:33.069 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001734,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:33.069 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:17:33.071 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001734,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:33.071 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:17:34.069 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001735,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:34.069 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:17:34.069 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001735,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:34.069 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:17:35.071 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001736,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:35.071 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=79
+11-10 09:17:35.074 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001736,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:35.074 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6E
+11-10 09:17:36.093 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001737,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:36.093 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=78
+11-10 09:17:36.093 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001737,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:36.093 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6F
+11-10 09:17:37.074 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001738,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:37.074 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=77
+11-10 09:17:37.081 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001738,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:37.081 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=60
+11-10 09:17:38.070 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001739,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:38.070 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=76
+11-10 09:17:38.071 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001739,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:38.071 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=61
+11-10 09:17:39.071 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001740,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:39.071 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=78
+11-10 09:17:39.072 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001740,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:39.072 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6F
+11-10 09:17:40.073 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001741,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:40.073 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=79
+11-10 09:17:40.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001741,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:40.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6E
+11-10 09:17:41.076 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001742,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:41.076 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:17:41.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001742,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:41.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:17:42.072 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001743,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:42.072 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:17:42.073 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001743,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:42.073 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:17:42.627 I/Navi42  ( 3586): [createTrip] tripTollAvoidance true, tripSchoolZoneAvoidance false, fromTempTripMode Normal(isMobileRequest=false, showPhoneRequestStatus=false)
+11-10 09:17:42.666 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-12]notifyRouteCancelled
+11-10 09:17:42.667 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-12]notifyNavigationStatus
+11-10 09:17:42.667 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onRouteCancelled
+11-10 09:17:42.667 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onRouteCancelled
+11-10 09:17:42.667 I/[NaviHelper][SDK]b(16646): [binder:16646_3]onRouteCancelled
+11-10 09:17:42.668 I/[NaviHelper][SDK]NaviHelper( 2628): [binder:2628_1]getDestinationInfo
+11-10 09:17:42.668 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onNavigationStatus
+11-10 09:17:42.684 I/[NaviHelper][SDK]b( 2862): [binder:2862_7]onRouteCancelled
+11-10 09:17:42.684 I/[NaviHelper][SDK]b( 2862): [binder:2862_7]onNavigationStatus
+11-10 09:17:42.698 I/[NaviHelper][SDK]NaviHelper( 2628): [binder:2628_1]getWaypointInfo
+11-10 09:17:42.698 I/[NaviHelper][SDK]NaviHelper( 2628): [binder:2628_1]getRouteStateInfo
+11-10 09:17:42.698 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onRouteCancelled
+11-10 09:17:42.699 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onNavigationStatus
+11-10 09:17:42.699 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onNavigationStatus
+11-10 09:17:42.700 I/[NaviHelper][SDK]b( 1128): [binder:1128_9]onRouteCancelled
+11-10 09:17:42.700 D/[NaviProvider][SDK]b( 3586): [binder:3586_4]onDestinationInfoRequest
+11-10 09:17:42.700 I/[NaviHelper][SDK]b( 1128): [binder:1128_9]onNavigationStatus
+11-10 09:17:42.701 D/[NaviProvider][SDK]b( 3586): [binder:3586_4]onWaypointInfoRequest
+11-10 09:17:42.701 D/[NaviProvider][SDK]b( 3586): [binder:3586_4]onRouteStateInfoRequest
+11-10 09:17:42.702 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnDestinationInfoRequest@5d5f8c9
+11-10 09:17:42.703 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnWaypointInfoRequest@60172d3
+11-10 09:17:42.707 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-11]notifyDestinationInfo
+11-10 09:17:42.707 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-8]notifyWaypointInfo
+11-10 09:17:42.710 I/[NaviHelper][SDK]b( 5134): [binder:5134_6]onDestinationInfo
+11-10 09:17:42.710 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onDestinationInfo
+11-10 09:17:42.710 I/[NaviHelper][SDK]b( 5134): [binder:5134_6]onWayPointInfo
+11-10 09:17:42.711 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onWayPointInfo
+11-10 09:17:42.711 I/[NaviHelper][SDK]b( 2862): [binder:2862_7]onDestinationInfo
+11-10 09:17:42.711 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onDestinationInfo
+11-10 09:17:42.711 I/[NaviHelper][SDK]b( 2862): [binder:2862_7]onWayPointInfo
+11-10 09:17:42.711 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onWayPointInfo
+11-10 09:17:42.712 I/[NaviHelper][SDK]b( 1128): [binder:1128_C]onDestinationInfo
+11-10 09:17:42.712 I/[NaviHelper][SDK]b( 1128): [binder:1128_C]onWayPointInfo
+11-10 09:17:42.714 D/MainViewModel$startTripStateCollect( 3586): TripState TripStateInfo(state=PREPARE_CREATE, createAt=2026-11-10T09:17:42.712940)
+11-10 09:17:42.714 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnRouteStateInfoRequest@709ec9a
+11-10 09:17:42.720 I/[NaviHelper][SDK]b(16646): [binder:16646_3]onNavigationStatus
+11-10 09:17:42.726 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onDestinationInfo
+11-10 09:17:42.731 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onWayPointInfo
+11-10 09:17:42.762 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-7]notifyRouteStateInfo
+11-10 09:17:42.780 I/[NaviHelper][SDK]a( 2628): [binder:2628_7]onRouteStateInfo
+11-10 09:17:42.780 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onRouteStateInfo
+11-10 09:17:42.780 I/[NaviHelper][SDK]b( 1128): [binder:1128_C]onRouteStateInfo
+11-10 09:17:42.782 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onRouteStateInfo
+11-10 09:17:42.783 I/[NaviHelper][SDK]b( 2862): [binder:2862_9]onRouteStateInfo
+11-10 09:17:42.805 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onRouteStateInfo
+11-10 09:17:43.093 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001744,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:43.093 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7C
+11-10 09:17:43.093 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001744,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:43.093 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6B
+11-10 09:17:44.072 D/MainViewModel$createTrip( 3586): createTrip success
+11-10 09:17:44.072 D/MainViewModel$startTripStateCollect( 3586): TripState TripStateInfo(state=CREATED, createAt=2026-11-10T09:17:44.072094)
+11-10 09:17:44.095 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001745,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:44.095 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7D
+11-10 09:17:44.128 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001745,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:44.128 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6A
+11-10 09:17:44.207 D/MainViewModel$startTripStateCollect( 3586): TripState TripStateInfo(state=PREPARE_READY, createAt=2026-11-10T09:17:44.206849)
+11-10 09:17:44.385 D/MainViewModel$startTripStateCollect( 3586): TripState TripStateInfo(state=READY, createAt=2026-11-10T09:17:44.071918)
+11-10 09:17:45.076 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001746,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:45.076 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7E
+11-10 09:17:45.100 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001746,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:45.100 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=69
+11-10 09:17:46.074 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001747,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:46.074 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7F
+11-10 09:17:46.075 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001747,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:46.075 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=68
+11-10 09:17:47.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001748,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:47.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=70
+11-10 09:17:47.085 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001748,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:47.085 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=67
+11-10 09:17:48.075 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001749,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:48.075 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:17:48.076 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001749,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:48.076 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:17:49.076 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001750,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:49.076 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=79
+11-10 09:17:49.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001750,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:49.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6E
+11-10 09:17:50.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001751,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:50.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=78
+11-10 09:17:50.079 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001751,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:50.079 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6F
+11-10 09:17:51.078 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001752,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:51.078 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:17:51.082 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001752,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:51.082 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:17:52.079 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001753,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:52.079 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:17:52.079 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001753,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:52.079 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:17:53.082 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001754,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:53.082 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7D
+11-10 09:17:53.085 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001754,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:53.085 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6A
+11-10 09:17:54.081 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001755,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:54.081 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7C
+11-10 09:17:54.083 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001755,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:54.083 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6B
+11-10 09:17:55.086 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001756,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:55.086 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7F
+11-10 09:17:55.088 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001756,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:55.088 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=68
+11-10 09:17:56.083 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001757,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:56.083 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7E
+11-10 09:17:56.085 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001757,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:56.085 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=69
+11-10 09:17:57.082 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001758,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:57.082 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:17:57.082 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001758,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:57.082 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:17:58.086 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001759,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:58.086 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=70
+11-10 09:17:58.089 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001759,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:58.089 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=67
+11-10 09:17:58.324 D/MainViewModel$startTripStateCollect( 3586): TripState TripStateInfo(state=WORKING, createAt=2026-11-10T09:17:58.321074)
+11-10 09:17:58.352 I/MainViewModel$DrivingUiStateImpl$initialize( 3586): firstTBT is null
+11-10 09:17:58.398 I/MainViewModel$hideRouteOverviewRequest( 3586): [hideRouteOverviewRequest] overviewRoute is already hidden
+11-10 09:17:58.608 I/MainViewModel( 3586): [MapMatching Monitor] change route id : 2737dd01-dc9c-11f1-95d7-72e3ec72fa29 / 0, LatLng:37.4127212/127.094681
+11-10 09:17:58.609 I/MainViewModel( 3586): [MapMatching Monitor] change roadStatus : StatusBeforeOnRoute, LatLng:37.4127212/127.094681
+11-10 09:17:58.621 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-5]notifyRouteStarted
+11-10 09:17:58.621 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-5]notifyRouteEnded
+11-10 09:17:58.622 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-5]notifyNavigationStatus
+11-10 09:17:58.634 I/[NaviHelper][SDK]a( 2628): [binder:2628_7]onRouteStarted
+11-10 09:17:58.634 I/[NaviHelper][SDK]b( 1128): [binder:1128_3]onRouteStarted
+11-10 09:17:58.635 I/[NaviHelper][SDK]NaviHelper( 2628): [binder:2628_7]getRouteStateInfo
+11-10 09:17:58.635 I/[NaviHelper][SDK]a( 2628): [binder:2628_7]onRouteEnded
+11-10 09:17:58.636 I/[NaviHelper][SDK]b( 1128): [binder:1128_3]onRouteEnded
+11-10 09:17:58.637 I/[NaviHelper][SDK]b( 1128): [binder:1128_3]onNavigationStatus
+11-10 09:17:58.637 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onRouteStarted
+11-10 09:17:58.638 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onRouteEnded
+11-10 09:17:58.638 I/[NaviHelper][SDK]b(16646): [binder:16646_2]onNavigationStatus
+11-10 09:17:58.638 I/[NaviHelper][SDK]a( 2628): [binder:2628_7]onNavigationStatus
+11-10 09:17:58.639 I/[NaviHelper][SDK]b( 2862): [binder:2862_A]onRouteStarted
+11-10 09:17:58.639 I/[NaviHelper][SDK]b( 2862): [binder:2862_A]onRouteEnded
+11-10 09:17:58.639 I/[NaviHelper][SDK]b( 2862): [binder:2862_A]onNavigationStatus
+11-10 09:17:58.641 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onRouteStarted
+11-10 09:17:58.642 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onRouteEnded
+11-10 09:17:58.642 I/[NaviHelper][SDK]a( 3880): [binder:3880_2]onNavigationStatus
+11-10 09:17:58.642 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onRouteStarted
+11-10 09:17:58.642 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onRouteEnded
+11-10 09:17:58.643 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onNavigationStatus
+11-10 09:17:58.645 D/[NaviProvider][SDK]b( 3586): [binder:3586_6]onRouteStateInfoRequest
+11-10 09:17:58.645 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnRouteStateInfoRequest@709ec9a
+11-10 09:17:58.690 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-1]notifyRouteStateInfo
+11-10 09:17:58.692 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onRouteStateInfo
+11-10 09:17:58.692 I/[NaviHelper][SDK]b( 1128): [binder:1128_7]onRouteStateInfo
+11-10 09:17:58.693 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onRouteStateInfo
+11-10 09:17:58.693 I/[NaviHelper][SDK]a( 3880): [binder:3880_3]onRouteStateInfo
+11-10 09:17:58.705 I/[NaviHelper][SDK]b(16646): [binder:16646_4]onRouteStateInfo
+11-10 09:17:58.709 I/[NaviHelper][SDK]b( 2862): [binder:2862_A]onRouteStateInfo
+11-10 09:17:59.106 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001800,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:17:59.106 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=73
+11-10 09:17:59.107 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001800,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:17:59.107 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=64
+11-10 09:18:00.280 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001801,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:00.280 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=72
+11-10 09:18:00.281 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001801,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:00.281 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=65
+11-10 09:18:01.160 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001802,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:01.160 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:18:01.161 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001802,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:01.161 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:18:02.158 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001803,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:02.158 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=70
+11-10 09:18:02.187 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001803,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:02.187 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=67
+11-10 09:18:03.085 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001804,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:03.085 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=77
+11-10 09:18:03.096 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001804,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:03.096 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=60
+11-10 09:18:04.093 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001805,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:04.093 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=76
+11-10 09:18:04.095 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001805,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:04.095 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=61
+11-10 09:18:05.106 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001806,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:05.106 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=75
+11-10 09:18:05.153 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001806,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:05.153 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=62
+11-10 09:18:06.097 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001807,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:06.097 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=74
+11-10 09:18:06.098 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001807,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:06.098 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=63
+11-10 09:18:07.099 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001808,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:07.099 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:18:07.104 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001808,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:07.104 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:18:08.131 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001809,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:08.131 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:18:08.133 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001809,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:08.133 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:18:09.133 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001810,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:09.133 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=72
+11-10 09:18:09.133 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001810,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:09.133 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=65
+11-10 09:18:10.119 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001811,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:10.119 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=73
+11-10 09:18:10.119 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001811,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:10.119 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=64
+11-10 09:18:11.117 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001812,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:11.117 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=70
+11-10 09:18:11.118 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001812,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:11.118 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=67
+11-10 09:18:12.114 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001813,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:12.114 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:18:12.114 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001813,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:12.114 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:18:13.095 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001814,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:13.095 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=76
+11-10 09:18:13.102 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001814,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:13.102 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=61
+11-10 09:18:14.128 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001815,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:14.128 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=77
+11-10 09:18:14.128 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001815,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:14.128 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=60
+11-10 09:18:15.098 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001816,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:15.098 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=74
+11-10 09:18:15.143 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001816,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:15.143 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=63
+11-10 09:18:15.411 I/[NaviHelper][SDK]NaviHelper(16646): [main]getRouteStateInfo
+11-10 09:18:15.415 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onRouteStateInfoRequest
+11-10 09:18:15.418 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnRouteStateInfoRequest@709ec9a
+11-10 09:18:15.431 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-9]notifyRouteStateInfo
+11-10 09:18:15.434 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onRouteStateInfo
+11-10 09:18:15.435 I/[NaviHelper][SDK]b( 2862): [binder:2862_1]onRouteStateInfo
+11-10 09:18:15.437 I/[NaviHelper][SDK]b( 1128): [binder:1128_7]onRouteStateInfo
+11-10 09:18:15.438 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onRouteStateInfo
+11-10 09:18:15.459 I/[NaviHelper][SDK]b(16646): [binder:16646_4]onRouteStateInfo
+11-10 09:18:15.466 I/[NaviHelper][SDK]a( 3880): [binder:3880_3]onRouteStateInfo
+11-10 09:18:16.132 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001817,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:16.132 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=75
+11-10 09:18:16.132 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001817,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:16.132 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=62
+11-10 09:18:16.467 I/[NaviHelper][SDK]NaviHelper(16646): [main]getDestinationInfo
+11-10 09:18:16.475 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onDestinationInfoRequest
+11-10 09:18:16.476 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnDestinationInfoRequest@5d5f8c9
+11-10 09:18:17.105 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001818,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:17.105 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7A
+11-10 09:18:17.105 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001818,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:17.105 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6D
+11-10 09:18:17.483 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-6]notifyDestinationInfo
+11-10 09:18:17.484 I/[NaviHelper][SDK]a( 3880): [binder:3880_3]onDestinationInfo
+11-10 09:18:17.484 I/[NaviHelper][SDK]b( 2862): [binder:2862_C]onDestinationInfo
+11-10 09:18:17.485 I/[NaviHelper][SDK]b(16646): [binder:16646_4]onDestinationInfo
+11-10 09:18:17.485 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onDestinationInfo
+11-10 09:18:17.486 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onDestinationInfo
+11-10 09:18:17.486 I/[NaviHelper][SDK]b( 1128): [binder:1128_1]onDestinationInfo
+11-10 09:18:18.110 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001819,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:18.110 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7B
+11-10 09:18:18.110 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001819,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:18.110 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6C
+11-10 09:18:18.488 I/[NaviHelper][SDK]NaviHelper(16646): [main]requestTrip
+11-10 09:18:18.512 D/[NaviProvider][SDK]b( 3586): [binder:3586_6]onTripRequest
+11-10 09:18:18.512 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: OnTripRequest(latitude=37.5547, longitude=126.9707, poiId=probe-seoul-station, poiName=서울역, poiSubId=0)
+11-10 09:18:18.513 D/MainViewModel$startConnectNaviProviderCollect( 3586): ConnectNaviProviderEvent.OnRouteTripRequest : OnTripRequest(latitude=37.5547, longitude=126.9707, poiId=probe-seoul-station, poiName=서울역, poiSubId=0)
+11-10 09:18:19.023 D/MainViewModel$handleRouteTripRequest( 3586): [handleRouteTripRequest] response: SimpleRouteTripResponse(distance=26494, energyConsumption=3541.18603515625, eta=4588, remainSoc=95, tripSummary=TripSummary(traffics=[RouteTripTrafficInfo(congestionType=MODERATE, startRatioOnRoute=0.0, endRatioOnRoute=4.0), RouteTripTrafficInfo(congestionType=SLOW, startRatioOnRoute=4.0, endRatioO
+11-10 09:18:19.025 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-9]notifyTripInfo
+11-10 09:18:19.027 I/[NaviHelper][SDK]b( 5134): [binder:5134_6]onTripInfo
+11-10 09:18:19.027 I/[NaviHelper][SDK]b( 2862): [binder:2862_5]onTripInfo
+11-10 09:18:19.027 I/[NaviHelper][SDK]b( 1128): [binder:1128_1]onTripInfo
+11-10 09:18:19.056 I/[NaviHelper][SDK]b(16646): [binder:16646_4]onTripInfo
+11-10 09:18:19.132 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001820,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:19.132 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:18:19.133 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001820,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:19.133 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:18:20.059 D/[NaviHelper][SDK]NaviHelper(16646): [main]removeListener
+11-10 09:18:20.059 D/[NaviHelper][SDK]NaviHelper(16646): [main]release
+11-10 09:18:20.061 I/[NaviHelper][SDK]c(16646): [main]getServiceVersion = 3.0.4
+11-10 09:18:20.061 D/[NaviHelper][SDK]c(16646): [main]unregisterCallbackV3
+11-10 09:18:20.097 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001821,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:20.097 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=70
+11-10 09:18:20.097 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001821,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:20.097 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=67
+11-10 09:18:21.115 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001822,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:21.115 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=73
+11-10 09:18:21.115 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001822,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:21.115 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=64
+11-10 09:18:22.169 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001823,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:22.169 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=72
+11-10 09:18:22.169 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001823,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:22.169 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=65
+11-10 09:18:23.103 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001824,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:23.103 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=75
+11-10 09:18:23.104 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001824,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:23.104 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=62
+11-10 09:18:24.101 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001825,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:24.101 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=74
+11-10 09:18:24.135 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001825,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:24.135 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=63
+11-10 09:18:25.116 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001826,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:25.116 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=77
+11-10 09:18:25.117 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001826,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:25.117 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=60
+11-10 09:18:26.136 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001827,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:26.136 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=76
+11-10 09:18:26.136 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001827,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:26.136 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=61
+11-10 09:18:27.126 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001828,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:27.126 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=79
+11-10 09:18:27.126 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001828,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:27.126 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6E
+11-10 09:18:28.114 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001829,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:18:28.114 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=78
+11-10 09:18:28.115 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001829,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:18:28.115 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6F

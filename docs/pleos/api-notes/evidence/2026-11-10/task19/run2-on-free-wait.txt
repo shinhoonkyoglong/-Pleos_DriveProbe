@@ -1,0 +1,17 @@
+--------- beginning of main
+11-10 17:31:00.500 32532 32630 I TollToggleCheck: === 시작 expectedRouteOption=FREE waitForGuidingSec=150
+11-10 17:31:00.767 32532 32630 I TollToggleCheck: wait state=SAFE_GUIDING/RECOMMENDED/toll=null
+11-10 17:31:50.940 32532 32630 I TollToggleCheck: wait state=ROUTE_GUIDING/FREE/toll=0
+11-10 17:31:53.030 32532 32630 I TollToggleCheck: 1 getRouteStateInfo=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=FREE, tollFare=0, isMock=false))
+11-10 17:31:54.041 32532 32630 I TollToggleCheck: 1 getDestinationInfo=Success(NaviDestinationInfo(latitude=37.5547, longitude=126.9707, name=서울역, address=용산구 동자동, poiId=smoke-seoul-station, poiSubId=null, remainDistanceMeters=26000, remainTimeSeconds=5400, isMock=false))
+11-10 17:31:54.042 32532 32630 I TollToggleCheck: PASS [1-routeOption] result=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=FREE, tollFare=0, isMock=false)) (기대 안내 중, routeOption=FREE, isMock=false)
+11-10 17:31:54.042 32532 32630 I TollToggleCheck: PASS [1-tollFare] tollFare=0 (기대 0)
+11-10 17:31:55.291 32532 32630 I TollToggleCheck: 2 conditionRoute=Satisfied(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=FREE, tollFare=0), notes=[])
+11-10 17:31:55.291 32532 32630 I TollToggleCheck: PASS [2-satisfied] result=Satisfied(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=FREE, tollFare=0), notes=[]) (기대 Satisfied)
+11-10 17:31:55.291 32532 32630 I TollToggleCheck: PASS [2-tollNote] tollFare=0 notes=[] (기대 0, 또는 null 이면 TOLL_FARE_NOT_OBSERVED)
+11-10 17:31:55.300 32532 32630 I TollToggleCheck: === 결과: 실패 0건
+
+# am instrument 출력 (waitForGuidingSec=150)
+ai.pleos.playground.sample.vehicle.departure.TollAvoidanceToggleCheckTest:.
+Time: 54.819
+OK (1 test)

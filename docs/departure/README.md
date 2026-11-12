@@ -198,7 +198,8 @@ session.resetSession()                     // 세션 기억을 지우고 다시 
 7. 연결된 뒤 서비스가 조용히 죽으면(끊김 콜백 없음) 감지하지 못해 조회가 타임아웃으로 끝날 수 있다. `onFailed`가 늦게 오거나 SDK 호출이 예외를 던질 때만 연결을 끊고 다시 연결한다.
 
 ## 7. 2번 core 를 고칠 때
-- 원본은 병합 전까지 2번 저장소(`MyApplication/departure-core`)다. 이 저장소의 `departure-core/`를 직접 고치면 2번 저장소에도 반영해야 한다.
+- 2026-11-12부터 **이 저장소가 원본**이다. `departure-core/`·`departure-ui/`를 여기서 직접 고치고 PR로 올린다(2번 단독 저장소는 더 이상 갱신하지 않음).
+- 고친 뒤 `bash scripts/check-departure.sh`(core 에 Android·Pleos import 금지 등 이식성 검사)가 `OK`여야 한다. 2번 문서(SDK 조사 근거·서버 계약)는 `docs/pleos/`.
 - 이식하면서 바꾼 core 코드: `model/Trip.kt` `TripEstimate.isFresh` 한 줄(`Duration.isPositive`는 Java 18 / Android API 34부터라 JDK 17·minSdk 28에서 쓸 수 없어 비교 연산으로 바꿈. 동작 동일). 2번 저장소에도 같은 수정이 역반영되어 지금 두 저장소의 core 는 같다.
 
 ## 8. 검증 (에뮬레이터 스모크 테스트, 2026-11-10)

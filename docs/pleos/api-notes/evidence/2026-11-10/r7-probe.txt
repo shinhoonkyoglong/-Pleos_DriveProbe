@@ -1,0 +1,10 @@
+11-10 09:19:49.034 I/PleosProbe( 5706): [main] === probe start steps=[init, loc, wait1] nowEpochSec=1794269989
+11-10 09:19:49.418 I/PleosProbe( 5706): [probe-runner] >>> STEP initialize start
+11-10 09:19:49.960 I/PleosProbe( 5706): [main] CB initialize.onConnected
+11-10 09:19:49.961 I/PleosProbe( 5706): [main] addListener done
+11-10 09:19:49.961 I/PleosProbe( 5706): [probe-runner] <<< STEP initialize done in 542ms
+11-10 09:19:50.963 I/PleosProbe( 5706): [probe-runner] >>> STEP getCurrentLocationInfo start
+11-10 09:19:50.995 I/PleosProbe( 5706): [binder:5706_2] CB onCurrentLocationInfo CurrentLocationInfo(latitude=37.4127212, longitude=127.094681, heading=0.0, address=수정구 시흥동, routeId=2737dd01-dc9c-11f1-95d7-72e3ec72fa29, currentRouteIndex=0)
+11-10 09:19:50.995 I/PleosProbe( 5706): [probe-runner] <<< STEP getCurrentLocationInfo done in 32ms
+11-10 09:19:51.997 I/PleosProbe( 5706): [probe-runner] ... wait 1s
+11-10 09:19:52.998 I/PleosProbe( 5706): [probe-runner] === probe end

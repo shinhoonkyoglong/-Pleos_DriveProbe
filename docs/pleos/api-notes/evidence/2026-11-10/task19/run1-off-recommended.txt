@@ -1,0 +1,9 @@
+--------- beginning of main
+11-10 17:29:34.255 22004 22175 I TollToggleCheck: === 시작 expectedRouteOption=RECOMMENDED waitForGuidingSec=0
+11-10 17:29:34.836 22004 22175 I TollToggleCheck: 1 getRouteStateInfo=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false))
+11-10 17:29:35.930 22004 22175 I TollToggleCheck: 1 getDestinationInfo=Success(NaviDestinationInfo(latitude=37.5547, longitude=126.9707, name=서울역, address=용산구 동자동, poiId=smoke-seoul-station, poiSubId=null, remainDistanceMeters=23000, remainTimeSeconds=3180, isMock=false))
+11-10 17:29:35.931 22004 22175 I TollToggleCheck: PASS [1-routeOption] result=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false)) (기대 안내 중, routeOption=RECOMMENDED, isMock=false)
+11-10 17:29:35.931 22004 22175 I TollToggleCheck: INFO [1-tollFare] 관측 못 함(null) — 이 Repository 가 뜬 뒤 onRouteStarted 를 받지 않음
+11-10 17:29:37.104 22004 22175 I TollToggleCheck: 2 conditionRoute=NeedsUserAction(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=RECOMMENDED, tollFare=null), actions=[TURN_ON_TOLL_AVOIDANCE], notes=[])
+11-10 17:29:37.105 22004 22175 I TollToggleCheck: PASS [2-needsUserAction] result=NeedsUserAction(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=RECOMMENDED, tollFare=null), actions=[TURN_ON_TOLL_AVOIDANCE], notes=[]) (기대 NeedsUserAction[TURN_ON_TOLL_AVOIDANCE])
+11-10 17:29:37.134 22004 22175 I TollToggleCheck: === 결과: 실패 0건

@@ -1,0 +1,72 @@
+package ai.probe.uxr
+
+import android.app.Activity
+import android.car.Car
+import android.car.drivingstate.CarUxRestrictions
+import android.car.drivingstate.CarUxRestrictionsManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
+
+class UxrActivity : Activity() {
+    private val tag = "UxrProbe"
+    private var car: Car? = null
+
+    private fun dump(label: String, r: CarUxRestrictions?) {
+        Log.i(tag, "$label t=${SystemClock.elapsedRealtime()} " + if (r == null) "null" else
+            "requiresDO=${r.isRequiresDistractionOptimization} active=0x${Integer.toHexString(r.activeRestrictions)} " +
+            "maxLen=${r.maxRestrictedStringLength} maxItems=${r.maxCumulativeContentItems} maxDepth=${r.maxContentDepth}")
+    }
+
+    private fun probe(label: String, c: Car) {
+        try {
+            val m = c.getCarManager(Car.CAR_UX_RESTRICTION_SERVICE) as CarUxRestrictionsManager?
+            Log.i(tag, "$label manager=$m connected=${c.isConnected}")
+            if (m == null) return
+            dump("$label current", m.currentCarUxRestrictions)
+            m.registerListener { r -> dump("$label LISTENER", r) }
+        } catch (t: Throwable) {
+            Log.e(tag, "$label EXC ${t.javaClass.name}: ${t.message}", t)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val mode = intent.getStringExtra("mode") ?: "life"
+        Log.i(tag, "start mode=$mode")
+        try {
+            when (mode) {
+                "sync" -> { // createCar(context) 직후 바로 사용
+                    val c = Car.createCar(this)
+                    Log.i(tag, "sync createCar=$c connected=${c?.isConnected}")
+                    car = c
+                    if (c != null) probe("sync-immediate", c)
+                }
+                "life" -> {
+                    Car.createCar(this, Handler(Looper.getMainLooper()), 10_000L) { c, ready ->
+                        Log.i(tag, "lifecycle ready=$ready car=$c")
+                        if (ready) { car = c; probe("life", c) }
+                    }
+                }
+                "edge" -> {
+                    val c = Car.createCar(this)
+                    Log.i(tag, "edge automotive=${packageManager.hasSystemFeature("android.hardware.type.automotive")} connected=${c?.isConnected}")
+                    Log.i(tag, "edge bogusManager=${c?.getCarManager("no_such_service")}")
+                    c?.disconnect()
+                    Log.i(tag, "edge afterDisconnect connected=${c?.isConnected}")
+                    try { Log.i(tag, "edge afterDisconnect manager=${c?.getCarManager(Car.CAR_UX_RESTRICTION_SERVICE)}") } catch (t: Throwable) { Log.e(tag, "edge afterDisconnect EXC ${t.javaClass.name}: ${t.message}") }
+                }
+                "legacy" -> { // createCar(context, handler): connect 후 사용
+                    val c = Car.createCar(this, Handler(Looper.getMainLooper()))
+                    Log.i(tag, "handler createCar=$c connected=${c?.isConnected}")
+                    car = c
+                    if (c != null) probe("legacy-immediate", c)
+                }
+            }
+        } catch (t: Throwable) {
+            Log.e(tag, "createCar EXC ${t.javaClass.name}: ${t.message}", t)
+        }
+    }
+}

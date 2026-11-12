@@ -1,0 +1,20 @@
+11-10 15:34:14.004 I/NaviQuerySmoke(15822): testHelper connected
+11-10 15:34:14.102 I/NaviHelperRepository(15822): NaviHelper SDK successfully connected.
+11-10 15:34:14.344 I/NaviQuerySmoke(15822): pre getRouteStateInfo=Success(NaviRouteState(naviMode=SAFE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false))
+11-10 15:34:14.345 I/NaviQuerySmoke(15822): === 1) 목적지 없음
+11-10 15:34:14.416 I/NaviQuerySmoke(15822): 1 getDestinationInfo=Success(null)
+11-10 15:34:14.416 I/NaviQuerySmoke(15822): PASS [1-dest-null] result=Success(null) (기대 success(null): 0 값 객체 → null, Mock 아님)
+11-10 15:34:14.436 I/NaviQuerySmoke(15822): 1 getRouteStateInfo=Success(NaviRouteState(naviMode=SAFE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false))
+11-10 15:34:14.438 I/NaviQuerySmoke(15822): PASS [1-state-not-guiding] result=Success(NaviRouteState(naviMode=SAFE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false)) (기대 SAFE_GUIDING 등 안내 아님, isMock=false)
+11-10 15:34:14.439 I/NaviQuerySmoke(15822): === 2) 서울역 requestRoute 후 조회
+11-10 15:34:14.445 I/NaviQuerySmoke(15822): FAIL [2-requestRoute] requestRoute threw java.lang.SecurityException: Permission [pleos.car.permission.NAVI_ROUTE_SEARCH] is required
+11-10 15:34:14.446 I/NaviQuerySmoke(15822): === 3) 어댑터 경유 출발 전 확인
+11-10 15:34:14.683 I/NaviQuerySmoke(15822): 3 snapshot=Checked(evaluatedAt=2026-11-10T06:34:14.650654Z, condition=ResolvedCondition(condition=DriverCondition(timeConstraints=[NO_NIGHT_DRIVING], routePreference=RoutePreference(constraints=[PREFER_TOLL_FREE]), radiusCenter=GeoPoint(latitude=37.4127, longitude=127.0947), allowedRadiusMeters=50000.0), source=LOADED, lookupFailure=null), destination=Available(value=NotSet), deadline=DestinationNotSet(evaluatedAt=2026-11-10T06:34:14.650654Z, originSunset=OriginSunset(origin=GeoPoint(latitude=37.4127212, longitude=127.094681), source=CURRENT_LOCATION
+11-10 15:34:14.683 I/NaviQuerySmoke(15822): FAIL [3-destination] destination=Available(value=NotSet)
+11-10 15:34:14.684 I/NaviQuerySmoke(15822): FAIL [3-deadline] deadline=DestinationNotSet(evaluatedAt=2026-11-10T06:34:14.650654Z, originSunset=OriginSunset(origin=GeoPoint(latitude=37.4127212, longitude=127.094681), source=CURRENT_LOCATION, sunset=SunsetBasis(sunset=2026-11-10T17:25:16.016+09:00[Asia/Seoul], place=ORIGIN, zenithDegrees=90.833))) (기대 Deadline/BeforeSunrise 등 — 내비 사유의 목적지 없음·확인 불가가 아님)
+11-10 15:34:14.684 I/NaviQuerySmoke(15822): FAIL [3-radius] radius=DestinationNotSet
+11-10 15:34:14.684 I/NaviQuerySmoke(15822): 3 route=DestinationNotSet
+11-10 15:34:14.684 I/NaviQuerySmoke(15822): === 4) 정리: cancelRoute
+11-10 15:34:15.813 I/NaviQuerySmoke(15822): 4 after cancel getDestinationInfo=Success(null) getRouteStateInfo=Success(NaviRouteState(naviMode=SAFE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false))
+11-10 15:34:15.813 I/NaviQuerySmoke(15822): PASS [4-cleanup] dest=Success(null) state=Success(NaviRouteState(naviMode=SAFE_GUIDING, routeOption=RECOMMENDED, tollFare=null, isMock=false)) (기대 목적지 없음, 안내 아님)
+11-10 15:34:15.840 I/NaviQuerySmoke(15822): === 결과: 실패 4건

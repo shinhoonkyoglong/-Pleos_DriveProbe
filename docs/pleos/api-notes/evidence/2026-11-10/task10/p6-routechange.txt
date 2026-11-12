@@ -1,0 +1,15 @@
+# p6 (프로브 로그 발췌: STEP·route 콜백·onError·onDrivingInfo + getDestinationInfo 폴링 값 전환점. 폴링 전체는 약 0.7초 간격 onDestinationInfo)
+11-10 10:52:00.751 I/PleosProbe(25221): [probe-runner] >>> STEP initialize start
+11-10 10:52:01.263 I/PleosProbe(25221): [probe-runner] <<< STEP initialize done in 511ms
+11-10 10:52:05.268 I/PleosProbe(25221): [probe-runner] >>> STEP requestRoute(34.0,128.0,RECOMMENDED,바다) start
+11-10 10:52:05.574 I/PleosProbe(25221): [binder:25221_3] CB onRouteCancelled
+11-10 10:52:05.584 I/PleosProbe(25221): [binder:25221_3] CB onNavigationStatus FREE_DRIVE
+11-10 10:52:05.842 I/PleosProbe(25221): [binder:25221_5] CB onDrivingInfo DrivingInfo(destination=DrivingState(name=제주, duration=0, distance=0, remainDestinationChargingValue=0, isChargingStation=false, isRecommendedChargingSt
+11-10 10:52:06.333 I/PleosProbe(25221): [binder:25221_5] CB onRouteCancelled
+11-10 10:52:06.338 I/PleosProbe(25221): [binder:25221_5] CB onNavigationStatus FREE_DRIVE
+11-10 10:52:06.526 I/PleosProbe(25221): [binder:25221_5] CB onError CAUSE_SEARCH_ROUTE
+11-10 10:52:06.527 I/PleosProbe(25221): [probe-runner] <<< STEP requestRoute(34.0,128.0,RECOMMENDED,바다) done in 1245ms
+--- onDestinationInfo 값 전환점
+11-10 10:52:03.324 lat=33.4996 name=제주 remainTime=32940
+11-10 10:52:05.970 lat=0.0 name= remainTime=0
+last: 11-10 10:53:01.920 lat=0.0 name= remainTime=0

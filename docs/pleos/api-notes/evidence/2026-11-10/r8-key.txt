@@ -1,0 +1,24 @@
+11-10 09:20:04.228 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,002005,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:20:04.228 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7D
+11-10 09:20:04.276 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,002005,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:20:04.276 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=6A
+11-10 09:20:04.851 D/[NaviHelper][SDK]NaviHelper( 8236): [main]initialize with callback
+11-10 09:20:04.851 D/[NaviHelper][SDK]c( 8236): [main]connectService
+11-10 09:20:05.212 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,002006,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:20:05.212 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7E
+11-10 09:20:05.212 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,002006,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:20:05.212 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=69
+11-10 09:20:05.390 I/[NaviHelper][SDK]c( 8236): [main]onServiceConnected
+11-10 09:20:05.394 I/[NaviHelper][SDK]c( 8236): [main]getServiceVersion = 3.0.4
+11-10 09:20:05.395 D/[NaviHelper][SDK]c( 8236): [main]registerCallbackV3
+11-10 09:20:05.395 D/[NaviHelper][SDK]NaviHelper( 8236): [main]addListener ai.probe.pleos.ProbeActivity$listener$1@1c57ec6
+11-10 09:20:06.398 I/[NaviHelper][SDK]NaviHelper( 8236): [main]getCurrentLocationInfo
+11-10 09:20:06.400 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onCurrentLocationInfoRequest
+11-10 09:20:06.401 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnCurrentLocationInfoRequest@c6bf1a5
+11-10 09:20:06.401 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-14]notifyCurrentLocationInfo
+11-10 09:20:06.402 I/[NaviHelper][SDK]a( 3880): [binder:3880_3]onCurrentLocationInfo
+11-10 09:20:06.403 I/[NaviHelper][SDK]b( 2862): [binder:2862_5]onCurrentLocationInfo
+11-10 09:20:06.403 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onCurrentLocationInfo
+11-10 09:20:06.403 I/[NaviHelper][SDK]a( 2628): [binder:2628_2]onCurrentLocationInfo
+11-10 09:20:06.403 I/[NaviHelper][SDK]b( 1128): [binder:1128_4]onCurrentLocationInfo
+11-10 09:20:06.431 I/[NaviHelper][SDK]b( 8236): [binder:8236_1]onCurrentLocationInfo

@@ -1,0 +1,10 @@
+--------- beginning of main
+11-10 17:32:47.514 14685 14796 I TollToggleCheck: === 시작 expectedRouteOption=FREE waitForGuidingSec=0
+11-10 17:32:48.359 14685 14796 I TollToggleCheck: 1 getRouteStateInfo=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=FREE, tollFare=null, isMock=false))
+11-10 17:32:49.489 14685 14796 I TollToggleCheck: 1 getDestinationInfo=Success(NaviDestinationInfo(latitude=37.5547, longitude=126.9707, name=서울역, address=용산구 동자동, poiId=smoke-seoul-station, poiSubId=null, remainDistanceMeters=26000, remainTimeSeconds=5400, isMock=false))
+11-10 17:32:49.489 14685 14796 I TollToggleCheck: PASS [1-routeOption] result=Success(NaviRouteState(naviMode=ROUTE_GUIDING, routeOption=FREE, tollFare=null, isMock=false)) (기대 안내 중, routeOption=FREE, isMock=false)
+11-10 17:32:49.489 14685 14796 I TollToggleCheck: INFO [1-tollFare] 관측 못 함(null) — 이 Repository 가 뜬 뒤 onRouteStarted 를 받지 않음
+11-10 17:32:51.119 14685 14796 I TollToggleCheck: 2 conditionRoute=Satisfied(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=FREE, tollFare=null), notes=[TOLL_FARE_NOT_OBSERVED])
+11-10 17:32:51.119 14685 14796 I TollToggleCheck: PASS [2-satisfied] result=Satisfied(destination=Place(point=GeoPoint(latitude=37.5547, longitude=126.9707), displayName=서울역, poiId=smoke-seoul-station, poiName=서울역, address=용산구 동자동, poiSubId=null), routeState=Guiding(appliedOption=FREE, tollFare=null), notes=[TOLL_FARE_NOT_OBSERVED]) (기대 Satisfied)
+11-10 17:32:51.119 14685 14796 I TollToggleCheck: PASS [2-tollNote] tollFare=null notes=[TOLL_FARE_NOT_OBSERVED] (기대 0, 또는 null 이면 TOLL_FARE_NOT_OBSERVED)
+11-10 17:32:51.158 14685 14796 I TollToggleCheck: === 결과: 실패 0건

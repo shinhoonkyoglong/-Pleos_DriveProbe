@@ -1,0 +1,32 @@
+# dumpsys car_service 발췌 (adb shell dumpsys car_service, user 빌드)
+## baseline UX restriction 설정(부팅 직후, Parked)
+  baseline mode UXR:
+  -------------------------------------------
+  State:unknown num restrictions:1
+  Requires DO? true
+  Restrictions: 0x1ff
+  Speed Range: None
+  -------------------------------------------
+  State:parked num restrictions:1
+  Requires DO? false
+  Restrictions: 0x0
+  Speed Range: None
+  -------------------------------------------
+  State:idling num restrictions:1
+  Requires DO? true
+  Restrictions: 0x50
+  Speed Range: None
+  -------------------------------------------
+  State:moving num restrictions:1
+  Requires DO? true
+  Restrictions: 0x50
+  Speed Range: None
+  -------------------------------------------
+  Max String length: 120
+## Park -> Drive 전후 (Virtual Console /vehicle/gear)
+Park: Current Driving State: 0 / Display id: 0 UXR: DO: false UxR: 0
+Drive(10:53경): Current Driving State: 1 / Display id: 0 UXR: DO: true UxR: 80 (0x50)
+Park 복귀: Current Driving State: 0 / UXR: DO: false UxR: 0
+ro.build.type=user
+
+Exception occurred while executing 'help':

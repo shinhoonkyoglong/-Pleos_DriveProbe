@@ -1,0 +1,34 @@
+11-10 09:11:31.389 I/PleosProbe( 5845): [main] === probe start steps=[init, dest, route:37.4981:127.0282:SHORT_DISTANCE:, wait12, state, dest, trip, release] nowEpochSec=1794269491
+11-10 09:11:31.737 I/PleosProbe( 5845): [probe-runner] >>> STEP initialize start
+11-10 09:11:32.313 I/PleosProbe( 5845): [main] CB initialize.onConnected
+11-10 09:11:32.314 I/PleosProbe( 5845): [main] addListener done
+11-10 09:11:32.314 I/PleosProbe( 5845): [probe-runner] <<< STEP initialize done in 576ms
+11-10 09:11:33.320 I/PleosProbe( 5845): [probe-runner] >>> STEP getDestinationInfo start
+11-10 09:11:34.367 I/PleosProbe( 5845): [binder:5845_2] CB onDestinationInfo DestinationInfo(latitude=37.5547, longitude=126.9707, displayLatitude=null, displayLongitude=null, name=, address=용산구 동자동, remainDistance=23000, remainTime=3900, tollFare=0, poiId=, poiSubId=null, poiProvider=)
+11-10 09:11:34.367 I/PleosProbe( 5845): [probe-runner] <<< STEP getDestinationInfo done in 1047ms
+11-10 09:11:35.368 I/PleosProbe( 5845): [probe-runner] >>> STEP requestRoute(37.4981,127.0282,SHORT_DISTANCE,) start
+11-10 09:11:35.636 I/PleosProbe( 5845): [binder:5845_2] CB onRouteCancelled
+11-10 09:11:35.746 I/PleosProbe( 5845): [binder:5845_3] CB onNavigationStatus FREE_DRIVE
+11-10 09:11:35.760 I/PleosProbe( 5845): [binder:5845_3] CB onDrivingInfo DrivingInfo(destination=DrivingState(name=, duration=0, distance=0, remainDestinationChargingValue=0, isChargingStation=false, isRecommendedChargingStation=false, maxChargingPower=0, targetSoc=0, chargerCount=0, chargingPlan=null), waypoints=[])
+11-10 09:11:35.764 I/PleosProbe( 5845): [binder:5845_2] CB onDestinationInfo DestinationInfo(latitude=0.0, longitude=0.0, displayLatitude=null, displayLongitude=null, name=, address=, remainDistance=0, remainTime=0, tollFare=0, poiId=, poiSubId=null, poiProvider=)
+11-10 09:11:35.819 I/PleosProbe( 5845): [binder:5845_2] CB onRouteStateInfo RouteStateInfo(termsAgreement=true, naviMode=SAFE_GUIDING, isRouting=false, routeOption=RECOMMENDED, remainDestinationChargingInt=0, remainWaypointChargingInt=[0, 0], trafficStatus=TrafficStatus(summary=TrafficCongestionSummary(totalCongestionDist=14000.0, totalCongestionTime=2160, totalCongestionAvrSpeed=18.279497895786776), congestionItemList=[TrafficCongestionInfo(offs
+11-10 09:11:42.641 I/PleosProbe( 5845): [binder:5845_2] CB onRouteStarted RouteStartInfo(duration=3360, distance=13000, tollFare=700, name=, remainDestinationChargingValue=75671)
+11-10 09:11:42.642 I/PleosProbe( 5845): [probe-runner] <<< STEP requestRoute(37.4981,127.0282,SHORT_DISTANCE,) done in 7273ms
+11-10 09:11:42.644 I/PleosProbe( 5845): [binder:5845_5] CB onRouteEnded
+11-10 09:11:42.652 I/PleosProbe( 5845): [binder:5845_5] CB onNavigationStatus ROUTE_DRIVE
+11-10 09:11:42.728 I/PleosProbe( 5845): [binder:5845_5] CB onRouteStateInfo RouteStateInfo(termsAgreement=true, naviMode=ROUTE_GUIDING, isRouting=false, routeOption=RECOMMENDED, remainDestinationChargingInt=75671, remainWaypointChargingInt=[0, 0], trafficStatus=TrafficStatus(summary=TrafficCongestionSummary(totalCongestionDist=14000.0, totalCongestionTime=2160, totalCongestionAvrSpeed=18.279497895786776), congestionItemList=[TrafficCongestionInfo
+11-10 09:11:43.562 I/PleosProbe( 5845): [binder:5845_5] CB onDrivingInfo DrivingInfo(destination=DrivingState(name=, duration=3360, distance=13000, remainDestinationChargingValue=75671, isChargingStation=false, isRecommendedChargingStation=false, maxChargingPower=0, targetSoc=10, chargerCount=0, chargingPlan=null), waypoints=[])
+11-10 09:11:43.673 I/PleosProbe( 5845): [probe-runner] ... wait 12s
+11-10 09:11:55.675 I/PleosProbe( 5845): [probe-runner] >>> STEP getRouteStateInfo start
+11-10 09:11:55.715 I/PleosProbe( 5845): [binder:5845_5] CB onRouteStateInfo RouteStateInfo(termsAgreement=true, naviMode=ROUTE_GUIDING, isRouting=false, routeOption=RECOMMENDED, remainDestinationChargingInt=75671, remainWaypointChargingInt=[0, 0], trafficStatus=TrafficStatus(summary=TrafficCongestionSummary(totalCongestionDist=10000.0, totalCongestionTime=2340, totalCongestionAvrSpeed=13.875551965707405), congestionItemList=[TrafficCongestionInfo
+11-10 09:11:55.716 I/PleosProbe( 5845): [probe-runner] <<< STEP getRouteStateInfo done in 41ms
+11-10 09:11:56.716 I/PleosProbe( 5845): [probe-runner] >>> STEP getDestinationInfo start
+11-10 09:11:57.742 I/PleosProbe( 5845): [binder:5845_5] CB onDestinationInfo DestinationInfo(latitude=37.4981, longitude=127.0282, displayLatitude=null, displayLongitude=null, name=, address=강남구 역삼동, remainDistance=13000, remainTime=3360, tollFare=0, poiId=, poiSubId=null, poiProvider=)
+11-10 09:11:57.742 I/PleosProbe( 5845): [probe-runner] <<< STEP getDestinationInfo done in 1025ms
+11-10 09:11:58.743 I/PleosProbe( 5845): [probe-runner] >>> STEP requestTrip(서울역) start
+11-10 09:11:59.123 I/PleosProbe( 5845): [binder:5845_5] CB onTripInfo distance=23799 eta=4008 soc=96 energy=3023.00537109375 nowEpochSec=1794269519 trafficCount=25 routePointCount=1
+11-10 09:11:59.123 I/PleosProbe( 5845): [probe-runner] <<< STEP requestTrip(서울역) done in 380ms
+11-10 09:12:00.126 I/PleosProbe( 5845): [probe-runner] >>> STEP release start
+11-10 09:12:00.136 I/PleosProbe( 5845): [main] removeListener+release done
+11-10 09:12:01.628 I/PleosProbe( 5845): [probe-runner] <<< STEP release done in 1501ms
+11-10 09:12:02.628 I/PleosProbe( 5845): [probe-runner] === probe end

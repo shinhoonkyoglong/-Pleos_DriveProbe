@@ -1,0 +1,81 @@
+11-10 09:10:26.626 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001027,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:10:26.626 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=7E
+11-10 09:10:26.627 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001027,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:10:26.627 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=69
+11-10 09:10:27.277 D/[NaviHelper][SDK]NaviHelper(26273): [main]initialize with callback
+11-10 09:10:27.278 D/[NaviHelper][SDK]c(26273): [main]connectService
+11-10 09:10:27.666 W/GpsLocationSource( 3586): Invalid NMEA message: $GPGGA,001028,3733.9899,N,12658.6799,E,1,6,,0.0,M,0.,M,,,*47
+11-10 09:10:27.666 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=71
+11-10 09:10:27.681 W/GpsLocationSource( 3586): Invalid NMEA message: $GPRMC,001028,A,3733.9899,N,12658.6799,E,0.00,0.00,101126,0.0,W*47
+11-10 09:10:27.681 W/GpsLocationSource( 3586): java.lang.IllegalArgumentException: NMEA checksum mismatch: expected=47, actual=66
+11-10 09:10:27.807 I/[NaviHelper][SDK]c(26273): [main]onServiceConnected
+11-10 09:10:27.818 I/[NaviHelper][SDK]c(26273): [main]getServiceVersion = 3.0.4
+11-10 09:10:27.818 D/[NaviHelper][SDK]c(26273): [main]registerCallbackV3
+11-10 09:10:27.819 D/[NaviHelper][SDK]NaviHelper(26273): [main]addListener ai.probe.pleos.ProbeActivity$listener$1@1c57ec6
+11-10 09:10:28.821 I/[NaviHelper][SDK]NaviHelper(26273): [main]getRouteStateInfo
+11-10 09:10:28.824 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onRouteStateInfoRequest
+11-10 09:10:28.825 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnRouteStateInfoRequest@709ec9a
+11-10 09:10:28.830 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-1]notifyRouteStateInfo
+11-10 09:10:28.832 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onRouteStateInfo
+11-10 09:10:28.832 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onRouteStateInfo
+11-10 09:10:28.849 I/[NaviHelper][SDK]b( 2862): [binder:2862_7]onRouteStateInfo
+11-10 09:10:28.850 I/[NaviHelper][SDK]b( 1128): [binder:1128_B]onRouteStateInfo
+11-10 09:10:28.851 I/[NaviHelper][SDK]b( 5134): [binder:5134_4]onRouteStateInfo
+11-10 09:10:28.890 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onRouteStateInfo
+11-10 09:10:29.898 I/[NaviHelper][SDK]NaviHelper(26273): [main]getDestinationInfo
+11-10 09:10:29.901 D/[NaviProvider][SDK]b( 3586): [binder:3586_5]onDestinationInfoRequest
+11-10 09:10:29.902 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnDestinationInfoRequest@5d5f8c9
+11-10 09:10:30.905 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-12]notifyDestinationInfo
+11-10 09:10:30.906 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onDestinationInfo
+11-10 09:10:30.907 I/[NaviHelper][SDK]b( 5134): [binder:5134_4]onDestinationInfo
+11-10 09:10:30.907 I/[NaviHelper][SDK]b( 2862): [binder:2862_B]onDestinationInfo
+11-10 09:10:30.907 I/[NaviHelper][SDK]b( 1128): [binder:1128_B]onDestinationInfo
+11-10 09:10:30.910 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onDestinationInfo
+11-10 09:10:30.913 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onDestinationInfo
+11-10 09:10:31.913 I/[NaviHelper][SDK]NaviHelper(26273): [main]changeRouteOption
+11-10 09:10:31.926 D/[NaviProvider][SDK]b( 3586): [binder:3586_5]onChangeRouteOptionRequest
+11-10 09:10:31.927 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ChangeRouteOptionRequest(routeOption=FREE)
+11-10 09:10:54.916 I/[NaviHelper][SDK]NaviHelper(26273): [main]getRouteStateInfo
+11-10 09:10:54.917 D/[NaviProvider][SDK]b( 3586): [binder:3586_5]onRouteStateInfoRequest
+11-10 09:10:54.918 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnRouteStateInfoRequest@709ec9a
+11-10 09:10:54.925 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-12]notifyRouteStateInfo
+11-10 09:10:54.928 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onRouteStateInfo
+11-10 09:10:54.928 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onRouteStateInfo
+11-10 09:10:54.930 I/[NaviHelper][SDK]b( 5134): [binder:5134_2]onRouteStateInfo
+11-10 09:10:54.931 I/[NaviHelper][SDK]b( 2862): [binder:2862_5]onRouteStateInfo
+11-10 09:10:54.932 I/[NaviHelper][SDK]b( 1128): [binder:1128_6]onRouteStateInfo
+11-10 09:10:54.938 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onRouteStateInfo
+11-10 09:10:55.947 I/[NaviHelper][SDK]NaviHelper(26273): [main]getDestinationInfo
+11-10 09:10:55.949 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onDestinationInfoRequest
+11-10 09:10:55.950 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnDestinationInfoRequest@5d5f8c9
+11-10 09:10:56.953 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-4]notifyDestinationInfo
+11-10 09:10:56.954 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onDestinationInfo
+11-10 09:10:56.954 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onDestinationInfo
+11-10 09:10:56.954 I/[NaviHelper][SDK]b( 1128): [binder:1128_B]onDestinationInfo
+11-10 09:10:56.955 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onDestinationInfo
+11-10 09:10:56.955 I/[NaviHelper][SDK]b( 2862): [binder:2862_5]onDestinationInfo
+11-10 09:10:56.956 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onDestinationInfo
+11-10 09:10:57.959 I/[NaviHelper][SDK]NaviHelper(26273): [main]getCurrentLocationInfo
+11-10 09:10:57.960 D/[NaviProvider][SDK]b( 3586): [binder:3586_5]onCurrentLocationInfoRequest
+11-10 09:10:57.961 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: ai.umos.maps.android.navigation.app.domain.model.connect.ConnectNaviProviderEvent$OnCurrentLocationInfoRequest@c6bf1a5
+11-10 09:10:57.961 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-5]notifyCurrentLocationInfo
+11-10 09:10:57.963 I/[NaviHelper][SDK]a( 3880): [binder:3880_5]onCurrentLocationInfo
+11-10 09:10:57.963 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onCurrentLocationInfo
+11-10 09:10:57.963 I/[NaviHelper][SDK]b( 1128): [binder:1128_B]onCurrentLocationInfo
+11-10 09:10:57.965 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onCurrentLocationInfo
+11-10 09:10:57.966 I/[NaviHelper][SDK]b( 2862): [binder:2862_5]onCurrentLocationInfo
+11-10 09:10:57.966 I/[NaviHelper][SDK]a( 2628): [binder:2628_1]onCurrentLocationInfo
+11-10 09:10:58.969 I/[NaviHelper][SDK]NaviHelper(26273): [main]requestTrip
+11-10 09:10:58.972 D/[NaviProvider][SDK]b( 3586): [binder:3586_7]onTripRequest
+11-10 09:10:58.972 D/MainViewModel$startConnectNaviProviderCollect( 3586): connectNaviProviderEventFlow: OnTripRequest(latitude=37.5547, longitude=126.9707, poiId=probe-seoul-station, poiName=서울역, poiSubId=0)
+11-10 09:10:58.972 D/MainViewModel$startConnectNaviProviderCollect( 3586): ConnectNaviProviderEvent.OnRouteTripRequest : OnTripRequest(latitude=37.5547, longitude=126.9707, poiId=probe-seoul-station, poiName=서울역, poiSubId=0)
+11-10 09:10:59.385 D/MainViewModel$handleRouteTripRequest( 3586): [handleRouteTripRequest] response: SimpleRouteTripResponse(distance=23799, energyConsumption=3024.06005859375, eta=4020, remainSoc=96, tripSummary=TripSummary(traffics=[RouteTripTrafficInfo(congestionType=SLOW, startRatioOnRoute=0.0, endRatioOnRoute=4.0), RouteTripTrafficInfo(congestionType=FAST, startRatioOnRoute=4.0, endRatioOnRou
+11-10 09:10:59.385 I/[NaviProvider][SDK]NaviProvider( 3586): [DefaultDispatcher-worker-10]notifyTripInfo
+11-10 09:10:59.387 I/[NaviHelper][SDK]b( 1128): [binder:1128_B]onTripInfo
+11-10 09:10:59.387 I/[NaviHelper][SDK]b( 2862): [binder:2862_9]onTripInfo
+11-10 09:10:59.389 I/[NaviHelper][SDK]b( 5134): [binder:5134_5]onTripInfo
+11-10 09:10:59.402 I/[NaviHelper][SDK]b(26273): [binder:26273_4]onTripInfo
+11-10 09:11:02.404 D/[NaviHelper][SDK]NaviHelper(26273): [main]removeListener
+11-10 09:11:02.404 D/[NaviHelper][SDK]NaviHelper(26273): [main]release
+11-10 09:11:02.406 I/[NaviHelper][SDK]c(26273): [main]getServiceVersion = 3.0.4
+11-10 09:11:02.406 D/[NaviHelper][SDK]c(26273): [main]unregisterCallbackV3
