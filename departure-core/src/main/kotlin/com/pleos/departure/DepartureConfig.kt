@@ -1,5 +1,6 @@
 package com.pleos.departure
 
+import com.pleos.departure.model.GeoPoint
 import com.pleos.departure.model.RouteOption
 import com.pleos.departure.sun.SunCalculator
 import java.time.Duration
@@ -156,6 +157,19 @@ data class DepartureConfig(
      *   제공하지 못하는 동안 실제 연동에서는 늘 UNKNOWN → 조작이 숨겨진다(integration-guide 수정 목록 5).
      */
     val treatUnknownDrivingAsRestricted: Boolean = true,
+
+    /**
+     * 끝난 주행의 야간 조건 판정(작업 #29)에서 위치를 모를 때 일몰을 계산할 기준점.
+     * 순서: 호출자가 준 위치 → 운전자 조건의 반경 기준점(집) → 이 값.
+     * [설계 판단] 서울시청(37.5665, 126.9780). 국내 일몰은 지역에 따라 30분 안쪽으로 달라 시연 판정에는 충분하다.
+     */
+    val defaultSunReferencePoint: GeoPoint = GeoPoint(latitude = 37.5665, longitude = 126.9780),
+
+    /**
+     * 끝난 주행이 야간에 걸친 시간이 이 값 이하이면 야간 조건을 지킨 것으로 본다(작업 #29).
+     * [설계 판단] 0(1초라도 걸치면 위반). 도로교통법 '해가 진 후'를 그대로 따른다. 실차 확인 후 너그럽게 할지 조정 대상.
+     */
+    val tripNightTolerance: Duration = Duration.ZERO,
 ) {
     init {
         require(!departureMargin.isNegative) { "departureMargin must not be negative" }
@@ -172,6 +186,7 @@ data class DepartureConfig(
         require(routeChangeRecheckInterval > Duration.ZERO) { "routeChangeRecheckInterval must be > 0" }
         require(routeChangeRecheckMaxAttempts >= 0) { "routeChangeRecheckMaxAttempts must be >= 0" }
         require(screenRefreshInterval > Duration.ZERO) { "screenRefreshInterval must be > 0" }
+        require(!tripNightTolerance.isNegative) { "tripNightTolerance must not be negative" }
     }
 }
 
