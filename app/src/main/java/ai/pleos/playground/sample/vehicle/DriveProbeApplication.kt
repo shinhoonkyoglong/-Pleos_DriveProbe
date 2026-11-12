@@ -3,6 +3,7 @@ package ai.pleos.playground.sample.vehicle
 import android.app.Application
 import ai.pleos.playground.sample.vehicle.condition.ConditionModule
 import ai.pleos.playground.sample.vehicle.data.local.AppDatabase
+import ai.pleos.playground.sample.vehicle.data.repository.DemoNaviFallbackRepository
 import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepository
 import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryImpl
 import ai.pleos.playground.sample.vehicle.data.repository.VehicleRepository
@@ -68,7 +69,10 @@ class DriveProbeApplication : Application() {
         }
 
         // 3. NaviHelper Repository 초기화
-        naviHelperRepository = NaviHelperRepositoryImpl(this) // context: NaviHelper SDK 연결용(조회 계열)
+        naviHelperRepository = NaviHelperRepositoryImpl(this).let { real -> // context: NaviHelper SDK 연결용(조회 계열)
+            // [시연] debug 빌드에서만: 내비가 응답하지 않으면 '출발 전' 조회 4개를 예시 값으로 대신한다(화면에 "내비 예시 데이터" 표시)
+            if (BuildConfig.DEBUG) DemoNaviFallbackRepository(real) else real
+        }
 
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)

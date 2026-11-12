@@ -1,0 +1,239 @@
+package ai.pleos.playground.sample.vehicle.ui.kd
+
+import ai.pleos.playground.sample.vehicle.condition.core.ReactionPhase
+import ai.pleos.playground.sample.vehicle.condition.core.ReactionVerdict
+import ai.pleos.playground.sample.vehicle.condition.core.TrialOutcome
+import android.os.SystemClock
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
+
+/**
+ * 출발 전 반응 체크. 정차(P) 중에만 진행되고, 기어가 바뀌거나 차가 움직이면 바로 멈춘다(ReactionGate).
+ *
+ * 흐름: 안내 → [시작] → 화면 가운데 원이 초록으로 바뀌면 화면 아무 곳이나 누른다(1분) → 결과
+ */
+@Composable
+fun ReactionCheckScreen(viewModel: ReactionCheckViewModel, isReplay: Boolean, onBack: () -> Unit) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val running = state.phase == ReactionPhase.WAITING || state.phase == ReactionPhase.STIMULUS
+
+    val leave = {
+        viewModel.cancel()
+        onBack()
+    }
+    BackHandler(onBack = leave)
+
+    // 준비 화면: 차량 상태가 바뀌면 시작 가능 여부를 다시 계산한다
+    LaunchedEffect(state.phase) {
+        if (state.phase == ReactionPhase.READY) {
+            while (true) {
+                viewModel.refreshGate()
+                delay(500)
+            }
+        }
+    }
+    // 진행 중: 매 프레임 세션을 진행시킨다(시각은 터치와 같은 uptime 기준)
+    LaunchedEffect(running) {
+        if (running) {
+            while (true) {
+                withFrameMillis { }
+                viewModel.onFrame(SystemClock.uptimeMillis())
+            }
+        }
+    }
+
+    when {
+        running -> RunningView(state, isReplay, onTap = { viewModel.onTap(SystemClock.uptimeMillis()) }, onStop = leave)
+        state.phase == ReactionPhase.READY -> IntroView(
+            state = state,
+            recordCount = viewModel.personalRecordCount,
+            isReplay = isReplay,
+            onStart = { viewModel.start(SystemClock.uptimeMillis()) },
+            onBack = leave,
+        )
+        else -> ResultView(state, isReplay, onRetry = viewModel::reset, onDone = leave)
+    }
+}
+
+@Composable
+private fun IntroView(state: ReactionUiState, recordCount: Int, isReplay: Boolean, onStart: () -> Unit, onBack: () -> Unit) {
+    KdScreen(testTag = "kd-reaction-intro") {
+        KdTopBar("출발 전 컨디션 체크", onBack = onBack) { if (isReplay) KdTag("시연 모드") }
+        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
+            KdCard(modifier = Modifier.weight(1f)) {
+                Text("이렇게 해요", style = Kd.Title)
+                Step("1", "화면 가운데 원을 바라봐 주세요")
+                Step("2", "원이 초록색으로 바뀌면 화면 아무 곳이나 바로 눌러 주세요")
+                Step("3", "1분 동안 여러 번 나와요. 미리 누르지 마세요")
+            }
+            KdCard(modifier = Modifier.weight(1f)) {
+                Text("결과는 이렇게 써요", style = Kd.Title)
+                Text("시험이 아니에요. 평소 내 기록과 비교해서 오늘 컨디션을 알려 드려요.", style = Kd.Body)
+                Text(
+                    if (recordCount >= 3) "평소 기록 ${recordCount}회와 비교해요"
+                    else "평소 기록을 모으는 중이에요(${recordCount}/3회). 그동안은 일반 기준과 비교해요",
+                    style = Kd.BodyMuted,
+                )
+                Text("결과가 나빠도 시동을 막지 않아요. 쉬어 갈지는 직접 정하세요.", style = Kd.BodyMuted)
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        if (state.blockedReason != null) {
+            KdStatusBadge(KdTone.CAUTION, state.blockedReason)
+        }
+        KdButton(
+            "시작하기",
+            onClick = onStart,
+            enabled = state.blockedReason == null,
+            modifier = Modifier.fillMaxWidth().testTag("kd-reaction-start"),
+            minHeight = 120.dp,
+        )
+    }
+}
+
+@Composable
+private fun Step(number: String, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(48.dp).clip(CircleShape).background(Kd.AccentContainer),
+            contentAlignment = Alignment.Center,
+        ) { Text(number, style = Kd.Label.copy(color = Kd.Accent)) }
+        Spacer(Modifier.size(20.dp))
+        Text(text, style = Kd.Body)
+    }
+}
+
+@Composable
+private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> Unit, onStop: () -> Unit) {
+    // 화면 전체가 누르는 곳(손이 떨려도 원을 정확히 누를 필요가 없게)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Kd.Background)
+            .pointerInput(Unit) { detectTapGestures(onPress = { onTap() }) }
+            .testTag("kd-reaction-running"),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            val color = if (state.stimulusVisible) Kd.Good else Kd.SurfaceRaised
+            Box(
+                Modifier
+                    .size(360.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .border(4.dp, if (state.stimulusVisible) Kd.Good else Kd.Outline, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (state.stimulusVisible) "지금!" else "기다려요",
+                    fontSize = 56.sp,
+                    color = if (state.stimulusVisible) Kd.InkOnAccent else Kd.InkMuted,
+                    style = Kd.Display,
+                )
+            }
+            Spacer(Modifier.height(40.dp))
+            Text(feedback(state.lastOutcome), style = Kd.Title, textAlign = TextAlign.Center)
+        }
+        // 남은 시간 막대
+        val progress = if (state.totalMs == 0L) 0f else state.remainingMs.toFloat() / state.totalMs
+        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth(progress).height(12.dp).background(Kd.Accent))
+            Row(
+                Modifier.fillMaxWidth().padding(Kd.ScreenPadding),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("남은 시간 ${(state.remainingMs + 999) / 1000}초", style = Kd.Title, modifier = Modifier.weight(1f))
+                if (isReplay) KdTag("시연 모드", modifier = Modifier.padding(end = 24.dp))
+                KdButton("그만하기", onClick = onStop, style = KdButtonStyle.SECONDARY, minHeight = 80.dp)
+            }
+        }
+    }
+}
+
+private fun feedback(outcome: TrialOutcome?): String = when (outcome) {
+    TrialOutcome.VALID -> "좋아요"
+    TrialOutcome.FALSE_START -> "조금 일렀어요. 초록색이 되면 눌러 주세요"
+    TrialOutcome.TIMEOUT -> "괜찮아요. 다음 원을 기다려 주세요"
+    null -> "원이 초록색으로 바뀌면 눌러 주세요"
+}
+
+@Composable
+private fun ResultView(state: ReactionUiState, isReplay: Boolean, onRetry: () -> Unit, onDone: () -> Unit) {
+    val result = state.result
+    KdScreen(testTag = "kd-reaction-result") {
+        KdTopBar("컨디션 체크 결과", onBack = onDone) { if (isReplay) KdTag("시연 모드") }
+        if (result == null) {
+            KdStatusBadge(KdTone.UNKNOWN, "체크가 중간에 멈췄어요", large = true)
+            Text("기어가 바뀌거나 차가 움직이면 체크를 멈춰요. 정차한 뒤 다시 해 주세요.", style = Kd.Body)
+        } else {
+            val status = result.verdict.toStatus()
+            val compared = result.verdict != ReactionVerdict.INCONCLUSIVE
+            KdCard(modifier = Modifier.fillMaxWidth(), borderColor = status.tone.color) {
+                KdStatusBadge(status.tone, status.title, large = true)
+                Text(result.message, style = Kd.Body)
+                if (compared && result.isCalibrating) {
+                    Text("평소 기록이 3회 모이기 전이라 일반 기준과 비교했어요", style = Kd.BodyMuted)
+                }
+            }
+            val s = result.summary
+            Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
+                StatCard(s.medianReactionMs?.let { "${it}ms" } ?: "-", "반응 속도(가운데 값)", Modifier.weight(1f))
+                StatCard("${s.validCount}회", "제때 누른 횟수", Modifier.weight(1f))
+                StatCard("${s.slowCount}회", "느렸거나 놓친 횟수", Modifier.weight(1f))
+            }
+            Text(
+                if (compared) "결과는 다음 주행의 피로 판단에 참고하고, 내 기록에 남겨요."
+                else "이번 결과는 피로 판단과 내 기록에 쓰지 않아요.",
+                style = Kd.BodyMuted,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
+            KdButton("다시 하기", onClick = onRetry, style = KdButtonStyle.SECONDARY, modifier = Modifier.weight(1f))
+            KdButton("확인", onClick = onDone, modifier = Modifier.weight(1f).testTag("kd-reaction-done"))
+        }
+    }
+}
+
+@Composable
+private fun StatCard(value: String, label: String, modifier: Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(Kd.Surface)
+            .border(2.dp, Kd.Outline, RoundedCornerShape(24.dp))
+            .padding(28.dp),
+    ) { KdStat(value, label) }
+}
