@@ -29,7 +29,9 @@ class DemoAssetsTest {
         files.forEach { (name, text) ->
             val f = File(dir, name)
             assertTrue("$name 없음 → -PwriteDemo=true 로 생성", f.exists())
-            assertEquals("$name 이 생성기와 다름 → -PwriteDemo=true 로 다시 생성", text, f.readText(Charsets.UTF_8))
+            // Windows에서 git checkout 시 core.autocrlf=true면 LF가 CRLF로 바뀌므로 줄바꿈은 비교에서 뺀다
+            val actual = f.readText(Charsets.UTF_8).replace("\r\n", "\n")
+            assertEquals("$name 이 생성기와 다름 → -PwriteDemo=true 로 다시 생성", text, actual)
         }
     }
 
