@@ -105,6 +105,7 @@ class DriveProbeApplication : Application() {
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)
         interventions = InterventionModule(this, vehicleRepository, appDatabase.interventionHistoryDao(), restNavigation,navi::removeProbeWaypoint)
+        ai.pleos.playground.sample.vehicle.trip.TripModule.init(this) // 5. 주행 기록·종료 요약 (5번 포지션)
     }
 
     override fun onTerminate() {
