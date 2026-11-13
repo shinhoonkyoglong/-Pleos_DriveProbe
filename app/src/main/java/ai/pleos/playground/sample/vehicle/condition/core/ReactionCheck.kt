@@ -5,23 +5,46 @@ import kotlin.random.Random
 /*
  * 출발 전 반응 체크 (PVT 축소판) — 화면(ui)과 분리된 순수 로직.
  *
- * 데이터 흐름: ui가 매 프레임 update(now), 터치 시 onTap(now)를 부른다
- *            → 세션이 자극 일정·시도 기록을 관리 → 끝나면 summary()
+ * 데이터 흐름: ui가 매 프레임 update(now)를 부르고, 반응 입력을 넘긴다
+ *              - 터치: onTap(now)
+ *              - 브레이크 페달: onPress(now) / onRelease(now) (밟은 채로는 다음 자극이 나오지 않는다)
+ *            → 세션이 자극 일정·시도 기록을 관리 → 유효 반응 targetValidTrials회 또는 durationMs가 되면 끝 → summary()
  *            → ReactionEvaluator가 본인 기준선과 비교해 ReactionResult(판정·문구)
  *            → ConditionProcessor.setPreDrive(result.verdict)로 피로 점수에 가산
+ *
+ * 소요 시간(2026-11-13 결정): "유효 반응 10회가 모이면 끝, 최대 40초" → 보통 약 30초.
  */
 
+/** 반응을 받는 방법. 터치와 브레이크는 반응 시간이 달라 기준선을 따로 쓴다 */
+enum class ReactionInput { TOUCH, BRAKE }
+
 data class ReactionParams(
-    val durationMs: Long = 60_000L,
-    val minIntervalMs: Long = 2_000L,
-    val maxIntervalMs: Long = 5_000L,
-    /** 자극 후 이 시간 미만 터치 = 너무 빠른 터치(보고 누른 게 아니라 예측) */
+    /** 최대 검사 시간 */
+    val durationMs: Long = 40_000L,
+    val minIntervalMs: Long = 1_500L,
+    val maxIntervalMs: Long = 3_000L,
+    /** 유효 반응이 이만큼 모이면 바로 끝낸다. null이면 durationMs까지 계속 */
+    val targetValidTrials: Int? = 10,
+    /** 자극 후 이 시간 미만 반응 = 너무 빠른 반응(보고 반응한 게 아니라 예측) */
     val falseStartMs: Long = 100L,
     /** 이 시간 초과 = 느린 반응 */
     val slowMs: Long = 500L,
-    /** 자극 후 이 시간 동안 터치가 없으면 놓침(느린 반응으로도 셈) */
+    /** 자극 후 이 시간 동안 반응이 없으면 놓침(느린 반응으로도 셈) */
     val timeoutMs: Long = 2_000L,
-)
+) {
+    companion object {
+        /**
+         * 브레이크 페달용. 발을 옮기는 시간만큼 손가락 터치보다 느리므로 느린 반응 기준을 올린다.
+         * 700ms는 "터치 500ms + 발 이동 약 200ms"로 잡은 **임시값**(실측·문헌 확인 전).
+         */
+        val BRAKE = ReactionParams(slowMs = 700L)
+
+        fun of(input: ReactionInput): ReactionParams = when (input) {
+            ReactionInput.TOUCH -> ReactionParams()
+            ReactionInput.BRAKE -> BRAKE
+        }
+    }
+}
 
 enum class TrialOutcome { VALID, FALSE_START, TIMEOUT }
 
@@ -63,17 +86,26 @@ class ReactionSession(
     private var stimulusShownAtMs = 0L
     private val trials = ArrayList<ReactionTrial>()
 
+    /** 브레이크 페달을 밟고 있는지. 밟은 채로는 자극을 내지 않는다(터치는 늘 false) */
+    var isHeld: Boolean = false
+        private set
+
     val isStimulusVisible: Boolean get() = phase == ReactionPhase.STIMULUS
+
+    /** 지금까지 유효 반응 수. 진행 표시용 */
+    val validCount: Int get() = trials.count { it.outcome == TrialOutcome.VALID }
 
     /** 남은 시간(ms). 진행 표시용 */
     fun remainingMs(nowMs: Long): Long =
         if (phase == ReactionPhase.READY) params.durationMs
         else (params.durationMs - (nowMs - startMs)).coerceAtLeast(0)
 
-    fun start(nowMs: Long) {
+    /** @param held 시작 순간 페달을 밟고 있으면 true → 뗄 때까지 자극을 내지 않는다 */
+    fun start(nowMs: Long, held: Boolean = false) {
         check(phase == ReactionPhase.READY) { "already started" }
         startMs = nowMs
         trials.clear()
+        isHeld = held
         schedule(nowMs)
         phase = ReactionPhase.WAITING
     }
@@ -85,7 +117,7 @@ class ReactionSession(
                 val ended = nowMs - startMs >= params.durationMs
                 if (ended) {
                     phase = ReactionPhase.FINISHED
-                } else if (nowMs >= nextStimulusAtMs) {
+                } else if (!isHeld && nowMs >= nextStimulusAtMs) {
                     stimulusShownAtMs = nowMs
                     phase = ReactionPhase.STIMULUS
                 }
@@ -99,11 +131,28 @@ class ReactionSession(
         return phase
     }
 
-    /** 터치. 기록된 시도 결과를 돌려준다(진행 중이 아니면 null). */
+    /**
+     * 브레이크를 밟음(false→true). 반응으로 처리한다.
+     * 이미 밟은 상태에서 다시 오면(같은 값 재전송) 무시한다.
+     */
+    fun onPress(nowMs: Long): TrialOutcome? {
+        if (isHeld) return null
+        isHeld = true
+        return onTap(nowMs)
+    }
+
+    /** 브레이크를 뗌(true→false). 대기 시간을 이 시각부터 다시 잡는다(뗀 직후 바로 자극이 나오지 않게). */
+    fun onRelease(nowMs: Long) {
+        if (!isHeld) return
+        isHeld = false
+        if (phase == ReactionPhase.WAITING) schedule(nowMs)
+    }
+
+    /** 터치(또는 브레이크 밟음). 기록된 시도 결과를 돌려준다(진행 중이 아니면 null). */
     fun onTap(nowMs: Long): TrialOutcome? {
         return when (phase) {
             ReactionPhase.WAITING -> {
-                // 자극 전에 누름 → 너무 빠른 터치. 대기 시간을 다시 잡아 연타로 맞히는 것을 막는다
+                // 자극 전에 반응 → 너무 빠른 반응. 대기 시간을 다시 잡아 연타로 맞히는 것을 막는다
                 trials += ReactionTrial(null, null, TrialOutcome.FALSE_START)
                 schedule(nowMs)
                 TrialOutcome.FALSE_START
@@ -142,7 +191,9 @@ class ReactionSession(
     }
 
     private fun afterTrial(nowMs: Long) {
-        phase = if (nowMs - startMs >= params.durationMs) ReactionPhase.FINISHED else ReactionPhase.WAITING
+        val enough = params.targetValidTrials?.let { validCount >= it } ?: false
+        val timeUp = nowMs - startMs >= params.durationMs
+        phase = if (enough || timeUp) ReactionPhase.FINISHED else ReactionPhase.WAITING
         if (phase == ReactionPhase.WAITING) schedule(nowMs)
     }
 
@@ -186,8 +237,22 @@ data class ReactionBaselineParams(
     val slowerZ: Float = 1.5f,
     val muchSlowerZ: Float = 3f,
     val slowerSlowCount: Int = 2,
-    val muchSlowerSlowCount: Int = 4,
-)
+    /** 유효 반응 10회 기준(이전 60초·약 15회일 때는 4) */
+    val muchSlowerSlowCount: Int = 3,
+) {
+    companion object {
+        /**
+         * 브레이크 페달용 기본 기준선. 터치 350ms에 발 이동 약 100ms를 더한 **임시값**(실측·문헌 확인 전).
+         * 개인 기록이 minRecordsForPersonal회 모이면 본인 기준으로 바뀌므로 첫 몇 회에만 쓰인다.
+         */
+        val BRAKE = ReactionBaselineParams(defaultMedian = RobustStat(median = 450f, scale = 60f))
+
+        fun of(input: ReactionInput): ReactionBaselineParams = when (input) {
+            ReactionInput.TOUCH -> ReactionBaselineParams()
+            ReactionInput.BRAKE -> BRAKE
+        }
+    }
+}
 
 /** 반응 체크 기준선 저장소(반응시간 중앙값 목록). 앱에서는 Room reaction_scores 등으로 구현 */
 interface ReactionRecordStore {
@@ -218,7 +283,7 @@ class ReactionEvaluator(
         val median = s.medianReactionMs
         val inconclusiveMsg = when {
             s.aborted -> "반응 체크가 중간에 멈춰서 이번 기록은 평소와 비교하지 않았어요"
-            s.falseStartCount > params.maxFalseStarts -> "화면이 바뀌기 전에 누른 경우가 많아 이번에는 평소와 비교하지 않았어요"
+            s.falseStartCount > params.maxFalseStarts -> "신호가 나오기 전에 반응한 경우가 많아 이번에는 평소와 비교하지 않았어요"
             s.validCount < params.minValidTrials || median == null -> "반응 기록이 충분하지 않아 이번에는 평소와 비교하지 않았어요"
             else -> null
         }

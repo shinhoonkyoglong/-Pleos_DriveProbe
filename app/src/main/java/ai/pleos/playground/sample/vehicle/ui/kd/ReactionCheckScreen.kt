@@ -1,5 +1,6 @@
 package ai.pleos.playground.sample.vehicle.ui.kd
 
+import ai.pleos.playground.sample.vehicle.condition.core.ReactionInput
 import ai.pleos.playground.sample.vehicle.condition.core.ReactionPhase
 import ai.pleos.playground.sample.vehicle.condition.core.ReactionVerdict
 import ai.pleos.playground.sample.vehicle.condition.core.TrialOutcome
@@ -41,7 +42,9 @@ import kotlinx.coroutines.delay
 /**
  * 출발 전 반응 체크. 정차(P) 중에만 진행되고, 기어가 바뀌거나 차가 움직이면 바로 멈춘다(ReactionGate).
  *
- * 흐름: 안내 → [시작] → 화면 가운데 원이 초록으로 바뀌면 화면 아무 곳이나 누른다(1분) → 결과
+ * 흐름: 안내 → [시작] → 화면 가운데 원이 초록으로 바뀌면 반응 → 제때 반응 10회 또는 최대 40초 → 결과
+ * 반응 방법: 실제 차량 = 브레이크 페달을 밟았다 뗀다 / 시연 재생 = 화면 아무 곳이나 누른다(ReactionUiState.input)
+ * 시각은 SystemClock.elapsedRealtime 기준(브레이크 이벤트 시각과 같은 시계)
  */
 @Composable
 fun ReactionCheckScreen(viewModel: ReactionCheckViewModel, isReplay: Boolean, onBack: () -> Unit) {
@@ -63,23 +66,23 @@ fun ReactionCheckScreen(viewModel: ReactionCheckViewModel, isReplay: Boolean, on
             }
         }
     }
-    // 진행 중: 매 프레임 세션을 진행시킨다(시각은 터치와 같은 uptime 기준)
+    // 진행 중: 매 프레임 세션을 진행시킨다(시각은 터치·브레이크와 같은 elapsedRealtime 기준)
     LaunchedEffect(running) {
         if (running) {
             while (true) {
                 withFrameMillis { }
-                viewModel.onFrame(SystemClock.uptimeMillis())
+                viewModel.onFrame(SystemClock.elapsedRealtime())
             }
         }
     }
 
     when {
-        running -> RunningView(state, isReplay, onTap = { viewModel.onTap(SystemClock.uptimeMillis()) }, onStop = leave)
+        running -> RunningView(state, isReplay, onTap = { viewModel.onTap(SystemClock.elapsedRealtime()) }, onStop = leave)
         state.phase == ReactionPhase.READY -> IntroView(
             state = state,
             recordCount = viewModel.personalRecordCount,
             isReplay = isReplay,
-            onStart = { viewModel.start(SystemClock.uptimeMillis()) },
+            onStart = { viewModel.start(SystemClock.elapsedRealtime()) },
             onBack = leave,
         )
         else -> ResultView(state, isReplay, onRetry = viewModel::reset, onDone = leave)
@@ -94,10 +97,16 @@ private fun IntroView(state: ReactionUiState, recordCount: Int, isReplay: Boolea
         Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth().weight(1f)) {
             KdCard(modifier = Modifier.weight(1f).fillMaxHeight(), spacing = 20.dp) {
                 Text("이렇게 해요", style = Kd.Eyebrow)
-                Step("1", "화면 가운데 원을 바라봐 주세요")
-                Step("2", "원이 초록색으로 바뀌면 화면 아무 곳이나 바로 눌러 주세요")
-                Step("3", "1분 동안 여러 번 나와요. 미리 누르지 마세요")
-                StimulusPreview(Modifier.weight(1f))
+                val brake = state.input == ReactionInput.BRAKE
+                if (brake) {
+                    Step("1", "브레이크에서 발을 떼고 화면 가운데 원을 바라봐 주세요")
+                    Step("2", "원이 초록색으로 바뀌면 브레이크를 바로 밟았다가 떼 주세요")
+                } else {
+                    Step("1", "화면 가운데 원을 바라봐 주세요")
+                    Step("2", "원이 초록색으로 바뀌면 화면 아무 곳이나 바로 눌러 주세요")
+                }
+                Step("3", "제때 ${state.targetValid}번 하면 끝나요(최대 ${state.totalMs / 1000}초). 미리 ${if (brake) "밟지" else "누르지"} 마세요")
+                StimulusPreview(actionLabel = if (brake) "바로 밟기" else "바로 누르기", modifier = Modifier.weight(1f))
             }
             KdCard(modifier = Modifier.weight(1f).fillMaxHeight(), spacing = 20.dp) {
                 Text("결과는 이렇게 나와요", style = Kd.Eyebrow)
@@ -156,20 +165,20 @@ private fun VerdictExample(verdict: ReactionVerdict) {
 
 /** 원이 '기다려요' → '지금!'으로 바뀌는 모습을 미리 보여 준다(설명 글을 읽지 않아도 알 수 있게). 남은 높이를 채운다 */
 @Composable
-private fun StimulusPreview(modifier: Modifier = Modifier) {
+private fun StimulusPreview(actionLabel: String, modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(vertical = 28.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PreviewCircle(active = false)
+        PreviewCircle(active = false, actionLabel = actionLabel)
         Text("→", style = Kd.Headline.copy(color = Kd.InkMuted), modifier = Modifier.padding(horizontal = 40.dp))
-        PreviewCircle(active = true)
+        PreviewCircle(active = true, actionLabel = actionLabel)
     }
 }
 
 @Composable
-private fun PreviewCircle(active: Boolean) {
+private fun PreviewCircle(active: Boolean, actionLabel: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
             Modifier
@@ -185,7 +194,7 @@ private fun PreviewCircle(active: Boolean) {
                 fontWeight = FontWeight.Bold,
             )
         }
-        Text(if (active) "바로 누르기" else "기다리기", style = Kd.BodyMuted)
+        Text(if (active) actionLabel else "기다리기", style = Kd.BodyMuted)
     }
 }
 
@@ -219,12 +228,14 @@ private fun RecordProgress(recordCount: Int) {
 
 @Composable
 private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> Unit, onStop: () -> Unit) {
-    // 화면 전체가 누르는 곳(손이 떨려도 원을 정확히 누를 필요가 없게)
+    val brake = state.input == ReactionInput.BRAKE
+    // 터치 입력: 화면 전체가 누르는 곳(손이 떨려도 원을 정확히 누를 필요가 없게). 브레이크 입력: 터치를 받지 않는다
+    val touchArea = if (brake) Modifier else Modifier.pointerInput(Unit) { detectTapGestures(onPress = { onTap() }) }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Kd.Background)
-            .pointerInput(Unit) { detectTapGestures(onPress = { onTap() }) }
+            .then(touchArea)
             .testTag("kd-reaction-running"),
     ) {
         Column(
@@ -248,7 +259,9 @@ private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> 
                 )
             }
             Spacer(Modifier.height(40.dp))
-            Text(feedback(state.lastOutcome), style = Kd.Title, textAlign = TextAlign.Center)
+            val message = if (brake && state.pedalHeld && !state.stimulusVisible) "브레이크에서 발을 떼 주세요"
+            else feedback(state.lastOutcome, brake)
+            Text(message, style = Kd.Title, textAlign = TextAlign.Center)
         }
         // 남은 시간 막대
         val progress = if (state.totalMs == 0L) 0f else state.remainingMs.toFloat() / state.totalMs
@@ -258,7 +271,11 @@ private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> 
                 Modifier.fillMaxWidth().padding(Kd.ScreenPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("남은 시간 ${(state.remainingMs + 999) / 1000}초", style = Kd.Title, modifier = Modifier.weight(1f))
+                Text(
+                    "제때 ${state.validCount}/${state.targetValid}회 · 최대 ${(state.remainingMs + 999) / 1000}초",
+                    style = Kd.Title,
+                    modifier = Modifier.weight(1f),
+                )
                 if (isReplay) KdTag("시연 모드", modifier = Modifier.padding(end = 24.dp))
                 KdButton("그만하기", onClick = onStop, style = KdButtonStyle.SECONDARY, minHeight = 80.dp)
             }
@@ -266,11 +283,14 @@ private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> 
     }
 }
 
-private fun feedback(outcome: TrialOutcome?): String = when (outcome) {
-    TrialOutcome.VALID -> "좋아요"
-    TrialOutcome.FALSE_START -> "조금 일렀어요. 초록색이 되면 눌러 주세요"
-    TrialOutcome.TIMEOUT -> "괜찮아요. 다음 원을 기다려 주세요"
-    null -> "원이 초록색으로 바뀌면 눌러 주세요"
+private fun feedback(outcome: TrialOutcome?, brake: Boolean): String {
+    val act = if (brake) "브레이크를 밟아" else "눌러"
+    return when (outcome) {
+        TrialOutcome.VALID -> "좋아요"
+        TrialOutcome.FALSE_START -> "조금 일렀어요. 초록색이 되면 $act 주세요"
+        TrialOutcome.TIMEOUT -> "괜찮아요. 다음 원을 기다려 주세요"
+        null -> "원이 초록색으로 바뀌면 $act 주세요"
+    }
 }
 
 @Composable
@@ -295,7 +315,7 @@ private fun ResultView(state: ReactionUiState, isReplay: Boolean, onRetry: () ->
             val s = result.summary
             Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
                 StatCard(s.medianReactionMs?.let { "${it}ms" } ?: "-", "반응 속도(가운데 값)", Modifier.weight(1f))
-                StatCard("${s.validCount}회", "제때 누른 횟수", Modifier.weight(1f))
+                StatCard("${s.validCount}회", "제때 반응한 횟수", Modifier.weight(1f))
                 StatCard("${s.slowCount}회", "느렸거나 놓친 횟수", Modifier.weight(1f))
             }
             Text(
