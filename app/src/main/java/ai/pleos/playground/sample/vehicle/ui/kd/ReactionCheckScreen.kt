@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,25 +90,28 @@ fun ReactionCheckScreen(viewModel: ReactionCheckViewModel, isReplay: Boolean, on
 private fun IntroView(state: ReactionUiState, recordCount: Int, isReplay: Boolean, onStart: () -> Unit, onBack: () -> Unit) {
     KdScreen(testTag = "kd-reaction-intro") {
         KdTopBar("출발 전 컨디션 체크", onBack = onBack) { if (isReplay) KdTag("시연 모드") }
-        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
-            KdCard(modifier = Modifier.weight(1f)) {
-                Text("이렇게 해요", style = Kd.Title)
+        // 두 카드가 남은 높이를 채운다(이전에는 카드 아래가 통째로 비어 있었다)
+        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth().weight(1f)) {
+            KdCard(modifier = Modifier.weight(1f).fillMaxHeight(), spacing = 20.dp) {
+                Text("이렇게 해요", style = Kd.Eyebrow)
                 Step("1", "화면 가운데 원을 바라봐 주세요")
                 Step("2", "원이 초록색으로 바뀌면 화면 아무 곳이나 바로 눌러 주세요")
                 Step("3", "1분 동안 여러 번 나와요. 미리 누르지 마세요")
+                StimulusPreview(Modifier.weight(1f))
             }
-            KdCard(modifier = Modifier.weight(1f)) {
-                Text("결과는 이렇게 써요", style = Kd.Title)
-                Text("시험이 아니에요. 평소 내 기록과 비교해서 오늘 컨디션을 알려 드려요.", style = Kd.Body)
-                Text(
-                    if (recordCount >= 3) "평소 기록 ${recordCount}회와 비교해요"
-                    else "평소 기록을 모으는 중이에요(${recordCount}/3회). 그동안은 일반 기준과 비교해요",
-                    style = Kd.BodyMuted,
-                )
+            KdCard(modifier = Modifier.weight(1f).fillMaxHeight(), spacing = 20.dp) {
+                Text("결과는 이렇게 나와요", style = Kd.Eyebrow)
+                Text("시험이 아니라 평소 내 기록과 비교해요", style = Kd.Title)
+                // 실제 결과 문구(ReactionVerdict.toStatus)를 그대로 미리 보여 준다
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                    VerdictExample(ReactionVerdict.NORMAL)
+                    VerdictExample(ReactionVerdict.SLOWER)
+                    VerdictExample(ReactionVerdict.MUCH_SLOWER)
+                }
                 Text("결과가 나빠도 시동을 막지 않아요. 쉬어 갈지는 직접 정하세요.", style = Kd.BodyMuted)
+                RecordProgress(recordCount)
             }
         }
-        Spacer(Modifier.weight(1f))
         if (state.blockedReason != null) {
             KdStatusBadge(KdTone.CAUTION, state.blockedReason)
         }
@@ -124,11 +129,91 @@ private fun IntroView(state: ReactionUiState, recordCount: Int, isReplay: Boolea
 private fun Step(number: String, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(48.dp).clip(CircleShape).background(Kd.AccentContainer),
+            Modifier.size(52.dp).clip(CircleShape).background(Kd.AccentContainer),
             contentAlignment = Alignment.Center,
         ) { Text(number, style = Kd.Label.copy(color = Kd.Accent)) }
         Spacer(Modifier.size(20.dp))
-        Text(text, style = Kd.Body)
+        Text(text, style = Kd.Body, modifier = Modifier.weight(1f))
+    }
+}
+
+/** 결과 예시 한 줄: 상태 기호 + 제목 + 설명 */
+@Composable
+private fun VerdictExample(verdict: ReactionVerdict) {
+    val status = verdict.toStatus()
+    Row(
+        Modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(horizontal = 24.dp, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        KdToneDot(status.tone, size = 48.dp)
+        Spacer(Modifier.size(20.dp))
+        Column(Modifier.weight(1f)) {
+            Text(status.title, style = Kd.Label.copy(fontSize = 26.sp))
+            Text(status.detail, style = Kd.BodyMuted.copy(fontSize = 22.sp, lineHeight = 30.sp))
+        }
+    }
+}
+
+/** 원이 '기다려요' → '지금!'으로 바뀌는 모습을 미리 보여 준다(설명 글을 읽지 않아도 알 수 있게). 남은 높이를 채운다 */
+@Composable
+private fun StimulusPreview(modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(vertical = 28.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PreviewCircle(active = false)
+        Text("→", style = Kd.Headline.copy(color = Kd.InkMuted), modifier = Modifier.padding(horizontal = 40.dp))
+        PreviewCircle(active = true)
+    }
+}
+
+@Composable
+private fun PreviewCircle(active: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(
+            Modifier
+                .size(168.dp)
+                .clip(CircleShape)
+                .background(if (active) Kd.Good else Kd.SurfaceHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (active) "지금!" else "기다려요",
+                color = if (active) Kd.InkOnAccent else Kd.InkMuted,
+                fontSize = if (active) 36.sp else 26.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(if (active) "바로 누르기" else "기다리기", style = Kd.BodyMuted)
+    }
+}
+
+/** 평소 기록 모으기 진행(3회가 모이면 내 기록과 비교) */
+@Composable
+private fun RecordProgress(recordCount: Int) {
+    val done = recordCount >= 3
+    Column(
+        Modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(28.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("비교 기준", style = Kd.Eyebrow)
+        Text(
+            if (done) "평소 기록 ${recordCount}회와 비교해요" else "평소 기록을 모으는 중이에요 (${recordCount}/3회)",
+            style = Kd.Title,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            repeat(3) { i ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(14.dp)
+                        .clip(CircleShape)
+                        .background(if (i < recordCount) Kd.Accent else Kd.SurfaceHigh),
+                )
+            }
+        }
+        if (!done) Text("3회가 모이기 전에는 일반 기준과 비교해요", style = Kd.BodyMuted)
     }
 }
 
@@ -152,8 +237,7 @@ private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> 
                 Modifier
                     .size(360.dp)
                     .clip(CircleShape)
-                    .background(color)
-                    .border(4.dp, if (state.stimulusVisible) Kd.Good else Kd.Outline, CircleShape),
+                    .background(color),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -200,7 +284,8 @@ private fun ResultView(state: ReactionUiState, isReplay: Boolean, onRetry: () ->
         } else {
             val status = result.verdict.toStatus()
             val compared = result.verdict != ReactionVerdict.INCONCLUSIVE
-            KdCard(modifier = Modifier.fillMaxWidth(), borderColor = status.tone.color) {
+            KdCard(modifier = Modifier.fillMaxWidth().weight(1f), borderColor = status.tone.color) {
+                Text("오늘 컨디션", style = Kd.Eyebrow)
                 KdStatusBadge(status.tone, status.title, large = true)
                 Text(result.message, style = Kd.Body)
                 if (compared && result.isCalibrating) {
@@ -219,7 +304,7 @@ private fun ResultView(state: ReactionUiState, isReplay: Boolean, onRetry: () ->
                 style = Kd.BodyMuted,
             )
         }
-        Spacer(Modifier.weight(1f))
+        if (result == null) Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
             KdButton("다시 하기", onClick = onRetry, style = KdButtonStyle.SECONDARY, modifier = Modifier.weight(1f))
             KdButton("확인", onClick = onDone, modifier = Modifier.weight(1f).testTag("kd-reaction-done"))
@@ -231,9 +316,8 @@ private fun ResultView(state: ReactionUiState, isReplay: Boolean, onRetry: () ->
 private fun StatCard(value: String, label: String, modifier: Modifier) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(Kd.CardShape)
             .background(Kd.Surface)
-            .border(2.dp, Kd.Outline, RoundedCornerShape(24.dp))
-            .padding(28.dp),
+            .padding(32.dp),
     ) { KdStat(value, label) }
 }

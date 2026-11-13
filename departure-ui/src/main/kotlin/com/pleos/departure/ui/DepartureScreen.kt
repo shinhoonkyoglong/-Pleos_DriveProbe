@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,22 +59,22 @@ import com.pleos.departure.ui.state.Tone
  * 문구는 state/DepartureDisplayMapper 에서 만든다. 이 파일은 그리기만 한다.
  */
 
-private val Background = Color(0xFF000000)
-private val CardBackground = Color(0xFF1C1C1C)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFFE0E0E0)
-private val ButtonColor = Color(0xFF90CAF9)
+private val Background = DepartureColors.Background
+private val CardBackground = DepartureColors.Surface
+private val TextPrimary = DepartureColors.Ink
+private val TextSecondary = DepartureColors.InkMuted
+private val ButtonColor = DepartureColors.Primary
 
 /** 본문 글자 크기. 화면 머리 주석의 "본문 30sp 이상"과 맞춘다(작업 #9, 리뷰 task-07 MINOR-4 — 이전 28sp). */
 private val BodyTextSize = 30.sp
 private val BodyLineHeight = 40.sp
 
 internal fun toneColor(tone: Tone): Color = when (tone) {
-    Tone.OK -> Color(0xFF66BB6A)
-    Tone.INFO -> Color(0xFF64B5F6)
-    Tone.CAUTION -> Color(0xFFFFCA28)
-    Tone.DANGER -> Color(0xFFFF5252)
-    Tone.UNKNOWN -> Color(0xFFBDBDBD)
+    Tone.OK -> DepartureColors.Good
+    Tone.INFO -> DepartureColors.Info
+    Tone.CAUTION -> DepartureColors.Caution
+    Tone.DANGER -> DepartureColors.Danger
+    Tone.UNKNOWN -> DepartureColors.Unknown
 }
 
 /** 아이콘 기호. 색을 구분하기 어려워도 모양으로 의미가 전달되게 한다. */
@@ -130,7 +133,7 @@ fun DepartureScreenContent(
         modifier = modifier
             .fillMaxSize()
             .background(Background)
-            .padding(32.dp),
+            .padding(horizontal = 40.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         state.drivingNotice?.let { Banner(text = it, color = toneColor(Tone.CAUTION)) }
@@ -167,17 +170,23 @@ private fun ResultContent(
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(24.dp)) {
         content.conditionNotice?.let { CardView(it) }
-        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                CardView(content.main, size = CardSize.LARGE)
-            }
-            if (content.radius != null || content.route != null) {
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    content.radius?.let { CardView(it, size = if (it.secondary) CardSize.SECONDARY else CardSize.NORMAL) }
-                    content.route?.let { RouteCardView(it, controlsEnabled, onConfirmToggle, onOpenNaviSettings) }
+        // 카드가 화면 높이를 채우게 한다(내용이 짧아도 아래가 비지 않게). 내용이 길면 각 열이 스스로 스크롤한다
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+            val columnHeight = maxHeight
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    CardView(content.main, size = CardSize.LARGE, minHeight = columnHeight)
+                }
+                if (content.radius != null || content.route != null) {
+                    val count = listOfNotNull(content.radius, content.route).size
+                    val eachMin = (columnHeight - 24.dp * (count - 1)) / count
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                    ) {
+                        content.radius?.let { CardView(it, size = if (it.secondary) CardSize.SECONDARY else CardSize.NORMAL, minHeight = eachMin) }
+                        content.route?.let { RouteCardView(it, controlsEnabled, onConfirmToggle, onOpenNaviSettings, minHeight = eachMin) }
+                    }
                 }
             }
         }
@@ -188,15 +197,12 @@ private fun ResultContent(
 private enum class CardSize { LARGE, NORMAL, SECONDARY }
 
 @Composable
-private fun CardView(card: StatusCard, size: CardSize = CardSize.NORMAL, extra: @Composable () -> Unit = {}) {
+private fun CardView(card: StatusCard, size: CardSize = CardSize.NORMAL, minHeight: Dp = 0.dp, extra: @Composable () -> Unit = {}) {
     val color = toneColor(card.tone)
-    val border = when {
-        size == CardSize.SECONDARY -> 2.dp
-        card.tone == Tone.UNKNOWN -> 4.dp
-        else -> 6.dp
-    }
+    // 테두리는 옅게(상태색 55%), 참고 카드는 테두리 없이 면 색만
+    val border = if (size == CardSize.SECONDARY) 0.dp else 2.dp
+    val shape = RoundedCornerShape(32.dp)
     val iconBox = when (size) { CardSize.LARGE -> 80.dp; CardSize.NORMAL -> 64.dp; CardSize.SECONDARY -> 48.dp }
-    val iconText = when (size) { CardSize.LARGE -> 48.sp; CardSize.NORMAL -> 38.sp; CardSize.SECONDARY -> 30.sp }
     val titleSize = when (size) { CardSize.LARGE -> 40.sp; CardSize.NORMAL -> 34.sp; CardSize.SECONDARY -> 30.sp }
     val titleLine = when (size) { CardSize.LARGE -> 50.sp; CardSize.NORMAL -> 42.sp; CardSize.SECONDARY -> 40.sp }
     val headlineSize = when (size) { CardSize.LARGE -> 52.sp; CardSize.NORMAL -> 34.sp; CardSize.SECONDARY -> 30.sp }
@@ -204,28 +210,27 @@ private fun CardView(card: StatusCard, size: CardSize = CardSize.NORMAL, extra: 
     Column(
         Modifier
             .fillMaxWidth()
-            .border(BorderStroke(border, color), RoundedCornerShape(20.dp))
-            .background(CardBackground, RoundedCornerShape(20.dp))
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .heightIn(min = minHeight)
+            .clip(shape)
+            .background(CardBackground)
+            .background(if (size == CardSize.SECONDARY) Color.Transparent else color.copy(alpha = 0.06f))
+            .border(BorderStroke(border, color.copy(alpha = 0.4f)), shape)
+            .padding(32.dp),
+        // 카드가 화면 높이에 맞춰 늘어났을 때 본문이 위에만 몰리지 않게 가운데 정렬
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
         if (size == CardSize.SECONDARY) {
             // 색이 아니라 글자로도 "참고"임을 알린다.
             Text("참고", color = TextSecondary, fontSize = BodyTextSize, fontWeight = FontWeight.Bold)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(iconBox).background(color, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(iconGlyph(card.icon), color = Color.Black, fontSize = iconText, fontWeight = FontWeight.Black)
-            }
+            ToneDot(glyph = iconGlyph(card.icon), color = color, size = iconBox)
             Spacer(Modifier.width(24.dp))
-            Text(card.title, color = TextPrimary, fontSize = titleSize, fontWeight = FontWeight.Bold, lineHeight = titleLine)
+            Text(card.title, color = TextPrimary, fontSize = titleSize, fontWeight = FontWeight.SemiBold, lineHeight = titleLine)
         }
         card.headline?.let {
             val headlineColor = if (size == CardSize.SECONDARY) TextPrimary else color
-            Text(it, color = headlineColor, fontSize = headlineSize, fontWeight = FontWeight.Black, lineHeight = headlineLine)
+            Text(it, color = headlineColor, fontSize = headlineSize, fontWeight = FontWeight.Normal, lineHeight = headlineLine, letterSpacing = (-1).sp)
         }
         card.lines.forEach { LineText(it) }
         extra()
@@ -244,16 +249,22 @@ private fun LineText(line: DisplayLine) {
 }
 
 @Composable
-private fun RouteCardView(route: RouteCard, controlsEnabled: Boolean, onConfirmToggle: () -> Unit, onOpenNaviSettings: () -> Unit) {
-    CardView(route.card) {
+private fun RouteCardView(
+    route: RouteCard,
+    controlsEnabled: Boolean,
+    onConfirmToggle: () -> Unit,
+    onOpenNaviSettings: () -> Unit,
+    minHeight: Dp = 0.dp,
+) {
+    CardView(route.card, minHeight = minHeight) {
         if (route.showOpenNaviSettings && controlsEnabled) {
             BigButton(text = "내비 설정 열기", enabled = true, onClick = onOpenNaviSettings, modifier = Modifier.fillMaxWidth())
         }
         route.stepsIntro?.let { LineText(DisplayLine(it, emphasis = true)) }
         route.steps.forEachIndexed { i, step ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(60.dp).background(TextPrimary, CircleShape), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", color = Color.Black, fontSize = 34.sp, fontWeight = FontWeight.Black)
+                Box(Modifier.size(56.dp).background(DepartureColors.SurfaceRaised, CircleShape), contentAlignment = Alignment.Center) {
+                    Text("${i + 1}", color = DepartureColors.Info, fontSize = 30.sp, fontWeight = FontWeight.Black)
                 }
                 Spacer(Modifier.width(20.dp))
                 Text(step, color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold, lineHeight = 42.sp)
@@ -272,29 +283,32 @@ private fun BigButton(text: String, enabled: Boolean, onClick: () -> Unit, modif
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = 96.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = ButtonColor,
-            contentColor = Color.Black,
-            disabledContainerColor = Color(0xFF555555),
-            disabledContentColor = TextPrimary,
+            contentColor = DepartureColors.OnPrimary,
+            disabledContainerColor = DepartureColors.SurfaceRaised,
+            disabledContentColor = TextSecondary,
         ),
     ) {
-        Text(text, fontSize = 36.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(text, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 private fun Banner(text: String, color: Color) {
     Row(
-        Modifier.fillMaxWidth().border(BorderStroke(4.dp, color), RoundedCornerShape(16.dp)).padding(20.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(color.copy(alpha = 0.12f))
+            .border(BorderStroke(2.dp, color.copy(alpha = 0.55f)), RoundedCornerShape(24.dp))
+            .padding(horizontal = 28.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(56.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
-            Text("!", color = Color.Black, fontSize = 36.sp, fontWeight = FontWeight.Black)
-        }
+        ToneDot(glyph = "!", color = color, size = 52.dp)
         Spacer(Modifier.width(20.dp))
-        Text(text, color = TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+        Text(text, color = TextPrimary, fontSize = 30.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
     }
 }
 

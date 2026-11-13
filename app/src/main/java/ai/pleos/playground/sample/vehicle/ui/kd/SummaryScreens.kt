@@ -6,7 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,69 +58,90 @@ fun FamilySummaryScreen(state: KdUiState, onBack: () -> Unit) {
     val rest = state.interventions.count {
         it.interventionLevel == 3 && System.currentTimeMillis() - it.timestamp < 7L * 24 * 3600 * 1000
     }
-    KdScreen(scrollable = true, testTag = "kd-family") {
+    // 화면 높이를 꽉 채운다: 왼쪽 휴대폰 미리보기와 오른쪽 카드 묶음이 남은 높이를 나눠 쓴다(이전에는 아래 절반이 비었다)
+    KdScreen(testTag = "kd-family") {
         KdTopBar("가족 안심 요약", onBack = onBack, backLabel = "← 내 기록") { KdTag("목업 · 서버 연동 전") }
-        Row(horizontalArrangement = Arrangement.spacedBy(48.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth().weight(1f)) {
             // 왼쪽: 가족이 받는 화면(휴대폰 모양)
             Column(
                 modifier = Modifier
-                    .width(520.dp)
+                    .width(560.dp)
+                    .fillMaxHeight()
                     .clip(RoundedCornerShape(48.dp))
-                    .background(Kd.SurfaceRaised)
-                    .border(6.dp, Kd.Outline, RoundedCornerShape(48.dp))
-                    .padding(36.dp),
+                    .background(Kd.Surface)
+                    .border(8.dp, Kd.SurfaceHigh, RoundedCornerShape(48.dp))
+                    .padding(horizontal = 40.dp, vertical = 36.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Text("계속운전 · 주간 요약", style = Kd.BodyMuted)
+                Box(Modifier.align(Alignment.CenterHorizontally).width(120.dp).height(8.dp).clip(RoundedCornerShape(50)).background(Kd.SurfaceHigh))
+                Text("계속운전 · 주간 요약", style = Kd.Eyebrow)
                 Text("${KdDemoData.driverName} 님의 이번 주", style = Kd.Title)
                 KdStatusBadge(KdTone.GOOD, "조건 준수, 컨디션 양호")
-                KdDivider()
-                PhoneRow("운전", "${KdDemoData.weekTrips}회")
-                PhoneRow("조건 준수", "${KdDemoData.weekCompliancePercent}%")
-                PhoneRow("휴식 권고", "${maxOf(rest, KdDemoData.weekRestSuggestions)}회")
-                PhoneRow("반응 속도", "평소와 비슷")
-                KdDivider()
-                Text("위치와 경로는 공유하지 않아요", style = Kd.BodyMuted)
+                // 숫자 4개를 2×2 칸으로 크게(휴대폰 화면 높이를 채운다)
+                Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        PhoneStat("운전", "${KdDemoData.weekTrips}회", Modifier.weight(1f))
+                        PhoneStat("조건 준수", "${KdDemoData.weekCompliancePercent}%", Modifier.weight(1f))
+                    }
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        PhoneStat("휴식 권고", "${maxOf(rest, KdDemoData.weekRestSuggestions)}회", Modifier.weight(1f))
+                        PhoneStat("반응 속도", "평소와 비슷", Modifier.weight(1f))
+                    }
+                }
+                Text(
+                    "위치와 경로는 공유하지 않아요",
+                    style = Kd.BodyMuted,
+                    modifier = Modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(20.dp),
+                )
             }
             // 오른쪽: 운전자가 정하는 공유 범위
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Kd.Gap)) {
-                KdCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Kd.Gap)) {
+                KdCard(Modifier.fillMaxWidth().weight(1f)) {
                     Text("무엇을 보내나요?", style = Kd.Title)
-                    ShareRow("운전 횟수와 조건 준수율", shared = true)
-                    ShareRow("휴식 권고 횟수", shared = true)
-                    ShareRow("반응 속도 변화(좋음·느려짐만)", shared = true)
-                    ShareRow("위치·경로·목적지", shared = false)
+                    // 네 줄이 카드 높이를 똑같이 나눠 쓴다
+                    ShareRow("운전 횟수와 조건 준수율", shared = true, modifier = Modifier.weight(1f))
+                    ShareRow("휴식 권고 횟수", shared = true, modifier = Modifier.weight(1f))
+                    ShareRow("반응 속도 변화(좋음·느려짐만)", shared = true, modifier = Modifier.weight(1f))
+                    ShareRow("위치·경로·목적지", shared = false, modifier = Modifier.weight(1f))
                 }
                 KdCard(Modifier.fillMaxWidth()) {
                     Text("언제 보내나요?", style = Kd.Title)
-                    Text("매주 월요일 아침 9시, 한 번만 보내요", style = Kd.Body)
-                    Text("보낼 내용은 운전하시는 분이 정해요", style = Kd.BodyMuted)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("매주 월요일 아침 9시, 한 번만 보내요", style = Kd.Body)
+                            Text("보낼 내용은 운전하시는 분이 정해요", style = Kd.BodyMuted)
+                        }
+                        KdTag("매주 월 09:00", color = Kd.Accent)
+                    }
                 }
             }
         }
     }
 }
 
+/** 휴대폰 미리보기 안의 숫자 칸 */
 @Composable
-private fun PhoneRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth()) {
-        Text(label, style = Kd.Body.copy(color = Kd.InkMuted), modifier = Modifier.weight(1f))
-        Text(value, style = Kd.Body.copy(fontWeight = FontWeight.Bold))
+private fun PhoneStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier.fillMaxHeight().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    ) {
+        Text(label, style = Kd.Eyebrow)
+        Text(value, style = Kd.Title.copy(fontSize = if (value.length > 5) 28.sp else 40.sp, lineHeight = 48.sp))
     }
 }
 
+/** 보내는 항목 한 줄: 옅은 면 + 상태 기호 + 꼬리표 */
 @Composable
-private fun ShareRow(label: String, shared: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            if (shared) "✓" else "✕",
-            color = if (shared) Kd.Good else Kd.Danger,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(48.dp),
-        )
+private fun ShareRow(label: String, shared: Boolean, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(Kd.ButtonShape).background(Kd.SurfaceRaised).padding(horizontal = 24.dp, vertical = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        KdToneDot(if (shared) KdTone.GOOD else KdTone.DANGER, size = 44.dp, symbol = if (shared) "✓" else "✕")
+        Spacer(Modifier.width(20.dp))
         Text(label, style = Kd.Body, modifier = Modifier.weight(1f))
-        Text(if (shared) "보냄" else "안 보냄", style = Kd.BodyMuted)
+        KdTag(if (shared) "보냄" else "안 보냄", color = if (shared) Kd.Good else Kd.Danger)
     }
 }
 

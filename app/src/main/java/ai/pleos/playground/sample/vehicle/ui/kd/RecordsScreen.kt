@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DateRange
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -72,26 +75,28 @@ fun RecordsScreen(state: KdUiState, onOpen: (KdPage) -> Unit, onBack: () -> Unit
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(Kd.Gap), modifier = Modifier.fillMaxWidth()) {
-            KdButton(
+            KdNavTile(
                 "가족 안심 요약",
-                subText = "가족에게 보내는 주간 요약 미리보기",
+                subtitle = "가족에게 보내는 주간 요약 미리보기",
+                icon = Icons.Rounded.Person,
                 onClick = { onOpen(KdPage.FAMILY_SUMMARY) },
-                modifier = Modifier.weight(1f).testTag("kd-records-family"),
-                minHeight = 128.dp,
+                modifier = Modifier.weight(1f).height(152.dp).testTag("kd-records-family"),
             )
-            KdButton(
+            KdNavTile(
                 "운전 리포트",
-                subText = "8주 동안의 변화를 그래프로",
+                subtitle = "8주 동안의 변화를 그래프로",
+                icon = Icons.Rounded.DateRange,
                 onClick = { onOpen(KdPage.REPORT) },
-                style = KdButtonStyle.SECONDARY,
-                modifier = Modifier.weight(1f).testTag("kd-records-report"),
-                minHeight = 128.dp,
+                modifier = Modifier.weight(1f).height(152.dp).testTag("kd-records-report"),
             )
         }
 
         KdSectionTitle("최근 도움 기록")
         if (state.interventions.isEmpty()) {
-            Text("아직 주행 중 도움을 받은 적이 없어요", style = Kd.BodyMuted)
+            KdCard(Modifier.fillMaxWidth()) {
+                KdStatusBadge(KdTone.INFO, "아직 주행 중 도움을 받은 적이 없어요")
+                Text("졸음 신호가 보이면 환기 · 음성 확인 · 쉼터 안내 순서로 도와 드리고, 여기에 기록해요", style = Kd.BodyMuted)
+            }
         } else {
             KdCard(Modifier.fillMaxWidth()) {
                 state.interventions.take(6).forEachIndexed { i, h ->
