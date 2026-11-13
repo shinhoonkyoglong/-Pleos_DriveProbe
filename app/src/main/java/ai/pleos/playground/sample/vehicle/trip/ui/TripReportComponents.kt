@@ -179,4 +179,3 @@ private fun SectionLabel(text: String) {
 private fun FootNote(text: String) {
     Text(text, fontSize = 18.sp, lineHeight = 26.sp, color = InfoColor)
 }
-

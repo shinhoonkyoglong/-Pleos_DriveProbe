@@ -13,8 +13,6 @@ import ai.pleos.playground.sample.vehicle.data.model.VehicleDriveData
 import ai.pleos.playground.sample.vehicle.data.model.VehicleSignalEvent
 import ai.pleos.playground.sample.vehicle.data.model.WindowControlCommand
 import ai.pleos.playground.vehicle.Vehicle
-import ai.pleos.playground.vehicle.api.model.area.SeatArea
-import ai.pleos.playground.vehicle.api.model.area.WindowArea
 import ai.pleos.playground.vehicle.constant.area.SeatValue
 import ai.pleos.playground.vehicle.constant.area.TurnSignalValue
 import ai.pleos.playground.vehicle.constant.area.WindowValue
@@ -30,12 +28,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 class VehicleRepositoryImpl(
-    context: Context,
-    private val enableMockFallback: Boolean = true
+    context: Context
 ) : VehicleRepository {
 
     private val tag = "VehicleRepository"
@@ -161,9 +156,9 @@ class VehicleRepositoryImpl(
             Log.i(tag, "Vehicle SDK successfully initialized.")
             true
         } catch (e: Exception) {
-            Log.w(tag, "Vehicle SDK initialization failed. Running in fallback mode: ${e.message}")
+            Log.w(tag, "Vehicle SDK initialization failed; control is unavailable: ${e.message}")
             isInitialized = false
-            enableMockFallback
+            false
         }
     }
 
@@ -225,218 +220,45 @@ class VehicleRepositoryImpl(
     // 4번 포지션: HVAC 공조 제어
     // =========================================================================
 
-    override suspend fun setHvacPower(enabled: Boolean, area: SeatValue): Result<Boolean> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setHvacPower(enabled=$enabled, area=$area)")
-            return Result.success(enabled)
-        }
+    private val controls = VehicleControlClient { vehicle.takeIf { isInitialized } }
 
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val seatArea = SeatArea(area)
-                sdk.getHVAC().setHvacPower(
-                    area = seatArea,
-                    value = enabled,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: enabled))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setHvacPower failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
+    internal suspend fun controlRoundTrip(kind: String, seat: SeatValue, guard: () -> Unit): Result<String> = when (kind) {
+        "temperature" -> controls.temperatureRoundTrip(seat, guard)
+        "fan" -> controls.fanRoundTrip(seat, guard)
+        "window" -> controls.windowRoundTrip(WindowValue.valueOf(seat.name), guard)
+        else -> Result.failure(IllegalArgumentException("Unknown probe kind: $kind"))
     }
 
-    override suspend fun setHvacAc(enabled: Boolean, area: SeatValue): Result<Boolean> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setHvacAc(enabled=$enabled, area=$area)")
-            return Result.success(enabled)
-        }
+    override suspend fun setHvacPower(enabled: Boolean, area: SeatValue) = controls.power(enabled, area)
+    override suspend fun setHvacAc(enabled: Boolean, area: SeatValue) = controls.ac(enabled, area)
+    override suspend fun setHvacTemperature(temperature: Float, unit: TemperatureUnit, area: SeatValue) =
+        controls.temperature(temperature, unit, area)
+    override suspend fun setHvacFanSpeed(speed: Int, area: SeatValue) = controls.fan(speed, area)
+    override suspend fun setHvacAuto(enabled: Boolean, area: SeatValue) = controls.auto(enabled, area)
 
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val seatArea = SeatArea(area)
-                sdk.getHVAC().setHvacAc(
-                    area = seatArea,
-                    value = enabled,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: enabled))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setHvacAc failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
-    }
-
-    override suspend fun setHvacTemperature(
-        temperature: Float,
-        unit: TemperatureUnit,
-        area: SeatValue
-    ): Result<Float> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setHvacTemperature(temp=$temperature, unit=$unit, area=$area)")
-            return Result.success(temperature)
-        }
-
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val seatArea = SeatArea(area)
-                sdk.getHVAC().setHvacTemperature(
-                    area = seatArea,
-                    value = temperature,
-                    unit = unit,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: temperature))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setHvacTemperature failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
-    }
-
-    override suspend fun setHvacFanSpeed(speed: Int, area: SeatValue): Result<Int> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setHvacFanSpeed(speed=$speed, area=$area)")
-            return Result.success(speed)
-        }
-
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val seatArea = SeatArea(area)
-                sdk.getHVAC().setHvacFanSpeed(
-                    area = seatArea,
-                    value = speed,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: speed))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setHvacFanSpeed failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
-    }
-
-    override suspend fun setHvacAuto(enabled: Boolean, area: SeatValue): Result<Boolean> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setHvacAuto(enabled=$enabled, area=$area)")
-            return Result.success(enabled)
-        }
-
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val seatArea = SeatArea(area)
-                sdk.getHVAC().setHvacAuto(
-                    area = seatArea,
-                    value = enabled,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: enabled))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setHvacAuto failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
-    }
-
-    override suspend fun controlHvac(command: HvacControlCommand): Result<Unit> {
+    override suspend fun controlHvac(command: HvacControlCommand): Result<Unit> = controlResult {
+        require(command.airCleaner == null) { "airCleaner control is not implemented" }
         val area = command.targetArea
-        command.power?.let { setHvacPower(it, area) }
-        command.ac?.let { setHvacAc(it, area) }
-        command.auto?.let { setHvacAuto(it, area) }
-        command.targetTemperature?.let { setHvacTemperature(it, command.temperatureUnit, area) }
-        command.fanSpeed?.let { setHvacFanSpeed(it, area) }
-        return Result.success(Unit)
+        command.power?.let { setHvacPower(it, area).getOrThrow() }
+        command.ac?.let { setHvacAc(it, area).getOrThrow() }
+        command.auto?.let { setHvacAuto(it, area).getOrThrow() }
+        command.targetTemperature?.let { setHvacTemperature(it, command.temperatureUnit, area).getOrThrow() }
+        command.fanSpeed?.let { setHvacFanSpeed(it, area).getOrThrow() }
+        Unit
     }
 
-    // =========================================================================
-    // 4번 포지션: 창문 제어
-    // =========================================================================
+    override suspend fun setWindowPosition(position: Int, area: WindowValue) = controls.window(position, area)
+    override suspend fun controlWindow(command: WindowControlCommand) = setWindowPosition(command.position, command.targetArea)
+    override suspend fun triggerFatigueVentilationIntervention() = controls.mild()
+    override suspend fun openVentilationWindow(percentage: Int) = controls.windowPercent(percentage, WindowValue.ROW_1_LEFT)
 
-    override suspend fun setWindowPosition(position: Int, area: WindowValue): Result<Int> {
-        val sdk = vehicle
-        if (!isInitialized || sdk == null) {
-            Log.d(tag, "[MOCK/FALLBACK] setWindowPosition(pos=$position, area=$area)")
-            return Result.success(position)
-        }
-
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val windowArea = WindowArea(area)
-                sdk.getWindow().setWindowPosition(
-                    area = windowArea,
-                    value = position,
-                    onComplete = { _, value ->
-                        continuation.resume(Result.success(value ?: position))
-                    },
-                    onFailed = { exception ->
-                        Log.e(tag, "setWindowPosition failed: ${exception.message}")
-                        continuation.resume(Result.failure(exception))
-                    }
-                )
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
+    override suspend fun closeAllWindows(): Result<Unit> = controlResult {
+        // Driver and front passenger windows; rear support must be discovered separately.
+        controls.windowPercent(0, WindowValue.ROW_1_LEFT).getOrThrow()
+        controls.windowPercent(0, WindowValue.ROW_1_RIGHT).getOrThrow()
+        Unit
     }
 
-    override suspend fun controlWindow(command: WindowControlCommand): Result<Int> {
-        return setWindowPosition(command.position, command.targetArea)
-    }
-
-    override suspend fun triggerFatigueVentilationIntervention(): Result<Unit> {
-        Log.i(tag, "Triggering Level 1 Fatigue Intervention: HVAC Max Vent + Window Crack Open")
-        // 1) 에어컨 가동
-        setHvacAc(true, SeatValue.ROW_1_LEFT)
-        // 2) 풍량 4단계 상향
-        setHvacFanSpeed(4, SeatValue.ROW_1_LEFT)
-        // 3) 운전석 창문 살짝 열어 환기 (15%)
-        openVentilationWindow(15)
-        return Result.success(Unit)
-    }
-
-    override suspend fun openVentilationWindow(percentage: Int): Result<Unit> {
-        setWindowPosition(percentage, WindowValue.ROW_1_LEFT)
-        return Result.success(Unit)
-    }
-
-    override suspend fun closeAllWindows(): Result<Unit> {
-        setWindowPosition(0, WindowValue.ROW_1_LEFT)
-        setWindowPosition(0, WindowValue.ROW_1_RIGHT)
-        return Result.success(Unit)
-    }
-
-    // =========================================================================
-    // 가짜 데이터 주입 및 테스트용 (에뮬레이터 지원)
-    // =========================================================================
-
-    // mock도 실제 콜백과 같은 경로(on*)를 거쳐 signalEvents까지 나간다
     override fun injectMockSteeringAngle(angleDeg: Float) {
         onSteering(SystemClock.elapsedRealtime(), angleDeg)
     }

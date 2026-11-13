@@ -34,6 +34,8 @@ enum class KdPage {
     REPORT,
     DRIVER_CONDITION,
     DEPARTURE_DETAIL,
+    DRIVING_ASSIST,
+    REST_STOP_SETTINGS,
     DEV_TOOLS,
 }
 
@@ -84,7 +86,7 @@ class KdAppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            db.interventionHistoryDao().getAllHistories().collect { list ->
+            db.interventionHistoryDao().getDrivingHistories().collect { list ->
                 _state.update { it.copy(interventions = list).withAdvice() }
             }
         }

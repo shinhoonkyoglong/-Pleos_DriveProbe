@@ -20,7 +20,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 /**
- * 첫 화면(정차 중). 출발 전에 "오늘 운전해도 되나요?"와 "오늘 컨디션"을 한눈에 보고, 큰 버튼 3개로 이동한다.
+ * 첫 화면(정차 중). 출발 전 확인과 오늘 컨디션을 보고, 주행 도움을 포함한 주요 기능으로 이동한다.
  *
  * @param departureCard 2번 '출발 전' 홈 카드 자리. feat/departure-home 의 DepartureHomeCard 를 그대로 넣는다.
  *                      main 에는 아직 그 모듈이 없어 기본값은 자리 표시 카드다.
@@ -31,6 +31,7 @@ fun HomeScreen(
     onOpen: (KdPage) -> Unit,
     onDismissTripEnd: () -> Unit,
     onSkipCheck: () -> Unit = {},
+    assistSummary: String = "음성 준비 필요",
     departureCard: @Composable (Modifier) -> Unit = { DeparturePlaceholderCard(it, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) }) },
 ) {
     val recommended = state.checkAdvice.isRecommended
@@ -65,6 +66,8 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f).testTag("kd-home-reaction"),
                 minHeight = 128.dp,
             )
+            KdButton("주행 도움", onClick = { onOpen(KdPage.DRIVING_ASSIST) }, subText = assistSummary,
+                style = KdButtonStyle.SECONDARY, modifier = Modifier.weight(1f).testTag("kd-home-assist"), minHeight = 128.dp)
             KdButton(
                 "내 운전 조건",
                 subText = "야간·반경·도로 조건",
@@ -219,4 +222,3 @@ private fun TripEndBanner(state: KdUiState, onOpenRecords: () -> Unit, onDismiss
         }
     }
 }
-

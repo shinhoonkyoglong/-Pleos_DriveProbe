@@ -17,7 +17,7 @@ import ai.pleos.playground.sample.vehicle.trip.source.DepartureDriverConditionsS
 import ai.pleos.playground.sample.vehicle.trip.source.DriverConditionsSource
 import ai.pleos.playground.sample.vehicle.trip.source.EngineOrMockPreDriveSource
 import ai.pleos.playground.sample.vehicle.trip.source.MockComplianceSource
-import ai.pleos.playground.sample.vehicle.trip.source.MockRestAdviceSource
+import ai.pleos.playground.sample.vehicle.trip.source.InterventionRestAdviceSource
 import ai.pleos.playground.sample.vehicle.trip.ui.TripSummaryActivity
 import android.util.Log
 import android.content.BroadcastReceiver
@@ -236,10 +236,13 @@ object TripModule {
         recorder = TripRecorder(
             scope = scope,
             dao = dao,
-            restAdviceSource = MockRestAdviceSource,
+            restAdviceSource = InterventionRestAdviceSource(
+                ai.pleos.playground.sample.vehicle.data.local.AppDatabase.getInstance(app).interventionHistoryDao()),
             complianceSource = MockComplianceSource(),
             preDriveSource = EngineOrMockPreDriveSource(),
             checkpoints = PrefsCheckpointStore(app),
+            onTripStarted = { engine, id -> (app as DriveProbeApplication).interventions.bindReportTrip(engine, id) },
+            onTripEnding = { id -> (app as DriveProbeApplication).interventions.finishReportTrip(id) },
         ).also { it.start() }
         scope.launch {
             // 앱 시작 때의 null은 건너뛰고, 새 주행 기록이 저장될 때마다 요약 화면을 띄운다
