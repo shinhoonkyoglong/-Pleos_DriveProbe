@@ -209,7 +209,8 @@ class ReactionCheckViewModel(application: Application) : AndroidViewModel(applic
         if (result.verdict != ReactionVerdict.INCONCLUSIVE && ConditionModule.isInitialized) {
             ConditionModule.engine.setPreDrive(result.verdict)
         }
-        save(result)
+        // 판정 보류는 화면 문구("내 기록에 쓰지 않아요")대로 Room에도 남기지 않는다(홈 "최근 반응 속도"에 보이지 않게)
+        if (result.verdict != ReactionVerdict.INCONCLUSIVE) save(result)
     }
 
     private fun save(result: ReactionResult) {
