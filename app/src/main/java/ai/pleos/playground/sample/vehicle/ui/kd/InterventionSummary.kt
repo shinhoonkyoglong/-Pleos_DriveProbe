@@ -9,6 +9,7 @@ internal fun interventionSummary(level: Int, outcome: String?, consent: String?,
 private fun interventionSummaryText(level: Int, outcome: String?, consent: String?, navigation: String?): String {
     if (level == 3) {
         if (navigation == "VERIFIED_WAYPOINT") return "휴게소를 경유지로 추가했어요"
+        if (navigation == "WAYPOINT_OBSERVED") return "휴게소 경유 항목 생성을 확인했어요. 위치는 내비에서 확인해 주세요"
         if (navigation in setOf("REQUEST_UNCONFIRMED", "CANCELLED_AFTER_REQUEST_UNCONFIRMED"))
             return "휴게소 추가 요청의 적용 여부를 내비에서 확인해 주세요"
         if (consent == "ACCEPT") return "휴게소 추가에 동의했지만 적용은 확인되지 않았어요"

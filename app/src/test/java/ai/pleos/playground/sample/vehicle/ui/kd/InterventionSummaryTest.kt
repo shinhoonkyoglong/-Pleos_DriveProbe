@@ -4,6 +4,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class InterventionSummaryTest {
+    @org.junit.Test fun observedEntryDoesNotClaimVerifiedLocation() {
+        assertEquals("휴게소 경유 항목 생성을 확인했어요. 위치는 내비에서 확인해 주세요",interventionSummary(3,"ACCEPTED","ACCEPT","WAYPOINT_OBSERVED"))
+    }
     @Test fun sleepStopSuccessAndUncertaintyUseTheActualFacilityKind() {
         assertEquals("졸음쉼터를 경유지로 추가했어요",interventionSummary(3,"ACCEPTED","ACCEPT","VERIFIED_WAYPOINT","SLEEP_REST_AREA"))
         assertEquals("졸음쉼터 추가에 동의했지만 적용은 확인되지 않았어요",interventionSummary(3,"ACCEPTED","ACCEPT",null,"SLEEP_REST_AREA"))

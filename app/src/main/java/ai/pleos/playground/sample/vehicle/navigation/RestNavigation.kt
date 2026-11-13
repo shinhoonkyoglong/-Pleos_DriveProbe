@@ -4,6 +4,7 @@ import ai.pleos.playground.sample.vehicle.data.model.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -38,6 +39,7 @@ data class RouteServiceArea(
 data class AlongRouteServiceAreas(
     val routeId: String, val observedAtMs: Long, val complete: Boolean,
     val areas: List<RouteServiceArea>, val source: String, val isMock: Boolean = false,
+    val routePath: List<String> = emptyList(),
 )
 fun interface RouteServiceAreaSource {
     suspend fun query(route: RestNaviSnapshot, location: NaviLocation): AlongRouteServiceAreas
@@ -55,12 +57,13 @@ data class RestCandidate(
 data class RestProposal(
     val id: String, val candidate: RestCandidate, val before: RestNaviSnapshot,
     val createdAtMs: Long, val expiresAtMs: Long, val observedAtMs: Long, val source: String,
+    val routePath: List<String> = emptyList(),
 ) {
     val prompt: String get() = "휴식이 필요해 보여요. 현재 경로의 다음 휴게시설은 ${candidate.place.name}예요. " +
         "내비 예상 소요 시간은 약 ${(candidate.trip.etaSeconds - 1) / 60 + 1}분이에요. 경유지로 추가할까요? 원하시면 추가해 줘, 원치 않으시면 아니요라고 말씀해 주세요."
 }
 enum class RestNavigationStatus {
-    VERIFIED_WAYPOINT, PROPOSED, NOT_REQUESTED, ROUTE_DATA_UNAVAILABLE, ROUTE_CONTEXT_UNAVAILABLE, SERVICE_AREA_DETAILS_UNAVAILABLE,
+    VERIFIED_WAYPOINT, WAYPOINT_OBSERVED, PROPOSED, NOT_REQUESTED, ROUTE_DATA_UNAVAILABLE, ROUTE_CONTEXT_UNAVAILABLE, SERVICE_AREA_DETAILS_UNAVAILABLE,
     STALE_ROUTE_DATA, INCOMPLETE_ROUTE_DATA, PROPOSAL_EXPIRED, PROPOSAL_INVALID,
     LOCATION_UNAVAILABLE, MOCK_REJECTED, NO_DESTINATION, NOT_GUIDING, EXISTING_WAYPOINTS,
     NO_CANDIDATE, BUSY, CONTEXT_CHANGED, PERMISSION_DENIED, UNAVAILABLE, QUERY_TIMEOUT,
@@ -105,29 +108,42 @@ class RestNavigation(
     suspend fun readTbtRoute(): NaviTbtRoute = port.tbtRoute()
 
     /** Read-only preview cannot mint/replace a consent token. */
-    suspend fun preview(): List<RestCandidate> {
+    suspend fun preview(): List<RestCandidate> = stableRouteRead {
         val before = port.snapshot()
         validateSnapshot(before)
-        return candidates(before).first
+        candidates(before).first
     }
 
     suspend fun prepareProposal(): RestProposal = mutex.withLock {
         synchronized(proposalLock) { activeProposal = null }
-        val before = port.snapshot()
-        validateSnapshot(before)
-        val (candidates, batch) = candidates(before)
-        currentCoroutineContext().ensureActive()
-        val latest = port.snapshot()
-        if (latest.routeId != before.routeId || !sameDestination(before.destination,latest.destination) ||
-            latest.state.naviMode != before.state.naviMode || latest.state.routeOption != before.state.routeOption ||
-            !sameWaypoints(before.waypoints,latest.waypoints))
-            throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"휴게소 조회 중 경로가 바뀌어 제안하지 않았어요")
-        val now = clock()
-        if (now < batch.observedAtMs || now - batch.observedAtMs > SOURCE_MAX_AGE_MS)
-            throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA,"경로 확인 중 휴게소 정보의 유효 시간이 지났어요")
-        RestProposal(UUID.randomUUID().toString(), candidates.first(), before, now,
-            minOf(now + PROPOSAL_TTL_MS, batch.observedAtMs + PROPOSAL_TTL_MS), batch.observedAtMs, batch.source)
-            .also { synchronized(proposalLock) { activeProposal = it } }
+        stableRouteRead {
+            val before = port.snapshot()
+            validateSnapshot(before)
+            val (candidates, batch) = candidates(before)
+            currentCoroutineContext().ensureActive()
+            val latest = port.snapshot()
+            if (latest.routeId != before.routeId || !sameDestination(before.destination,latest.destination) ||
+                latest.state.naviMode != before.state.naviMode || latest.state.routeOption != before.state.routeOption ||
+                !sameWaypoints(before.waypoints,latest.waypoints))
+                throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"휴게소 조회 중 경로가 바뀌어 제안하지 않았어요")
+            val now = clock()
+            if (now < batch.observedAtMs || now - batch.observedAtMs > SOURCE_MAX_AGE_MS)
+                throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA,"경로 확인 중 휴게소 정보의 유효 시간이 지났어요")
+            RestProposal(UUID.randomUUID().toString(), candidates.first(), before, now,
+                minOf(now + PROPOSAL_TTL_MS, batch.observedAtMs + PROPOSAL_TTL_MS), batch.observedAtMs, batch.source, batch.routePath)
+                .also { synchronized(proposalLock) { activeProposal = it } }
+        }
+    }
+
+    /** Read-only retry for a periodic reroute crossing the snapshot/TBT boundary. Never retry writes. */
+    private suspend fun <T> stableRouteRead(read: suspend () -> T): T {
+        repeat(3) { attempt ->
+            try { return read() } catch(e: RestNavigationFailure) {
+                if(e.status!=RestNavigationStatus.CONTEXT_CHANGED || attempt==2) throw e
+                delay(200)
+            }
+        }
+        error("Unreachable")
     }
 
     fun discard(proposal: RestProposal) {
@@ -184,31 +200,35 @@ class RestNavigation(
             if (now < proposal.createdAtMs || now >= proposal.expiresAtMs)
                 return result(proposal,RestNavigationStatus.PROPOSAL_EXPIRED,"휴게소 제안 시간이 지나 경로를 변경하지 않았어요. 새 제안이 필요해요")
             currentCoroutineContext().ensureActive()
-            val fresh = port.snapshot()
-            validateSnapshot(fresh)
-            if (fresh.routeId != proposal.before.routeId || !sameDestination(proposal.before.destination,fresh.destination) ||
+            val (fresh, remaining, refreshed) = stableRouteRead {
+                val snapshot=port.snapshot()
+                validateSnapshot(snapshot)
+                val (places,batch)=candidates(snapshot)
+                Triple(snapshot,places,batch)
+            }
+            if ((fresh.routeId != proposal.before.routeId && !sameRemainingRoutePath(proposal.routePath,refreshed.routePath)) ||
+                !sameDestination(proposal.before.destination,fresh.destination) ||
                 fresh.state.routeOption != proposal.before.state.routeOption || !sameWaypoints(proposal.before.waypoints,fresh.waypoints))
                 return result(proposal,RestNavigationStatus.CONTEXT_CHANGED,"제안 후 경로가 바뀌어 휴게소를 추가하지 않았어요. 새 동의가 필요해요")
-            val (remaining, refreshed) = candidates(fresh)
-            if (remaining.first().place.id != proposal.candidate.place.id ||
+            if (remaining.first().place != proposal.candidate.place ||
                 distanceMeters(remaining.first().place.latitude,remaining.first().place.longitude,
                     proposal.candidate.place.latitude,proposal.candidate.place.longitude) > 20.0)
                 return result(proposal,RestNavigationStatus.CONTEXT_CHANGED,"제안한 휴게소가 현재 경로의 다음 휴게소가 아니에요. 새 제안과 동의가 필요해요")
             if (clock() >= proposal.expiresAtMs) return result(proposal,RestNavigationStatus.PROPOSAL_EXPIRED,"휴게소 제안 시간이 지났어요")
             currentCoroutineContext().ensureActive()
-            val after = port.addFirstWaypoint(proposal.candidate,proposal.before) {
+            val after = port.addFirstWaypoint(proposal.candidate,fresh) {
                 beforeDispatch()
                 if (clock() >= proposal.expiresAtMs) throw RestNavigationFailure(RestNavigationStatus.PROPOSAL_EXPIRED,"경로 확인 중 제안 시간이 지났어요")
                 val age = clock() - refreshed.observedAtMs
                 if (age < 0 || age > SOURCE_MAX_AGE_MS) throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA,"경로 확인 중 휴게소 정보의 유효 시간이 지났어요")
                 dispatched = true
             }
-            val verified = sameDestination(proposal.before.destination,after.destination) && !after.state.isMock &&
-                after.state.naviMode == NaviMode.ROUTE_GUIDING && after.state.routeOption == proposal.before.state.routeOption &&
-                waypointMatches(proposal.candidate.place,after.waypoints.firstOrNull()) && sameWaypoints(proposal.before.waypoints,after.waypoints.drop(1))
-            return result(proposal,if(verified) RestNavigationStatus.VERIFIED_WAYPOINT else RestNavigationStatus.REQUEST_UNCONFIRMED,
-                if(verified) "${proposal.candidate.place.name} 경유지를 확인했어요. 원래 목적지를 유지했어요"
-                else "휴게소 경유지를 요청했지만 적용 여부를 확인하지 못했어요. 내비에서 확인해 주세요",dispatched,after)
+            val status=waypointApplicationStatus(fresh,proposal.candidate.place,after)
+            return result(proposal,status,when(status) {
+                RestNavigationStatus.VERIFIED_WAYPOINT -> "${proposal.candidate.place.name} 경유지를 확인했어요. 원래 목적지를 유지했어요"
+                RestNavigationStatus.WAYPOINT_OBSERVED -> "${proposal.candidate.place.name} 경유 항목 생성을 확인했어요. 내비가 좌표를 제공하지 않아 위치는 내비에서 확인해 주세요"
+                else -> "휴게소 경유지를 요청했지만 적용 여부를 확인하지 못했어요. 내비에서 확인해 주세요"
+            },dispatched,after)
         } catch (e: CancellationException) {
             throw RestNavigationCancelled(result(proposal,
                 if(dispatched) RestNavigationStatus.CANCELLED_AFTER_REQUEST_UNCONFIRMED else RestNavigationStatus.CANCELLED_BEFORE_REQUEST,

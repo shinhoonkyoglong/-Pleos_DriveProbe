@@ -5,9 +5,12 @@ import org.json.JSONObject
 
 /** Stored in the existing actionDetails JSON; no Room schema change or data reset. */
 fun RestNavigationResult.toHistoryJson(): JSONObject = JSONObject().apply {
-    put("version", 2)
+    put("version", 3)
     put("status", status.name)
     put("requestIssued", requestIssued)
+    put("waypointEntryObserved", status in setOf(RestNavigationStatus.VERIFIED_WAYPOINT,RestNavigationStatus.WAYPOINT_OBSERVED))
+    put("waypointIdentityVerified", status==RestNavigationStatus.VERIFIED_WAYPOINT)
+    put("verificationRevision", WAYPOINT_VERIFICATION_REVISION)
     put("source", source)
     put("error", error ?: JSONObject.NULL)
     put("selectionPolicy", "NEXT_FORWARD_REST_STOP_ON_CURRENT_ROUTE")
@@ -42,6 +45,8 @@ fun RestNavigationResult.toHistoryJson(): JSONObject = JSONObject().apply {
         put("routeId", s.routeId)
         put("waypoints", JSONArray().apply { s.waypoints.forEach { w -> put(JSONObject().apply {
             put("name", w.name); put("latitude", w.latitude); put("longitude", w.longitude)
+            put("displayLatitude",w.displayLatitude ?: JSONObject.NULL);put("displayLongitude",w.displayLongitude ?: JSONObject.NULL)
+            put("poiId",w.poiId);put("poiSubId",w.poiSubId);put("poiProvider",w.poiProvider)
         }) } })
     } } ?: JSONObject.NULL
     put("before", snapshot(before)); put("after", snapshot(after))

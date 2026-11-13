@@ -108,6 +108,6 @@ fun RestStopSettingsScreen(viewModel: DrivingAssistViewModel, state: DrivingAssi
             KdButton("이 경로의 확인 해제", { viewModel.forgetServiceArea() }, style = KdButtonStyle.QUIET,
                 enabled = editable, modifier = Modifier.fillMaxWidth())
         }
-        Text("시설 확인만으로 경로가 바뀌지 않아요. 경로가 달라지거나 확인이 오래되면 다시 확인해야 하며, 음성 제안에 동의한 경유지는 자동 삭제하지 않아요.", style = Kd.BodyMuted)
+        Text("시설 확인은 24시간 유효해요. 목적지·노선·방향을 유지한 재탐색은 확인을 유지하고, 경로나 다음 시설이 달라지면 다시 확인해 주세요. 음성 제안에 동의한 경유지는 유지해요.", style = Kd.BodyMuted)
     }
 }

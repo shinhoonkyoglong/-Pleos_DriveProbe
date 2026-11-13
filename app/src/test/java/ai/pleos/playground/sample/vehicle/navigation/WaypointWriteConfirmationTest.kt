@@ -34,4 +34,37 @@ class WaypointWriteConfirmationTest {
         assertFalse(verifier.observe(rerouted,false))
         assertTrue(verifier.observe(rerouted,false))
     }
+
+    @Test fun `name only entry is observed after two stable reads and never identity verified`() {
+        val named=place.copy(name="기흥휴게소(부산방향)")
+        val missing=after.copy(waypoints=listOf(NaviWaypoint(0.0,0.0,named.name)))
+        val verifier=WaypointWriteConfirmation(before,named)
+        assertFalse(verifier.observe(missing,true))
+        assertTrue(verifier.observe(missing,true))
+        assertEquals(RestNavigationStatus.WAYPOINT_OBSERVED,verifier.status)
+        assertFalse(RestNavigation.waypointMatches(named,missing.waypoints.single()))
+        val receipt=ProbeWaypointReceipt(before,named,missing,1000)
+        assertTrue(receipt.authorizes(before,named,missing,1001))
+        assertFalse(receipt.authorizes(before,named,missing,121001))
+        assertFalse(receipt.authorizes(before,named,missing,999))
+        assertFalse(receipt.authorizes(before,named,missing.copy(routeId="unrelated"),1001))
+        assertFalse(receipt.authorizes(before,named.copy(id="other"),missing,1001))
+        assertFalse(receipt.authorizes(before,named,missing.copy(destination=before.destination!!.copy(poiId="other")),1001))
+    }
+
+    @Test fun `opposite direction conflicting coordinates partial POI mock and extra waypoints cannot fall back to a name`() {
+        val named=place.copy(name="기흥휴게소(부산방향)")
+        val entry=NaviWaypoint(0.0,0.0,named.name)
+        val invalid=listOf(entry.copy(name="기흥휴게소(서울방향)"),entry.copy(latitude=35.0,longitude=129.0),
+            entry.copy(latitude=Double.NaN),entry.copy(poiId="another"),entry.copy(poiProvider="native"),
+            entry.copy(displayLatitude=35.0,displayLongitude=129.0))
+        invalid.forEach { w ->
+            val verifier=WaypointWriteConfirmation(before,named)
+            repeat(2) { assertFalse(verifier.observe(after.copy(waypoints=listOf(w)),true)) }
+        }
+        val missing=after.copy(waypoints=listOf(entry))
+        assertEquals(RestNavigationStatus.REQUEST_UNCONFIRMED,waypointApplicationStatus(before,named,missing.copy(state=missing.state.copy(isMock=true))))
+        assertEquals(RestNavigationStatus.REQUEST_UNCONFIRMED,waypointApplicationStatus(before,named,missing.copy(waypoints=listOf(entry,entry))))
+        assertEquals(RestNavigationStatus.REQUEST_UNCONFIRMED,waypointApplicationStatus(before,named.copy(name="기흥휴게소"),missing.copy(waypoints=listOf(entry.copy(name="기흥휴게소")))))
+    }
 }

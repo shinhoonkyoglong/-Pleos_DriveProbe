@@ -16,9 +16,9 @@
 
 - 공식 시설 ID는 `PUBLIC_CATALOG:종류:노선번호:시설명:좌표`이며 **Pleos POI ID가 아니다.** 파일에는 내비 POI ID가 없어 SDK POI 필드는 빈 값으로 전달한다.
 - 자동 출처: `PLEOS_TBT_PUBLIC_REST_STOP_CATALOG`, 근거: `PUBLIC_CATALOG_DIRECTION_MATCH`.
-- 공식 목록에서 사람이 방향 확인한 출처: `PLEOS_TBT_REVIEWED_PUBLIC_CATALOG`. 기존 routeId·목적지·옵션·시설 순서·24시간 유효 기간을 유지한다. 새 경로로 과거 확인을 자동 이전하지 않는다.
+- 공식 목록에서 사람이 방향 확인한 출처: `PLEOS_TBT_REVIEWED_PUBLIC_CATALOG`. 목적지·옵션·시설 순서/방향과 남은 TBT 경로가 같은 주기적 재탐색에서는 확인을 유지한다. 최초 확인 시각부터 24시간 유효하며 재탐색으로 연장하지 않는다. 상세 조건은 [E2E 수정](rest-stop-e2e-fix.md)을 참고한다.
 - 실제/시험 이력에는 시설 종류·데이터 기준일·nativePoiAvailable을 구분해 남긴다. Room 스키마는 변경하지 않는다.
-- 내비가 경유지 좌표를 제공하지 않으면 공식 ID를 native POI처럼 사용해 일치 판정을 통과시키지 않는다. 실제 재조회로 확인되지 않으면 적용 미확인으로 남긴다.
+- 내비가 좌표·POI를 모두 생략하면, 목적지/옵션 보존과 동일한 전체 방향 이름의 새 항목을 두 번 안정적으로 재조회했을 때 `WAYPOINT_OBSERVED`로 기록한다. 항목 생성과 위치/식별 검증(`VERIFIED_WAYPOINT`)을 구분하며 공식 ID를 native POI처럼 사용하지 않는다.
 
 ## 검증과 한계
 
