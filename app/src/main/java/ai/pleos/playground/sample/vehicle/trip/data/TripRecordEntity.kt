@@ -1,5 +1,6 @@
 package ai.pleos.playground.sample.vehicle.trip.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -30,17 +31,19 @@ import androidx.room.PrimaryKey
  *
  * [출발 전 반응 체크 — 3번]
  * @param preDriveVerdict   ReactionVerdict 이름(NORMAL/SLOWER/MUCH_SLOWER/INCONCLUSIVE). 안 했으면 null
- * @param preDriveSource    REAL = 엔진에 반영된 값, MOCK = 반응 체크 화면이 없어 넣은 임시값
+ * @param preDriveSource    REAL = 엔진 값(반응 체크를 안 했으면 preDriveVerdict null), MOCK = 연동 전 임시값(예전 기록·시연)
  *
- * [휴식 권고 — 4번, CAUTION 이상 개입]
+ * [휴식 권고 — 4번, DANGER 개입(쉼터 안내)]
  * @param restAdviceCount     휴식 권고 횟수
  * @param restRespondedCount  그중 운전자가 답한 횟수
  * @param restAdviceSource    MOCK = 4번 개입 이력 연동 전 임시값
  *
  * [운전 조건 — 2번]
- * @param compliance        ComplianceStatus 이름(COMPLIED/VIOLATED/UNKNOWN)
+ * @param compliance        ComplianceStatus 이름(COMPLIED/VIOLATED/UNKNOWN/NO_CONDITION)
  * @param violations        어긴 조건 코드(쉼표 구분, 없으면 빈 문자열). 예: NIGHT_DRIVING
- * @param complianceSource  MOCK = 2번 판정 연동 전 임시값
+ * @param complianceSource  REAL = 2번 판정(DepartureFeature.evaluateTripCompliance), MOCK = 연동 전 임시값
+ * @param judgedConditions  실제로 판정한 조건 코드(쉼표 구분). 지금 2번은 야간만 판정한다 → "NIGHT_DRIVING".
+ *                          빈 문자열 = 판정 없음 또는 이 칸이 생기기 전 기록(source/judgedConditionsOf 참고)
  *
  * @param driverId          운전자 구분(미정, 지금은 null)
  * @param isDemo            시연 재생(DEMO 모드)·시연용 가상 기록이면 true. 가족 요약·리포트는 시연 기록과 실제 기록을 섞지 않는다
@@ -72,6 +75,8 @@ data class TripRecordEntity(
     val compliance: String,
     val violations: String,
     val complianceSource: String,
+    @ColumnInfo(defaultValue = "")
+    val judgedConditions: String = "",
     val driverId: String? = null,
     val isDemo: Boolean,
     val isSynced: Boolean = false,

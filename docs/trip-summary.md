@@ -33,7 +33,7 @@ trip/
 │   ├── DrivingReportHtml.kt      인쇄용 HTML 한 장(SVG 그래프)
 │   └── DemoHistoryGenerator.kt   시연용 가상 기록(8주)
 ├── share/FamilyShare.kt     가족에게 보낼 글(FamilyShareText) + 보내는 통로(FamilyShareSender, 지금은 Mock)
-├── source/                  다른 파트 값 출처(지금은 일부 Mock) + 2번 운전자 조건 읽기
+├── source/                  다른 파트 값 출처(2번 조건 판정·4번 휴식 권고·3번 반응) + 2번 운전자 조건 읽기
 ├── data/                    trip_local.db (공용 AppDatabase와 분리)
 └── ui/
     ├── TripSummaryComponents.kt  값만 받아 그리는 조각: TripSummaryView, TripHistoryList
@@ -55,7 +55,7 @@ trip/
 
 | 위치 | 내용 |
 | --- | --- |
-| "이번 주" 카드 | 운전 횟수·조건 준수율 = `rememberTripWeekNumbers()`(최근 7일 주행 기록). 조건 준수가 임시값이면 "조건 준수는 임시값", 시연 기록이면 "시연 기록" 꼬리표 |
+| "이번 주" 카드 | 운전 횟수·조건 준수율 = `rememberTripWeekNumbers()`(최근 7일 주행 기록). 조건 준수에 임시값(연동 전 기록)이 섞이면 "조건 준수는 임시값", 시연 기록이면 "시연 기록" 꼬리표 |
 | 그 아래 "최근 주행" | `KdTripSection()` — 주행 요약(한 줄 요약 + 항목 5개) + [가족에게 보내기] + 지난 주행 5건(누르면 위 요약이 그 주행으로 바뀜) |
 | [운전 리포트] 버튼 → 리포트 화면 | `KdDrivingReportSection()` — 한 줄 변화, 숫자 4개(운전한 주·운전 횟수·조건 준수율·평균 피로), 주요 변화, 주별 그래프 3개(누르면 그 주 기록), 운전 조건, 안내문. 팀원의 "출발 전 반응 속도 추이" 그래프는 그 아래 그대로 |
 
@@ -65,7 +65,7 @@ trip/
   - 주석 `[5번]`으로 표시
 - 그대로 둔 것: 출발 전 반응 속도 그래프, [가족 안심 요약] 버튼(주간 자동 발송 vs 주행마다 보내기 — 팀 합의 후 정리), 최근 도움 기록
 - `KdTripSection.kt`·`KdDrivingReportSection.kt`는 팀원 디자인 부품(`Kd`, `KdCard`, `KdStat`, `KdStatusBadge`, `KdButton`, `KdTag`, `KdTone`, `formatDateTime`)을 씁니다. 그쪽 이름이 바뀌면 이 두 파일만 고치면 됩니다.
-- 팀원 화면의 "휴식 권고"는 개입 이력 중 DANGER만 셉니다(5번 요약은 CAUTION 이상). 기준 합의 필요
+- 휴식 권고 기준: 팀원 화면과 5번 요약 모두 DANGER만 셉니다
 
 ## 지금 임시로 붙어 있는 곳 (팀원 UI 이식 후 정리)
 
@@ -157,11 +157,18 @@ LaunchedEffect(Unit) {
 | --- | --- | --- |
 | 운전 시간 | 5번 기록 + 3번 연속 주행 시간 | 실제 |
 | 피로 점수(최고·평균, 0~100) | 3번 컨디션 엔진 | 실제 |
-| 휴식 권고(CAUTION 이상)·응답 | 4번 자동 개입 이력 | **실제 연동** (`InterventionRestAdviceSource`) |
-| 출발 전 반응 | 3번 반응 체크 | 엔진 값이 있으면 실제, 없으면 **Mock** |
-| 운전 조건 준수 | 2번 조건 판정 | **Mock** (2번 판정 함수 생기면 교체) |
+| 휴식 권고(**DANGER** 개입)·응답 | 4번 자동 개입 이력 | 실제 (`InterventionRestAdviceSource`) |
+| 출발 전 반응 | 3번 반응 체크 → 엔진(`setPreDrive`) | 실제 (`EnginePreDriveSource`). 체크를 안 했으면 "하지 않음" |
+| 운전 조건 준수 | 2번 판정(`departureFeature.evaluateTripCompliance`) | 실제 (`DepartureComplianceSource`). **야간만 판정**, 고속도로·반경은 "판정 안 함" |
+| 가족에게 보내기 | 서버 | **Mock** (서버 생기면 교체) |
 
-- Mock 값은 화면에 **"임시"** 로 표시되고, DB에 출처(`MOCK`/`REAL`)가 함께 저장됩니다.
+- 휴식 권고는 팀 기준에 맞춰 **DANGER(쉼터 안내)만** 셉니다('내 기록' 화면과 같음). CAUTION 음성 질문은 4번 원본 이력에만 남습니다.
+- 조건 판정 결과 → 저장값: 위반 → `VIOLATED`, 지킴 → `COMPLIED`, 판정할 자료 없음·조건 조회 실패 → `UNKNOWN`, 조건 없음 → `NO_CONDITION`("설정 안 함"). 준수율은 `COMPLIED`·`VIOLATED`만 셉니다.
+- 판정한 조건은 기록의 `judgedConditions`(지금은 `NIGHT_DRIVING`)에 저장합니다. 그래서 요약은 "모두 지킴" 대신 "지킴 — 야간 운전 조건을 지켰어요"처럼 **판정한 조건만** 말하고, 리포트는 고속도로·반경을 "판정 안 함"으로 둡니다.
+- 야간 = 실제 일몰~일출(서울 시간대, 2번 기준). 일몰 후 1초라도 걸치면 위반입니다(2번 `tripNightTolerance` 기본 0).
+- "판단 보류"로 끝난 반응 체크는 반응 체크 화면이 엔진에 넘기지 않아 "하지 않음"으로 보입니다.
+- Mock 값은 화면에 **"임시"** 로 표시되고, DB에 출처(`MOCK`/`REAL`)가 함께 저장됩니다. 연동 전에 저장된 예전 기록은 그대로 "임시"로 남습니다.
+- `trip_local.db`는 v3입니다(2 → 3: `judgedConditions` 칸 추가, 기존 기록 유지).
 - 피로 판정 구간(60km/h 이상 직진)이 한 번도 없으면 "정상"이 아니라 **"판정 없음"** 으로 보여줍니다.
 - 위치(GPS)는 저장하지 않습니다.
 
@@ -201,7 +208,7 @@ LaunchedEffect(Unit) {
 
 ### 남은 일
 - 서버(1번 서버 골격 이후): 주간 요약을 보내는 API, 가족 웹(6자리 초대 코드), 리포트 HTML 내려받기
-- 2번 연동 후 고속도로·반경 조건 판정(지금은 "판정 안 함")
+- 고속도로·반경 조건 판정: 2번이 주행 경로·위치 기록을 받게 되면 추가(지금은 "판정 안 함"). 5번은 `judgedConditions`만 보면 되므로 코드 변경 없음
 
 ## 5. 확인 방법 (debug 빌드)
 
@@ -212,7 +219,7 @@ adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diag
 adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diagnostic -a ai.pleos.trip.END
 # 최근 요약 단독 화면 열기
 adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diagnostic -a ai.pleos.trip.SHOW
-# 시연용 8주 기록 넣기 / 지우기 (integrated true = 모든 파트 연동 후 모습)
+# 시연용 8주 기록 넣기 / 지우기 (integrated true = 고속도로·반경까지 판정된 뒤의 모습)
 adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diagnostic -a ai.pleos.trip.SEED_HISTORY
 adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diagnostic -a ai.pleos.trip.SEED_HISTORY --ez integrated true
 adb shell am broadcast --user current -p ai.pleos.playground.sample.vehicle.diagnostic -a ai.pleos.trip.CLEAR_HISTORY

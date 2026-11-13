@@ -4,7 +4,7 @@ import ai.pleos.playground.sample.vehicle.data.local.dao.InterventionHistoryDao
 import ai.pleos.playground.sample.vehicle.trip.CompletedTrip
 import org.json.JSONObject
 
-/** Read-only adapter from production intervention history to the existing report contract. */
+/** Read-only adapter from production intervention history to the existing report contract. DANGER 개입만 센다. */
 class InterventionRestAdviceSource(private val history: InterventionHistoryDao) : RestAdviceSource {
     override suspend fun countFor(trip: CompletedTrip): RestAdvice {
         // Replay stays explicitly temporary, never a source of production counts.
@@ -12,6 +12,8 @@ class InterventionRestAdviceSource(private val history: InterventionHistoryDao) 
         var count = 0
         var responded = 0
         history.getRestAdviceForTrip(trip.tripId).forEach { row ->
+            // 휴식 권고 = DANGER(쉼터 안내)만. CAUTION 음성 질문은 원본 이력에만 남긴다('내 기록' 화면과 같은 기준)
+            if (row.interventionLevel != DANGER_LEVEL) return@forEach
             val details = runCatching { JSONObject(row.actionDetails) }.getOrNull() ?: return@forEach
             // Require an actual JSON boolean: absent/legacy/string flags are not production evidence.
             if (details.opt("simulation") != false) return@forEach
@@ -25,6 +27,8 @@ class InterventionRestAdviceSource(private val history: InterventionHistoryDao) 
     }
 
     private companion object {
+        /** intervention_histories.interventionLevel: 1 MILD, 2 CAUTION, 3 DANGER */
+        const val DANGER_LEVEL = 3
         val EXCLUDED_SOURCES = setOf("VOICE_TEST", "DANGER_NAVIGATION_PROBE", "BACKGROUND_STAGE_PROBE")
     }
 }

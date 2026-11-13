@@ -17,8 +17,10 @@ import kotlin.random.Random
  * - 같은 seed면 항상 같은 기록(시연을 몇 번 해도 같은 화면)
  * - 시나리오: 주 3~5번 낮 운전, 초반 2주에 피로 신호·야간 운전 1번, 뒤로 갈수록 피로 점수가 조금 낮아짐
  *
- * @param integrated false(기본) = 지금 앱이 실제로 만드는 기록과 같은 출처(휴식 권고·조건 판정 MOCK)
- *                   true = 다른 파트가 모두 연동된 뒤의 모습(출처 REAL, 고속도로·반경 조건도 판정)
+ * 출처는 지금 앱과 같다: 휴식 권고(4번 DANGER)·조건 판정(2번, 야간만)·출발 전 반응(3번) 모두 REAL.
+ *
+ * @param integrated false(기본) = 지금 앱이 만드는 기록과 같음(조건은 야간만 판정, 고속도로·반경은 "판정 안 함")
+ *                   true = 2번이 고속도로·반경까지 판정하게 된 뒤의 모습(세 조건 모두 판정)
  */
 object DemoHistoryGenerator {
 
@@ -34,7 +36,8 @@ object DemoHistoryGenerator {
         val random = Random(seed)
         val records = mutableListOf<TripRecordEntity>()
         val firstDay = periodStart(now, weeks * 7, zone) // 리포트 기간 첫날 0시
-        val source = if (integrated) DataSource.REAL.name else DataSource.MOCK.name
+        val source = DataSource.REAL.name
+        val judgedConditions = (if (integrated) Violation.entries else listOf(Violation.NIGHT_DRIVING)).joinToString(",") { it.name }
         var index = 0
 
         for (week in 0 until weeks) {
@@ -57,8 +60,10 @@ object DemoHistoryGenerator {
                 val judged = random.nextInt(10) < 8 // 80%는 판정 구간이 있음
                 val fatigueSpike = judged && ((week == 0 && day == days.first()) || (week == 2 && day == days[1]))
                 val maxScore = if (fatigueSpike) 62f + random.nextInt(10) else (avg + 8 + random.nextInt(10)).coerceAtMost(48f)
+                val dangerSpike = fatigueSpike && week == 2 // 2주차는 DANGER(휴식 권고 1번), 첫 주는 CAUTION까지만
                 val maxLevel = when {
                     !judged -> FatigueLevel.NORMAL
+                    dangerSpike -> FatigueLevel.DANGER
                     fatigueSpike -> FatigueLevel.CAUTION
                     maxScore >= 40f -> FatigueLevel.MILD
                     else -> FatigueLevel.NORMAL
@@ -68,7 +73,7 @@ object DemoHistoryGenerator {
                     if (fatigueSpike) add(ReasonCode.MICRO_CORRECTION_DROP.name)
                     if (longDrive) add(ReasonCode.LONG_DRIVE.name)
                 }
-                val restCount = if (fatigueSpike) 1 else 0
+                val restCount = if (dangerSpike) 1 else 0 // 휴식 권고 = DANGER 개입
 
                 val slower = (week == 0 && day == days.last()) || (week == 3 && day == days.first())
                 val violations = buildList {
@@ -83,7 +88,7 @@ object DemoHistoryGenerator {
                     maxLevel = maxLevel.name,
                     mildEntries = if (maxLevel >= FatigueLevel.MILD) 1 else 0,
                     cautionEntries = if (maxLevel >= FatigueLevel.CAUTION) 1 else 0,
-                    dangerEntries = 0,
+                    dangerEntries = if (maxLevel >= FatigueLevel.DANGER) 1 else 0,
                     reasonCodes = reasons.joinToString(","),
                     observedMs = endedAt - startedAt,
                     judgedMs = if (judged) (durationMin * 60_000L * (40 + random.nextInt(40)) / 100) else 0L,
@@ -99,6 +104,7 @@ object DemoHistoryGenerator {
                     compliance = (if (violations.isEmpty()) ComplianceStatus.COMPLIED else ComplianceStatus.VIOLATED).name,
                     violations = violations.joinToString(",") { it.name },
                     complianceSource = source,
+                    judgedConditions = judgedConditions,
                     isDemo = true,
                     isSynced = true, // 서버로 보내지 않는다
                 )

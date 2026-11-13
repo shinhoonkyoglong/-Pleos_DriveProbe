@@ -38,7 +38,7 @@ class TripInterventionReportTest {
                     interventionLevel = level, fatigueScore = 70f, triggerReason = reason,
                     actionDetails = json, userResponse = response))
             }
-            row(level = 2, response = "괜찮아요")
+            row(level = 2, response = "괜찮아요") // CAUTION: 휴식 권고가 아니다(DANGER만 센다)
             row(response = "아니요", json = "{\"simulation\":false,\"outcome\":\"DECLINED\",\"consent\":\"DECLINE\"}")
             row(response = "글쎄요", json = "{\"simulation\":false,\"outcome\":\"UNKNOWN_RESPONSE\"}")
             row(response = "추가해 줘", json = "{\"simulation\":false,\"outcome\":\"CANCELLED\",\"navigationStatus\":\"FAILED\"}")
@@ -60,7 +60,7 @@ class TripInterventionReportTest {
             }
             val source = InterventionRestAdviceSource(dao)
             // Counts actual stored attempts, independent of engine stage entry counts and timestamps.
-            assertEquals(RestAdvice(8, 4, DataSource.REAL), source.countFor(trip()))
+            assertEquals(RestAdvice(7, 3, DataSource.REAL), source.countFor(trip()))
             assertEquals(RestAdvice(0, 0, DataSource.REAL), source.countFor(trip("empty")))
             assertEquals(RestAdvice(0, 0, DataSource.MOCK), source.countFor(trip().copy(isDemo = true)))
         } finally { db.close() }
@@ -82,8 +82,9 @@ class TripInterventionReportTest {
                 saving.complete(Unit)
                 allowSave.await()
                 history.insertIntervention(InterventionHistoryEntity(sessionId = record.sessionId,
-                    timestamp = Long.MAX_VALUE, interventionLevel = record.condition.level.ordinal,
-                    fatigueScore = 70f, triggerReason = "CAUTION", actionDetails = "{\"simulation\":false}",
+                    // 휴식 권고는 DANGER(3)만 센다. 늦게 저장된 이력이 집계에 들어가는지 보려고 DANGER로 저장한다
+                    timestamp = Long.MAX_VALUE, interventionLevel = 3,
+                    fatigueScore = 70f, triggerReason = "DANGER", actionDetails = "{\"simulation\":false}",
                     userResponse = record.result.response))
             })
         val engine = localEngine(scope).also { it.handle(VehicleSignalEvent.Gear(1, GearPosition.DRIVE)) }

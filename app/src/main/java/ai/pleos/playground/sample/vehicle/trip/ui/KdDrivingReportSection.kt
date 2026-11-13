@@ -160,7 +160,7 @@ private fun KdConditionRow(row: ConditionRow, radiusKm: Double?, weeks: Int) {
     val (value, tone) = when (row.status) {
         ConditionStatus.KEPT -> "${weeks}주 동안 모두 지킴" to KdTone.GOOD
         ConditionStatus.VIOLATED -> "${row.judgedTrips}번 중 ${row.violations}번 못 지킴" to KdTone.CAUTION
-        ConditionStatus.NOT_JUDGED -> "판정 안 함(연동 전)" to KdTone.UNKNOWN
+        ConditionStatus.NOT_JUDGED -> "판정 안 함" to KdTone.UNKNOWN
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(tone.symbol, color = tone.color, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(48.dp))

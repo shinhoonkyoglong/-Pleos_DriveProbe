@@ -15,7 +15,8 @@ import ai.pleos.playground.sample.vehicle.trip.share.MockFamilyShareSender
 import ai.pleos.playground.sample.vehicle.trip.share.ShareResult
 import ai.pleos.playground.sample.vehicle.trip.source.DepartureDriverConditionsSource
 import ai.pleos.playground.sample.vehicle.trip.source.DriverConditionsSource
-import ai.pleos.playground.sample.vehicle.trip.source.EngineOrMockPreDriveSource
+import ai.pleos.playground.sample.vehicle.trip.source.DepartureComplianceSource
+import ai.pleos.playground.sample.vehicle.trip.source.EnginePreDriveSource
 import ai.pleos.playground.sample.vehicle.trip.source.MockComplianceSource
 import ai.pleos.playground.sample.vehicle.trip.source.InterventionRestAdviceSource
 import ai.pleos.playground.sample.vehicle.trip.ui.TripSummaryActivity
@@ -238,8 +239,11 @@ object TripModule {
             dao = dao,
             restAdviceSource = InterventionRestAdviceSource(
                 ai.pleos.playground.sample.vehicle.data.local.AppDatabase.getInstance(app).interventionHistoryDao()),
-            complianceSource = MockComplianceSource(),
-            preDriveSource = EngineOrMockPreDriveSource(),
+            // 2번 판정 함수(core 0.11.0). 앱 밖(테스트용 Application)에서는 임시 판정
+            complianceSource = (app as? DriveProbeApplication)
+                ?.let { a -> DepartureComplianceSource { from, to -> a.departureFeature.evaluateTripCompliance(from, to) } }
+                ?: MockComplianceSource(),
+            preDriveSource = EnginePreDriveSource,
             checkpoints = PrefsCheckpointStore(app),
             onTripStarted = { engine, id -> (app as DriveProbeApplication).interventions.bindReportTrip(engine, id) },
             onTripEnding = { id -> (app as DriveProbeApplication).interventions.finishReportTrip(id) },
