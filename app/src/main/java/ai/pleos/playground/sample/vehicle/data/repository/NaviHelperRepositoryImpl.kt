@@ -225,6 +225,7 @@ class NaviHelperRepositoryImpl(
 
     private val connectMutex = Mutex()
     private val requestMutex = Mutex()
+    private var probeWaypointReceipt: ProbeWaypointReceipt? = null
 
     @Volatile private var pendingDestination: CompletableDeferred<DestinationInfo>? = null
     @Volatile private var pendingRouteState: CompletableDeferred<RouteStateInfo>? = null
@@ -532,6 +533,7 @@ class NaviHelperRepositoryImpl(
                     )
                     // Conservative boundary: if Binder throws, the service may still have received the request.
                     dispatched()
+                    probeWaypointReceipt = null
                     helper.addWaypoint(request)
                 }
                 val confirmed = withTimeoutOrNull(30_000L) {
@@ -544,7 +546,9 @@ class NaviHelperRepositoryImpl(
                         val verified=confirmation.observe(observed,routingCompletionCount > completedBefore)
                         Log.i("NaviWaypointProbe","ADD_READBACK ${confirmation.diagnostic}")
                         if (verified) {
-                            Log.i("NaviWaypointProbe","ADD_VERIFIED evidence=${if(routingCompletionCount > completedBefore) "EVENT_AND_READBACK" else "STABLE_READBACK"}")
+                            val marker=if(confirmation.status==RestNavigationStatus.VERIFIED_WAYPOINT) "ADD_VERIFIED" else "ADD_OBSERVED"
+                            Log.i("NaviWaypointProbe","$marker status=${confirmation.status} evidence=${if(routingCompletionCount > completedBefore) "EVENT_AND_READBACK" else "STABLE_READBACK"}")
+                            probeWaypointReceipt=ProbeWaypointReceipt(expected,candidate.place,observed,android.os.SystemClock.elapsedRealtime())
                             result = observed
                         } else delay(500)
                     }
@@ -581,7 +585,8 @@ class NaviHelperRepositoryImpl(
             if (!RestNavigation.sameDestination(original.destination, observed.destination) ||
                 original.state.routeOption != observed.state.routeOption || original.state.naviMode != observed.state.naviMode ||
                 original.waypoints.isNotEmpty() || observed.waypoints.size != 1 ||
-                !RestNavigation.waypointMatches(place, observed.waypoints.firstOrNull())) {
+                !(RestNavigation.waypointMatches(place, observed.waypoints.firstOrNull()) ||
+                    probeWaypointReceipt?.authorizes(original,place,observed,android.os.SystemClock.elapsedRealtime())==true)) {
                 val diagnostic=waypointObservationDiagnostic(original,place,observed)
                 Log.w("NaviWaypointProbe","CLEANUP_CONTEXT_MISMATCH $diagnostic")
                 throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,
@@ -590,6 +595,7 @@ class NaviHelperRepositoryImpl(
             withContext(Dispatchers.Main) {
                 currentCoroutineContext().ensureActive()
                 beforeDispatch()
+                probeWaypointReceipt = null
                 naviHelper!!.removeWaypoint(WaypointIndex.FIRST)
             }
             withTimeoutOrNull(30_000L) {

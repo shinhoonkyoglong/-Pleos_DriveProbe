@@ -11,6 +11,8 @@ data class ReviewedServiceArea(
     val routeId: String, val destinationLatitude: Double, val destinationLongitude: Double,
     val destinationPoiId: String, val routeOption: String, val upcomingNames: List<String>,
     val place: RestPlace, val reviewedAtEpochMs: Long,
+    val routePath: List<String> = emptyList(),
+    val directedUpcomingNames: List<String> = emptyList(),
 )
 
 interface ReviewedServiceAreaStore {
@@ -29,7 +31,7 @@ data class ServiceAreaReviewDiagnostics(val storedCount: Int,val matchingCount: 
         reasons.entries.joinToString(",") { "${it.key}:${it.value}" }.ifEmpty { "NONE" }
 }
 
-/** Prototype approval is tied to THIS route, destination and upcoming facility sequence. */
+/** Approval survives equivalent route recalculation; its original expiry is never extended. */
 class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private val clock: () -> Long) {
     private val mutex = Mutex()
     private fun sequence(tbt: NaviTbtRoute) = tbt.restStopHints.take(3).map { serviceAreaBaseName(it.value.description) }
@@ -37,10 +39,13 @@ class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private 
         val reasons=mutableListOf<String>()
         val age=now-value.reviewedAtEpochMs
         if(age<0) reasons+="CLOCK_REVERSED" else if(age>MAX_AGE_MS) reasons+="EXPIRED"
-        if(value.routeId!=route.routeId || tbt.routeId!=route.routeId) reasons+="ROUTE_ID"
+        if(tbt.routeId!=route.routeId || route.routeId.isBlank()) reasons+="ROUTE_ID"
+        if(!tbt.reachesArrival || route.state.isMock || route.state.naviMode != ai.pleos.playground.sample.vehicle.data.model.NaviMode.ROUTE_GUIDING || route.waypoints.isNotEmpty()) reasons+="ROUTE_CONTEXT"
+        if(value.routeId!=route.routeId && !sameRemainingRoutePath(value.routePath,tbt.pathIdentity)) reasons+="ROUTE_PATH"
+        if(value.directedUpcomingNames.isNotEmpty() && value.directedUpcomingNames != directedSequence(tbt)) reasons+="FACILITY_DIRECTION"
         if(value.routeOption!=route.state.routeOption) reasons+="ROUTE_OPTION"
         val destination=route.destination
-        if(destination==null || value.destinationPoiId!=destination.poiId ||
+        if(destination==null || destination.isMock || value.destinationPoiId!=destination.poiId ||
             !(RestNavigation.distanceMeters(value.destinationLatitude,value.destinationLongitude,destination.latitude,destination.longitude)<=20)) reasons+="DESTINATION"
         if(value.upcomingNames!=sequence(tbt)) reasons+="UPCOMING_SEQUENCE"
         return reasons
@@ -66,7 +71,11 @@ class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private 
             throw RestNavigationFailure(RestNavigationStatus.SERVICE_AREA_DETAILS_UNAVAILABLE,message,
                 source="PLEOS_TBT_REVIEW_REQUIRED",diagnosticCode=report.summary())
         }
-        eligible.single().place
+        val matched=eligible.single()
+        if(matched.routeId!=route.routeId) {
+            store.save(values.map { if(it===matched) it.copy(routeId=route.routeId,routePath=tbt.pathIdentity) else it })
+        }
+        matched.place
     }
 
     suspend fun confirm(route: RestNaviSnapshot,tbt: NaviTbtRoute,place: RestPlace,roadName: String,direction: String,confirmed: Boolean) = mutex.withLock {
@@ -79,14 +88,26 @@ class ReviewedServiceAreas(private val store: ReviewedServiceAreaStore, private 
         require(roadName.isNotBlank() && direction.isNotBlank()) { "확인한 노선과 방향을 입력해 주세요" }
         val destination = route.destination!!
         val review = ReviewedServiceArea(route.routeId,destination.latitude,destination.longitude,destination.poiId,
-            route.state.routeOption,sequence(tbt),place.copy(roadName=roadName.trim(),direction=direction.trim()),clock())
-        val others = store.load().filterNot { it.routeId == route.routeId && it.upcomingNames == review.upcomingNames }
+            route.state.routeOption,sequence(tbt),place.copy(roadName=roadName.trim(),direction=direction.trim()),clock(),
+            tbt.pathIdentity,directedSequence(tbt))
+        val others = store.load().filterNot { it.upcomingNames == review.upcomingNames &&
+            (it.routeId == route.routeId || (it.destinationPoiId==review.destinationPoiId && it.routeOption==review.routeOption &&
+                RestNavigation.distanceMeters(it.destinationLatitude,it.destinationLongitude,review.destinationLatitude,review.destinationLongitude)<=20 &&
+                sameRemainingRoutePath(it.routePath,review.routePath))) }
         store.save((others + review).takeLast(32))
     }
 
     suspend fun forget(routeId: String) = mutex.withLock { store.save(store.load().filterNot { it.routeId == routeId }) }
+    suspend fun forget(route:RestNaviSnapshot,tbt:NaviTbtRoute) = mutex.withLock {
+        store.save(store.load().filterNot { value -> value.routeId==route.routeId ||
+            (value.upcomingNames==sequence(tbt) && value.routeOption==route.state.routeOption &&
+                route.destination?.let { value.destinationPoiId==it.poiId &&
+                    RestNavigation.distanceMeters(value.destinationLatitude,value.destinationLongitude,it.latitude,it.longitude)<=20 }==true &&
+                (sameRemainingRoutePath(value.routePath,tbt.pathIdentity) || sameRemainingRoutePath(tbt.pathIdentity,value.routePath))) })
+    }
 
     companion object { const val MAX_AGE_MS = 24 * 60 * 60 * 1000L }
+    private fun directedSequence(tbt:NaviTbtRoute)=tbt.restStopHints.take(3).map { it.value.description.replace(Regex("\\s+"),"") }
 }
 
 data class ServiceAreaReviewSession(
@@ -132,6 +153,6 @@ class ServiceAreaReview(
 
     suspend fun forget(session: ServiceAreaReviewSession) {
         check(allowed()) { "정차 상태에서 확인 기록을 해제해 주세요" }
-        reviewed.forget(session.route.routeId)
+        reviewed.forget(session.route,session.tbt)
     }
 }

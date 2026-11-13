@@ -5,6 +5,16 @@ The Door Position flow is the official, typed SDK reference in this repository.
 The in-app API catalog is a companion screen for discovering public method names,
 parameters, and operation order before writing application code.
 
+## 주행 기능 테스트
+
+주행 시작·피로 단계·개입 결과·정차 후 요약을 확인하는 에뮬레이터 실행 도구는
+[주행 기능 테스트 안내](docs/driving-test.md)를 참고하세요.
+휴게시설 확인 유지와 빈 경유지 좌표 처리의 수정·검증은 [DANGER 경유 E2E 기록](docs/rest-stop-e2e-fix.md)에 정리했습니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Driving.ps1 -Scenario Smoke
+```
+
 ## What is included
 
 - A typed Door Position reference flow covering capability, read, write, register, and

@@ -70,7 +70,7 @@ class ReviewedServiceAreasTest {
         f.epoch+=ReviewedServiceAreas.MAX_AGE_MS+1
         val report=f.registry.diagnose(changed,tbt.copy(routeId="new-route",entries=tbt.entries.drop(2)))
         assertEquals("REVIEW_CONTEXT_MISMATCH",report.code)
-        assertEquals(setOf("ROUTE_ID","ROUTE_OPTION","DESTINATION","UPCOMING_SEQUENCE","EXPIRED"),report.reasons.keys)
+        assertEquals(setOf("ROUTE_OPTION","DESTINATION","UPCOMING_SEQUENCE","FACILITY_DIRECTION","EXPIRED"),report.reasons.keys)
         assertEquals(0,report.matchingCount)
     }
 
@@ -125,12 +125,51 @@ class ReviewedServiceAreasTest {
         assertEquals(bookmark.poiId,f.estimatedPlace!!.poiId)
     }
 
-    @Test fun `review never transfers to a new route destination option or upcoming sequence`()=runTest {
+    @Test fun `review never transfers to a different destination option or upcoming sequence`()=runTest {
         val f=Fixture();f.confirm()
-        val cases=listOf(route.copy(routeId="new-route"),route.copy(destination=destination.copy(latitude=37.6)),
+        val cases=listOf(route.copy(destination=destination.copy(latitude=37.6)),
             route.copy(state=route.state.copy(routeOption="RECOMMENDED")))
         for(changed in cases){rejected{f.registry.resolve(changed,tbt.copy(routeId=changed.routeId))}}
         rejected{f.registry.resolve(route,tbt.copy(entries=tbt.entries.drop(2)))}
+    }
+
+    @Test fun `periodic reroutes preserve review without renewing its original expiry`()=runTest {
+        val f=Fixture();f.confirm();val originalTime=f.store.entries.single().reviewedAtEpochMs
+        repeat(3) { index ->
+            f.epoch+=5*60_000
+            val refreshed=route.copy(routeId="periodic-$index")
+            val current=tbt.copy(routeId=refreshed.routeId,entries=tbt.entries.map { it.copy(distanceMeters=it.distanceMeters-100) })
+            assertEquals(bookmark.poiId,f.registry.resolve(refreshed,current).poiId)
+            assertEquals(refreshed.routeId,f.store.entries.single().routeId)
+            assertEquals(originalTime,f.store.entries.single().reviewedAtEpochMs)
+        }
+        f.epoch=originalTime+ReviewedServiceAreas.MAX_AGE_MS+1
+        rejected { f.registry.resolve(route.copy(routeId="expired"),tbt.copy(routeId="expired")) }
+    }
+
+    @Test fun `passed maneuvers may disappear but changed road direction mixed IDs and partial lists cannot reuse review`()=runTest {
+        val f=Fixture();f.confirm()
+        val fresh=route.copy(routeId="periodic")
+        assertEquals(bookmark.poiId,f.registry.resolve(fresh,tbt.copy(routeId="periodic",entries=tbt.entries.drop(1))).poiId)
+        val next=fresh.copy(routeId="next")
+        val changed=tbt.copy(routeId="next",entries=tbt.entries.drop(1).mapIndexed { i,e -> if(i==0) e.copy(description="시험휴게소(서쪽방향)") else e })
+        rejected { f.registry.resolve(next,changed) }
+        rejected { f.registry.resolve(next,tbt.copy(routeId="next",entries=listOf(NaviTbtEntry("TURN_LEFT",1,0.0,"다른고속도로"))+tbt.entries)) }
+        rejected { f.registry.resolve(next,tbt) }
+        rejected { f.registry.resolve(next,tbt.copy(routeId="next",entries=tbt.entries.dropLast(1))) }
+    }
+
+    @Test fun `legacy records remain readable but need confirmation before a new route ID`()=runTest {
+        val f=Fixture();f.confirm();f.store.entries=f.store.entries.map { it.copy(routePath=emptyList(),directedUpcomingNames=emptyList()) }
+        assertEquals(bookmark.poiId,f.registry.resolve(route,tbt).poiId)
+        rejected { f.registry.resolve(route.copy(routeId="new"),tbt.copy(routeId="new")) }
+    }
+
+    @Test fun `forgetting the original session removes an equivalently rebound review`()=runTest {
+        val f=Fixture();val session=f.review.load();f.confirm()
+        f.registry.resolve(route.copy(routeId="periodic"),tbt.copy(routeId="periodic"))
+        f.review.forget(session)
+        assertTrue(f.store.entries.isEmpty())
     }
 
     @Test fun `review expires and clock reversal does not revive it`()=runTest {

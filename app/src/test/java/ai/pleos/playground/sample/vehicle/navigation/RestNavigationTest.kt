@@ -16,6 +16,7 @@ class RestNavigationTest {
         var state=initial
         var location=NaviLocation(37.4,127.1)
         var writes=0
+        var expectedWriteRouteId:String?=null
         var estimates=0
         var queries=0
         var write: (suspend (RestCandidate,()->Unit)->RestNaviSnapshot)?=null
@@ -25,6 +26,7 @@ class RestNavigationTest {
             override suspend fun location()=location
             override suspend fun estimate(place:RestPlace):NaviTripInfo { estimates++; error("Point ETA is not route membership") }
             override suspend fun addFirstWaypoint(candidate:RestCandidate,expected:RestNaviSnapshot,dispatched:()->Unit):RestNaviSnapshot {
+                expectedWriteRouteId=expected.routeId
                 write?.let { return it(candidate,dispatched) }
                 dispatched();writes++
                 return state.copy(waypoints=listOf(NaviWaypoint(candidate.place.latitude,candidate.place.longitude,candidate.place.name)))
@@ -115,6 +117,46 @@ class RestNavigationTest {
     @Test fun `same destination but changed route needs a new proposal`()=runTest {
         val f=Fixture();val p=f.nav.prepareProposal();f.state=f.state.copy(routeId="rerouted")
         assertEquals(RestNavigationStatus.CONTEXT_CHANGED,f.nav.accept(p).status);assertEquals(0,f.writes)
+    }
+
+    @Test fun `equivalent periodic reroute during consent keeps the same proposal and uses fresh context`()=runTest {
+        val f=Fixture();f.batch=f.batch.copy(routePath=listOf("road:부산", "rest:기흥", "arrive"))
+        val p=f.nav.prepareProposal();f.state=f.state.copy(routeId="periodic")
+        f.batch=f.batch.copy(routeId="periodic")
+        assertEquals(RestNavigationStatus.VERIFIED_WAYPOINT,f.nav.accept(p).status)
+        assertEquals(1,f.writes)
+        assertEquals("periodic",f.expectedWriteRouteId)
+        assertEquals(RestNavigationStatus.PROPOSAL_INVALID,f.nav.accept(p).status)
+        val changed=Fixture();changed.batch=changed.batch.copy(routePath=listOf("road:부산","arrive"))
+        val old=changed.nav.prepareProposal();changed.state=changed.state.copy(routeId="different")
+        changed.batch=changed.batch.copy(routeId="different",routePath=listOf("road:서울","arrive"))
+        assertEquals(RestNavigationStatus.CONTEXT_CHANGED,changed.nav.accept(old).status)
+        assertEquals(0,changed.writes)
+    }
+
+    @Test fun `read crossing a reroute retries coherently and still dispatches only once`()=runTest {
+        val f=Fixture()
+        val nav=RestNavigation(f.port,RouteServiceAreaSource { _,_ ->
+            f.queries++
+            if(f.queries==1) { f.state=f.state.copy(routeId="periodic");f.batch=f.batch.copy(routeId="periodic") }
+            f.batch
+        },{f.now})
+        val proposal=nav.prepareProposal()
+        assertEquals("periodic",proposal.before.routeId)
+        assertEquals(2,f.queries)
+        assertEquals(RestNavigationStatus.VERIFIED_WAYPOINT,nav.accept(proposal).status)
+        assertEquals(1,f.writes)
+    }
+
+    @Test fun `missing SDK identity records observed entry and a repeated acceptance never writes twice`()=runTest {
+        val f=Fixture();val named=place.copy(name="기흥휴게소(부산방향)")
+        f.batch=f.batch.copy(areas=listOf(area(place=named)))
+        f.write={ candidate,sent -> sent();f.writes++;initial.copy(waypoints=listOf(NaviWaypoint(0.0,0.0,candidate.place.name))) }
+        val p=f.nav.prepareProposal();val result=f.nav.accept(p)
+        assertEquals(RestNavigationStatus.WAYPOINT_OBSERVED,result.status)
+        assertTrue(result.requestIssued)
+        assertEquals(RestNavigationStatus.PROPOSAL_INVALID,f.nav.accept(p).status)
+        assertEquals(1,f.writes)
     }
 
     @Test fun `passing the proposed service area does not select another after consent`()=runTest {

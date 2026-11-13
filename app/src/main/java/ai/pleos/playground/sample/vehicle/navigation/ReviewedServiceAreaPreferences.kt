@@ -15,7 +15,7 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
         val text=preferences.getString("records",null) ?: return@withContext emptyList()
         try {
             val root=JSONObject(text)
-            require(root.getInt("version")==1)
+            require(root.getInt("version") in 1..2)
             val rows=root.getJSONArray("entries")
             require(rows.length()<=32)
             (0 until rows.length()).map { index ->
@@ -31,7 +31,8 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
                 require(sequence.length() in 1..3)
                 ReviewedServiceArea(row.getString("routeId"),row.getDouble("destinationLatitude"),row.getDouble("destinationLongitude"),
                     row.getString("destinationPoiId"),row.getString("routeOption"),
-                    (0 until sequence.length()).map { sequence.getString(it) },place,row.getLong("reviewedAtEpochMs"))
+                    (0 until sequence.length()).map { sequence.getString(it) },place,row.getLong("reviewedAtEpochMs"),
+                    row.optJSONArray("routePath").strings(),row.optJSONArray("directedUpcomingNames").strings())
             }
         } catch(e: Exception) { throw IOException("휴게소 시설 확인 기록을 읽지 못했어요. 확인 기록을 다시 등록해 주세요",e) }
     }
@@ -42,6 +43,7 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
             put("routeId",value.routeId);put("destinationLatitude",value.destinationLatitude);put("destinationLongitude",value.destinationLongitude)
             put("destinationPoiId",value.destinationPoiId);put("routeOption",value.routeOption)
             put("upcomingNames",JSONArray(value.upcomingNames));put("reviewedAtEpochMs",value.reviewedAtEpochMs)
+            put("routePath",JSONArray(value.routePath));put("directedUpcomingNames",JSONArray(value.directedUpcomingNames))
             put("place",JSONObject().apply {
                 val p=value.place
                 put("id",p.id);put("name",p.name);put("latitude",p.latitude);put("longitude",p.longitude)
@@ -52,7 +54,8 @@ class ReviewedServiceAreaPreferences(context: Context) : ReviewedServiceAreaStor
                 put("dataDate",p.dataDate)
             })
         }) }
-        val result=JSONObject().apply { put("version",1);put("entries",rows) }
+        val result=JSONObject().apply { put("version",2);put("entries",rows) }
         if (!preferences.edit().putString("records",result.toString()).commit()) throw IOException("휴게소 확인 기록을 저장하지 못했어요")
     }
+    private fun JSONArray?.strings(): List<String> = this?.let { rows -> (0 until rows.length()).map { rows.getString(it) } } ?: emptyList()
 }

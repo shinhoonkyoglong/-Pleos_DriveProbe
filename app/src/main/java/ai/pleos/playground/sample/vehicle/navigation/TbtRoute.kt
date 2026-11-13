@@ -26,6 +26,10 @@ fun NaviTbtEntry.facilityKind(): TbtFacilityKind {
 }
 
 data class NaviTbtRoute(val routeId: String, val capturedAtMs: Long, val entries: List<NaviTbtEntry>) {
+    /** Ordered maneuvers retain road/direction labels; changing distance/ETA is not a new path. */
+    val pathIdentity: List<String> get() = if (!reachesArrival) emptyList() else entries.map {
+        "${it.type}:${it.typeValue}:${it.description.replace(Regex("\\s+"), "").trim()}"
+    }
     /** Preserve SDK order; never sort segment distances and call the smallest value the next stop. */
     val serviceAreaHints: List<IndexedValue<NaviTbtEntry>> get() = entries.withIndex().filter {
         it.value.facilityKind() == TbtFacilityKind.SERVICE_AREA
@@ -85,6 +89,11 @@ class PleosTbtServiceAreaSource(
             onCurrentRoute=true,sameDirection=true,routeOrder=hint.index,tripInfo=trip,kind=kind,
             verification=if(publicPlace!=null) "PUBLIC_CATALOG_DIRECTION_MATCH" else if(automatic!=null) "NATIVE_TBT_EXPLICIT_DIRECTION" else "MANUAL_ROUTE_DIRECTION_CONFIRMATION")),
             source=if(publicPlace!=null) "PLEOS_TBT_PUBLIC_REST_STOP_CATALOG" else if(automatic!=null) "PLEOS_TBT_AUTOMATIC_NATIVE_FACILITY"
-                else if(place.id.startsWith("PUBLIC_CATALOG:")) "PLEOS_TBT_REVIEWED_PUBLIC_CATALOG" else "PLEOS_TBT_REVIEWED_NAVI_BOOKMARK")
+                else if(place.id.startsWith("PUBLIC_CATALOG:")) "PLEOS_TBT_REVIEWED_PUBLIC_CATALOG" else "PLEOS_TBT_REVIEWED_NAVI_BOOKMARK",
+            routePath = tbt.pathIdentity)
     }
 }
+
+/** Progress may remove passed maneuvers, but cannot insert/reorder/change roads or directions. */
+fun sameRemainingRoutePath(reviewed: List<String>, current: List<String>): Boolean =
+    current.isNotEmpty() && reviewed.size >= current.size && reviewed.takeLast(current.size) == current
