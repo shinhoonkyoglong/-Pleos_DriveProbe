@@ -245,6 +245,7 @@ class TripRecorder(
             compliance = compliance.status.name,
             violations = compliance.violations.joinToString(",") { it.name },
             complianceSource = compliance.source.name,
+            judgedConditions = compliance.judged.sortedBy { it.ordinal }.joinToString(",") { it.name },
             isDemo = trip.isDemo,
         )
 

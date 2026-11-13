@@ -7,6 +7,7 @@ import ai.pleos.playground.sample.vehicle.trip.data.TripRecordEntity
 import ai.pleos.playground.sample.vehicle.trip.source.ComplianceStatus
 import ai.pleos.playground.sample.vehicle.trip.source.DataSource
 import ai.pleos.playground.sample.vehicle.trip.source.Violation
+import ai.pleos.playground.sample.vehicle.trip.source.judgedConditionsOf
 import kotlin.math.roundToInt
 
 /** 항목 상태. 화면은 색과 함께 글자(좋음/확인/참고)로도 구분한다 */
@@ -129,7 +130,7 @@ data class TripSummaryContent(
             return SummaryItem(SummaryKey.FATIGUE, "피로 점수", "최고 ${r.maxFatigueScore.roundToInt()}점", detail, tone, isMock = false)
         }
 
-        /** 휴식 권고 (4번 CAUTION 이상 개입) */
+        /** 휴식 권고 (4번 DANGER 개입) */
         fun restItem(r: TripRecordEntity): SummaryItem {
             val mock = r.restAdviceSource == DataSource.MOCK.name
             return if (r.restAdviceCount <= 0) {
@@ -155,12 +156,22 @@ data class TripSummaryContent(
             return SummaryItem(SummaryKey.PRE_DRIVE, "출발 전 반응", value, detail, tone, mock)
         }
 
-        /** 운전 조건 준수 (2번) */
+        /**
+         * 운전 조건 준수 (2번). 판정한 조건만 말한다 — 판정하지 못한 조건(지금은 고속도로·반경)이 있으면
+         * "모두 지킴"이라고 단정하지 않는다(2번 연동 규칙).
+         */
         fun complianceItem(r: TripRecordEntity, status: ComplianceStatus): SummaryItem {
             val mock = r.complianceSource == DataSource.MOCK.name
             return when (status) {
-                ComplianceStatus.COMPLIED ->
-                    SummaryItem(SummaryKey.COMPLIANCE, "운전 조건", "모두 지킴", null, SummaryTone.GOOD, mock)
+                ComplianceStatus.COMPLIED -> {
+                    val judged = judgedConditionsOf(r).sortedBy { it.ordinal }
+                    val (value, detail) = when {
+                        judged.size == Violation.entries.size -> "모두 지킴" to null
+                        judged.isEmpty() -> "지킴" to null
+                        else -> "지킴" to "${judged.joinToString(", ") { it.label() }} 조건을 지켰어요."
+                    }
+                    SummaryItem(SummaryKey.COMPLIANCE, "운전 조건", value, detail, SummaryTone.GOOD, mock)
+                }
                 ComplianceStatus.VIOLATED -> {
                     val names = r.violations.split(',').mapNotNull { enumOrNull<Violation>(it.trim()) }.map { it.label() }
                     val detail = if (names.isEmpty()) "지키지 못한 조건이 있었어요."
@@ -169,6 +180,8 @@ data class TripSummaryContent(
                 }
                 ComplianceStatus.UNKNOWN ->
                     SummaryItem(SummaryKey.COMPLIANCE, "운전 조건", "확인 못 함", "운전 조건 확인 결과가 없어요.", SummaryTone.INFO, mock)
+                ComplianceStatus.NO_CONDITION ->
+                    SummaryItem(SummaryKey.COMPLIANCE, "운전 조건", "설정 안 함", "설정한 운전 조건이 없어요.", SummaryTone.INFO, mock)
             }
         }
 

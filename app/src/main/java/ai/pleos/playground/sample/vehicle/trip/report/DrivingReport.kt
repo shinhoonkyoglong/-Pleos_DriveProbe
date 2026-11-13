@@ -5,7 +5,7 @@ import ai.pleos.playground.sample.vehicle.trip.TripSummaryContent.Companion.dura
 import ai.pleos.playground.sample.vehicle.trip.data.TripRecordEntity
 import ai.pleos.playground.sample.vehicle.trip.source.ComplianceStatus
 import ai.pleos.playground.sample.vehicle.trip.source.DataSource
-import ai.pleos.playground.sample.vehicle.trip.source.MockComplianceSource
+import ai.pleos.playground.sample.vehicle.trip.source.judgedConditionsOf
 import ai.pleos.playground.sample.vehicle.trip.source.Violation
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,7 +41,7 @@ enum class ConditionStatus { KEPT, VIOLATED, NOT_JUDGED }
 /**
  * 조건 하나의 기록.
  * @param judgedTrips 이 조건을 판정한 주행 수(판정할 수 없던 주행은 빠짐)
- * @param isMock      판정 값이 임시값(2번 연동 전)이면 true
+ * @param isMock      판정한 기록 중 임시 판정(2번 연동 전 기록)이 있으면 true
  */
 data class ConditionRow(
     val condition: ReportCondition,
@@ -161,13 +161,10 @@ data class DrivingReport(
 
         /**
          * 조건 하나를 판정한 주행 수와 어긴 횟수.
-         * 임시 판정(MockComplianceSource)은 야간 운전만 보므로, 그 기록으로는 고속도로·반경을 "판정 안 함"으로 둔다.
+         * 기록마다 실제로 판정한 조건([judgedConditionsOf])만 센다. 지금 2번은 야간만 판정하므로 고속도로·반경은 "판정 안 함".
          */
         fun conditionRow(condition: ReportCondition, records: List<TripRecordEntity>): ConditionRow {
-            val judged = records.filter { r ->
-                r.compliance != ComplianceStatus.UNKNOWN.name &&
-                    (r.complianceSource == DataSource.REAL.name || condition.violation in MockComplianceSource.EVALUATED)
-            }
+            val judged = records.filter { r -> condition.violation in judgedConditionsOf(r) }
             val violations = judged.count { r -> condition.violation.name in r.violations.split(',').map { it.trim() } }
             val status = when {
                 judged.isEmpty() -> ConditionStatus.NOT_JUDGED
@@ -266,7 +263,7 @@ data class DrivingReport(
             }
             if (t.isDemo) add("이 리포트는 시연용 가상 기록으로 만들었어요.")
             if (rows.any { it.status == ConditionStatus.NOT_JUDGED }) {
-                add("\"판정 안 함\" 조건은 아직 판정 기능이 연결되지 않았어요.")
+                add("\"판정 안 함\" 조건은 주행 경로·위치를 기록하지 않아 아직 판정하지 않아요.")
             }
             if (t.hasMock || rows.any { it.isMock }) {
                 add("\"임시\" 표시 값은 다른 기능과 연결되기 전의 예시 값이에요.")

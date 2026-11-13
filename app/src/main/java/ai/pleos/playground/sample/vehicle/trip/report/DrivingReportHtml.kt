@@ -55,7 +55,7 @@ object DrivingReportHtml {
                 val name = row.condition.label +
                     if (row.condition == ReportCondition.RADIUS && report.conditions?.radiusKm != null) " (${formatKm(report.conditions.radiusKm)})" else ""
                 append("<tr><td>${esc(name)}${mock(row.isMock)}</td>")
-                if (row.status == ConditionStatus.NOT_JUDGED) append("<td colspan=\"2\" class=\"muted\">판정 안 함(연동 전)</td></tr>")
+                if (row.status == ConditionStatus.NOT_JUDGED) append("<td colspan=\"2\" class=\"muted\">판정 안 함</td></tr>")
                 else append("<td>${row.judgedTrips}번</td><td>${row.violations}번</td></tr>")
             }
             append("</tbody></table></section>")

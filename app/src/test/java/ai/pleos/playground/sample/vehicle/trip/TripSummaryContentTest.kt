@@ -8,11 +8,13 @@ import ai.pleos.playground.sample.vehicle.trip.source.ComplianceResult
 import ai.pleos.playground.sample.vehicle.trip.source.ComplianceStatus
 import ai.pleos.playground.sample.vehicle.trip.source.DataSource
 import ai.pleos.playground.sample.vehicle.trip.source.EngineOrMockPreDriveSource
+import ai.pleos.playground.sample.vehicle.trip.source.EnginePreDriveSource
 import ai.pleos.playground.sample.vehicle.trip.source.MockComplianceSource
 import ai.pleos.playground.sample.vehicle.trip.source.MockRestAdviceSource
 import ai.pleos.playground.sample.vehicle.trip.source.PreDriveCheck
 import ai.pleos.playground.sample.vehicle.trip.source.RestAdvice
 import ai.pleos.playground.sample.vehicle.trip.source.Violation
+import ai.pleos.playground.sample.vehicle.trip.source.judgedConditionsOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -180,9 +182,9 @@ class TripSummaryContentTest {
     // ---- 임시값(Mock) 출처 ----
 
     @Test
-    fun `Mock 휴식 권고는 CAUTION 이상 진입 횟수`() = runBlocking {
+    fun `Mock 휴식 권고는 DANGER 진입 횟수만 센다`() = runBlocking {
         val rest = MockRestAdviceSource.countFor(trip(maxLevel = FatigueLevel.DANGER, caution = 1, danger = 1))
-        assertEquals(RestAdvice(2, 2, DataSource.MOCK), rest)
+        assertEquals(RestAdvice(1, 1, DataSource.MOCK), rest)
     }
 
     @Test
@@ -195,6 +197,58 @@ class TripSummaryContentTest {
         assertEquals(ComplianceStatus.VIOLATED, r.status)
         assertEquals(listOf(Violation.NIGHT_DRIVING), r.violations)
         assertEquals(DataSource.MOCK, r.source)
+    }
+
+    @Test
+    fun `출발 전 반응은 엔진 값, 없으면 하지 않음(실제)`() = runBlocking {
+        assertEquals(PreDriveCheck(ReactionVerdict.SLOWER, DataSource.REAL), EnginePreDriveSource.checkFor(trip(preDrive = ReactionVerdict.SLOWER)))
+        assertEquals(PreDriveCheck(null, DataSource.REAL), EnginePreDriveSource.checkFor(trip(preDrive = null)))
+        val item = TripSummaryContent.from(record(preDrive = EnginePreDriveSource.checkFor(trip(preDrive = null)))).item(SummaryKey.PRE_DRIVE)
+        assertEquals("하지 않음", item.value)
+        assertFalse(item.isMock)
+    }
+
+    // ---- 운전 조건 문구(판정한 조건만 말한다) ----
+
+    @Test
+    fun `야간만 판정해 지켰으면 모두 지킴이라고 하지 않는다`() {
+        val c = TripSummaryContent.from(
+            record(compliance = ComplianceResult(ComplianceStatus.COMPLIED, emptyList(), DataSource.REAL, setOf(Violation.NIGHT_DRIVING)))
+        ).item(SummaryKey.COMPLIANCE)
+        assertEquals("지킴", c.value)
+        assertEquals("야간 운전 조건을 지켰어요.", c.detail)
+        assertEquals(SummaryTone.GOOD, c.tone)
+        assertFalse(c.isMock)
+    }
+
+    @Test
+    fun `세 조건을 모두 판정해 지켰으면 모두 지킴`() {
+        val c = TripSummaryContent.from(
+            record(compliance = ComplianceResult(ComplianceStatus.COMPLIED, emptyList(), DataSource.REAL, Violation.entries.toSet()))
+        ).item(SummaryKey.COMPLIANCE)
+        assertEquals("모두 지킴", c.value)
+    }
+
+    @Test
+    fun `조건이 없으면 설정 안 함, 판정 못 하면 확인 못 함`() {
+        val none = TripSummaryContent.from(record(compliance = ComplianceResult(ComplianceStatus.NO_CONDITION, emptyList(), DataSource.REAL)))
+        assertEquals("설정 안 함", none.item(SummaryKey.COMPLIANCE).value)
+        assertEquals(SummaryTone.GOOD, none.headlineTone) // 조건이 없는 건 경고가 아니다
+        val unknown = TripSummaryContent.from(record(compliance = ComplianceResult(ComplianceStatus.UNKNOWN, emptyList(), DataSource.REAL)))
+        assertEquals("확인 못 함", unknown.item(SummaryKey.COMPLIANCE).value)
+    }
+
+    @Test
+    fun `판정한 조건은 기록에 저장하고, 예전 기록은 출처로 추정한다`() {
+        val r = record(compliance = ComplianceResult(ComplianceStatus.VIOLATED, listOf(Violation.NIGHT_DRIVING), DataSource.REAL, setOf(Violation.NIGHT_DRIVING)))
+        assertEquals("NIGHT_DRIVING", r.judgedConditions)
+        assertEquals(setOf(Violation.NIGHT_DRIVING), judgedConditionsOf(r))
+        // 칸이 생기기 전 기록
+        val oldMock = r.copy(judgedConditions = "", complianceSource = DataSource.MOCK.name)
+        assertEquals(setOf(Violation.NIGHT_DRIVING), judgedConditionsOf(oldMock))
+        val oldReal = r.copy(judgedConditions = "")
+        assertEquals(Violation.entries.toSet(), judgedConditionsOf(oldReal))
+        assertEquals(emptySet<Violation>(), judgedConditionsOf(r.copy(judgedConditions = "", compliance = ComplianceStatus.UNKNOWN.name)))
     }
 
     @Test
