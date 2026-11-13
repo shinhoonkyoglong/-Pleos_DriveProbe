@@ -59,11 +59,11 @@ import com.pleos.departure.ui.state.Tone
  * 문구는 state/DepartureDisplayMapper 에서 만든다. 이 파일은 그리기만 한다.
  */
 
-private val Background = DepartureColors.Background
-private val CardBackground = DepartureColors.Surface
-private val TextPrimary = DepartureColors.Ink
-private val TextSecondary = DepartureColors.InkMuted
-private val ButtonColor = DepartureColors.Primary
+private val Background get() = DepartureColors.Background
+private val CardBackground get() = DepartureColors.Surface
+private val TextPrimary get() = DepartureColors.Ink
+private val TextSecondary get() = DepartureColors.InkMuted
+private val ButtonColor get() = DepartureColors.Primary
 
 /** 본문 글자 크기. 화면 머리 주석의 "본문 30sp 이상"과 맞춘다(작업 #9, 리뷰 task-07 MINOR-4 — 이전 28sp). */
 private val BodyTextSize = 30.sp

@@ -41,9 +41,9 @@ import com.pleos.departure.ui.state.HomeCardSummary
  * - 같은 [DepartureScreenModel]을 전체 화면과 공유한다. 홈 카드와 전체 화면을 동시에 띄우지 않는 전제(한 번에 하나만 보임)
  */
 
-private val CardBackground = DepartureColors.Surface
-private val TextPrimary = DepartureColors.Ink
-private val TextSecondary = DepartureColors.InkMuted
+private val CardBackground get() = DepartureColors.Surface
+private val TextPrimary get() = DepartureColors.Ink
+private val TextSecondary get() = DepartureColors.InkMuted
 
 /** 홈 카드. 보이는 동안 확인을 돌리고, 가려지면 멈춘다(전체 화면과 같은 규칙). */
 @Composable
