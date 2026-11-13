@@ -30,6 +30,8 @@ class RepositoryVehicleSignals(
         combine(repository.vehicleSpeed, repository.hasSpeedSignal) { v, has -> if (has) v else null }
             .stateIn(scope, SharingStarted.Eagerly, null)
 
+    override val brakePressed: StateFlow<Boolean?> = repository.brakePressed
+
     override fun start() = Unit
     override fun stop() = Unit
 }

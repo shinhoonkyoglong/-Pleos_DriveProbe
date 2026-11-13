@@ -45,6 +45,9 @@ class ReplayVehicleSignals(
     private val _speedKmh = MutableStateFlow<Float?>(null)
     override val speedKmh: StateFlow<Float?> = _speedKmh.asStateFlow()
 
+    private val _brakePressed = MutableStateFlow<Boolean?>(null)
+    override val brakePressed: StateFlow<Boolean?> = _brakePressed.asStateFlow()
+
     /** 재생 위치(ms, 파일 기준)와 현재 구간 이름 — 시연 화면 표시용 */
     private val _positionMs = MutableStateFlow(0L)
     val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
@@ -83,6 +86,7 @@ class ReplayVehicleSignals(
             when (ev) {
                 is VehicleSignalEvent.Gear -> _gear.value = ev.gear
                 is VehicleSignalEvent.Speed -> _speedKmh.value = ev.speedKmh
+                is VehicleSignalEvent.Brake -> _brakePressed.value = ev.pressed
                 else -> Unit
             }
             _events.emit(ev)

@@ -54,13 +54,24 @@ class ReactionCheckTest {
     private val evaluator get() = ReactionEvaluator(InMemoryReactionRecordStore())
 
     @Test
-    fun `약 60초 뒤 끝나고, 자극 간격은 직전 터치 후 2~5초 무작위`() {
+    fun `유효 반응 10회가 모이면 40초 전에 끝나고, 자극 간격은 직전 터치 후 1_5~3초 무작위`() {
         val r = simulate(rt = { 300L })
         assertEquals(FINISHED, r.session.phase)
+        assertEquals(10, r.session.summary().validCount)
+        assertEquals(10, r.stimuli.size)
         val intervals = r.stimuli.drop(1).mapIndexed { i, st -> st - r.taps[i] }
-        assertTrue(intervals.toString(), intervals.all { it in 2_000L..5_010L })
+        assertTrue(intervals.toString(), intervals.all { it in 1_500L..3_010L })
         assertTrue("간격이 매번 같으면 안 됨", intervals.toSet().size > 3)
-        assertTrue("시도 수 ${r.stimuli.size}", r.stimuli.size in 10..25)
+        assertTrue("끝난 시각 ${r.taps.last()}ms", r.taps.last() in 15_000L..35_000L)
+    }
+
+    @Test
+    fun `반응을 계속 놓치면 최대 40초에서 끝난다`() {
+        var lastFrame = 0L
+        val r = simulate(rt = { null }, onFrame = { _, t -> lastFrame = t })
+        assertEquals(FINISHED, r.session.phase)
+        assertTrue("끝난 시각 ${lastFrame}ms", lastFrame in 40_000L..42_000L)
+        assertEquals(0, r.session.summary().validCount)
     }
 
     @Test
@@ -98,7 +109,7 @@ class ReactionCheckTest {
     fun `자극 전에 누르면 너무 빠른 터치로 기록하고 대기 시간을 다시 잡는다`() {
         val r = simulate(rt = { 300L }, earlyTaps = listOf(1_000L))
         assertEquals(TrialOutcome.FALSE_START, r.session.summary().trials.first().outcome)
-        assertTrue("첫 자극 ${r.stimuli.first()}", r.stimuli.first() >= 1_000 + 2_000)
+        assertTrue("첫 자극 ${r.stimuli.first()}", r.stimuli.first() >= 1_000 + 1_500)
         assertEquals(1, r.session.summary().falseStartCount)
     }
 
@@ -109,7 +120,7 @@ class ReactionCheckTest {
         assertTrue(sum.falseStartCount > 4)
         val res = evaluator.evaluate(sum)
         assertEquals(ReactionVerdict.INCONCLUSIVE, res.verdict)
-        assertTrue(res.message, res.message.contains("화면이 바뀌기 전에"))
+        assertTrue(res.message, res.message.contains("신호가 나오기 전에"))
     }
 
     @Test
@@ -123,7 +134,8 @@ class ReactionCheckTest {
 
     @Test
     fun `중단되면(기어 D) 판단 보류`() {
-        val r = simulate(rt = { 300L }, onFrame = { s, t -> if (t == 20_000L) s.abort() })
+        // 10회가 모이기 전(최소 1.8초 × 10 = 18초)에 중단
+        val r = simulate(rt = { 300L }, onFrame = { s, t -> if (t == 8_000L) s.abort() })
         assertEquals(ABORTED, r.session.phase)
         val res = evaluator.evaluate(r.session.summary())
         assertEquals(ReactionVerdict.INCONCLUSIVE, res.verdict)
@@ -161,6 +173,82 @@ class ReactionCheckTest {
             assertTrue(msg, msg.contains("평소"))
             assertFalse(msg, msg.contains("진단") || msg.contains("치매") || msg.contains("이상"))
         }
+    }
+
+    // ---- 브레이크 페달 입력 ----
+
+    /**
+     * 브레이크 반응을 흉내 낸다: 자극 후 rt ms에 밟고, holdMs 뒤에 뗀다.
+     * @return 세션, 자극 시각들, 뗀 시각들
+     */
+    private fun simulateBrake(
+        rt: Long,
+        holdMs: Long = 300,
+        heldAtStart: Boolean = false,
+        releaseAtStartMs: Long = 0,
+        seed: Int = 1,
+    ): Triple<ReactionSession, List<Long>, List<Long>> {
+        val s = ReactionSession(ReactionParams.BRAKE, Random(seed))
+        s.start(0, held = heldAtStart)
+        val stimuli = ArrayList<Long>()
+        val releases = ArrayList<Long>()
+        var shownAt = -1L
+        var releaseAt = if (heldAtStart) releaseAtStartMs else -1L
+        var t = 0L
+        while (t <= 60_000 && s.phase != FINISHED) {
+            if (releaseAt in 0..t) { s.onRelease(t); releases += t; releaseAt = -1 }
+            val before = s.phase
+            val ph = s.update(t)
+            if (before == WAITING && ph == STIMULUS) { shownAt = t; stimuli += t }
+            if (ph == STIMULUS && t - shownAt >= rt) { s.onPress(t); releaseAt = t + holdMs }
+            t += 10
+        }
+        return Triple(s, stimuli, releases)
+    }
+
+    @Test
+    fun `브레이크 - 밟았다 떼기를 반복해 유효 10회가 모이면 끝난다`() {
+        val (s, _, _) = simulateBrake(rt = 450)
+        assertEquals(FINISHED, s.phase)
+        assertEquals(10, s.summary().validCount)
+        assertEquals(450L, s.summary().medianReactionMs)
+    }
+
+    @Test
+    fun `브레이크 - 다음 자극은 페달을 뗀 시각부터 1_5~3초 뒤에 나온다`() {
+        val (_, stimuli, releases) = simulateBrake(rt = 450, holdMs = 800)
+        // i번째 뗀 시각 → i+1번째 자극
+        val gaps = stimuli.drop(1).mapIndexed { i, st -> st - releases[i] }
+        assertTrue(gaps.toString(), gaps.all { it in 1_500L..3_010L })
+    }
+
+    @Test
+    fun `브레이크 - 시작할 때 밟고 있으면 뗄 때까지 자극이 나오지 않는다`() {
+        val (_, stimuli, _) = simulateBrake(rt = 450, heldAtStart = true, releaseAtStartMs = 10_000)
+        assertTrue("첫 자극 ${stimuli.first()}", stimuli.first() >= 10_000 + 1_500)
+    }
+
+    @Test
+    fun `브레이크 - 밟은 채 같은 값이 다시 와도 반응을 두 번 세지 않는다`() {
+        val s = ReactionSession(ReactionParams.BRAKE, Random(1))
+        s.start(0)
+        assertEquals(TrialOutcome.FALSE_START, s.onPress(500))
+        assertNull("이미 밟은 상태", s.onPress(600))
+        assertTrue(s.isHeld)
+        // 밟고 있는 동안은 시간이 지나도 자극이 나오지 않는다
+        assertEquals(WAITING, s.update(10_000))
+        s.onRelease(10_000)
+        assertFalse(s.isHeld)
+        assertEquals(1, s.summary().falseStartCount)
+    }
+
+    @Test
+    fun `브레이크 기준선(450ms)으로는 평소, 터치 기준선(350ms)으로는 조금 느림`() {
+        val sum = simulateBrake(rt = 480).first.summary()
+        assertEquals(0, sum.slowCount) // 브레이크 느린 반응 기준 700ms
+        val brake = ReactionEvaluator(InMemoryReactionRecordStore(), ReactionBaselineParams.BRAKE).evaluate(sum)
+        assertEquals(ReactionVerdict.NORMAL, brake.verdict)
+        assertEquals(ReactionVerdict.SLOWER, evaluator.evaluate(sum).verdict)
     }
 
     @Test
