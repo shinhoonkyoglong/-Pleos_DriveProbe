@@ -65,8 +65,8 @@ fun DrivingScreen(state: KdUiState) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            LevelGauge(level = condition.level, modifier = Modifier.size(380.dp))
-            Spacer(Modifier.size(64.dp))
+            LevelGauge(level = condition.level, modifier = Modifier.size(520.dp))
+            Spacer(Modifier.size(80.dp))
             Column(verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.weight(1f, fill = false)) {
                 Text(status.title, style = Kd.Display.copy(color = Kd.Ink))
                 Text(status.detail, style = Kd.Headline.copy(color = Kd.InkMuted, fontSize = 36.sp))
@@ -101,7 +101,7 @@ private fun LevelGauge(level: FatigueLevel, modifier: Modifier = Modifier) {
     val tone = level.toStatus().tone
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 36.dp.toPx()
+            val stroke = 40.dp.toPx()
             val gap = 6f // 칸 사이 간격(도)
             val sweepEach = (270f - gap * (levels.size - 1)) / levels.size
             val inset = stroke / 2
@@ -118,7 +118,7 @@ private fun LevelGauge(level: FatigueLevel, modifier: Modifier = Modifier) {
                 )
             }
         }
-        Text(tone.symbol, color = tone.color, fontSize = 140.sp, style = Kd.Display)
+        Text(tone.symbol, color = tone.color, fontSize = 180.sp, style = Kd.Display)
     }
 }
 
