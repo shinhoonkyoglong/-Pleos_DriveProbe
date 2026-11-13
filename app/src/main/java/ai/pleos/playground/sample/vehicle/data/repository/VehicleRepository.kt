@@ -101,7 +101,7 @@ interface VehicleRepository {
     /** 공조 통합 커맨드 제어 */
     suspend fun controlHvac(command: HvacControlCommand): Result<Unit>
 
-    /** 창문 위치 제어 (0: 닫힘 ~ 100: 완전 열림) */
+    /** Raw SDK position in the area capability range; not percent. */
     suspend fun setWindowPosition(
         position: Int,
         area: WindowValue = WindowValue.ROW_1_LEFT
@@ -114,13 +114,13 @@ interface VehicleRepository {
     // 1단계 개입용 프리셋 (피로 감지 시 4번 팀원이 즉시 호출 가능한 고수준 편의 메서드)
     // -------------------------------------------------------------------------
 
-    /** 1단계 피로 개입: 에어컨 가동, 풍량 증가, 운전석 창문 살짝 열기 환기 */
+    /** Lower driver temperature by 1 C, increase fan by one step, verify both. */
     suspend fun triggerFatigueVentilationIntervention(): Result<Unit>
 
     /** 환기용 창문 미세 개방 (기본 15%) */
     suspend fun openVentilationWindow(percentage: Int = 15): Result<Unit>
 
-    /** 모든 창문 닫기 */
+    /** Close the supported front driver/passenger windows. */
     suspend fun closeAllWindows(): Result<Unit>
 
 

@@ -6,10 +6,35 @@ import ai.pleos.playground.sample.vehicle.ui.screen.DepartureDetailScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DepartureHomeScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.DriverConditionSettingsScreen
 import ai.pleos.playground.sample.vehicle.ui.screen.SampleApp
+import ai.pleos.playground.sample.vehicle.ui.screen.InterventionScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.VoiceTestScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.RestNavigationScreen
+import ai.pleos.playground.sample.vehicle.ui.screen.DangerNavigationProbeScreen
+import ai.pleos.playground.sample.vehicle.data.model.GearPosition
+import ai.pleos.playground.sample.vehicle.intervention.DrivingVoiceService
+import ai.pleos.playground.sample.vehicle.navigation.NavigationProbeService
+import android.Manifest
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
 import ai.pleos.playground.sample.vehicle.ui.kd.KdAppViewModel
 import ai.pleos.playground.sample.vehicle.ui.kd.KdTheme
 import ai.pleos.playground.sample.vehicle.ui.kd.KeepDrivingApp
 import ai.pleos.playground.sample.vehicle.ui.kd.ReactionCheckViewModel
+import ai.pleos.playground.sample.vehicle.ui.kd.DrivingAssistViewModel
+import ai.pleos.playground.sample.vehicle.ui.kd.DrivingAssistScreen
+import ai.pleos.playground.sample.vehicle.ui.kd.RestStopSettingsScreen
+import ai.pleos.playground.sample.vehicle.ui.kd.KdPage
 import ai.pleos.playground.sample.vehicle.ui.theme.VehicleSampleAppTheme
 import com.pleos.departure.ui.DepartureHomeCard
 import android.content.BroadcastReceiver
@@ -38,7 +63,6 @@ class MainActivity : ComponentActivity() {
     private val diagnosticTick = object : Runnable {
         override fun run() {
             Log.i("DriveProbe", "heartbeat count=${++diagnosticCount}")
-            viewModel.probeTemperatureRead()
             // Temperature SET_TEST remains available in the ViewModel, but is never automatic.
             diagnosticHandler.postDelayed(this, 5000)
         }
@@ -56,9 +80,17 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStart() { super.onStart(); Log.i("DriveProbe", "activity onStart") }
-    override fun onResume() { super.onResume(); Log.i("DriveProbe", "activity onResume") }
+    override fun onResume() {
+        super.onResume()
+        Log.i("DriveProbe", "activity onResume")
+        DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
+    }
     override fun onPause() { Log.i("DriveProbe", "activity onPause"); super.onPause() }
-    override fun onStop() { Log.i("DriveProbe", "activity onStop"); super.onStop() }
+    override fun onStop() {
+        DriveProbeApplication.instance.interventions.voiceTests.cancel("앱 화면이 닫혀 음성 시험을 중지했어요")
+        Log.i("DriveProbe", "activity onStop")
+        super.onStop()
+    }
     override fun onDestroy() {
         Log.i("DriveProbe", "activity onDestroy")
         unregisterReceiver(probeReceiver)
@@ -71,6 +103,14 @@ class MainActivity : ComponentActivity() {
     private val departureHomeViewModel: DepartureHomeViewModel by viewModels()
     private val kdViewModel: KdAppViewModel by viewModels()
     private val reactionViewModel: ReactionCheckViewModel by viewModels()
+    private val assistViewModel: DrivingAssistViewModel by viewModels()
+
+    private val microphonePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Log.i("Intervention", "RECORD_AUDIO granted=$granted")
+            DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
+            assistViewModel.onPermissionResult(this, granted)
+        }
 
     // [컨디션 판단] 속도(android.car.permission.CAR_SPEED)는 실행 중 허용이 필요하다. 허용되면 속도 구독을 다시 시작한다
     private val carSpeedPermissionLauncher =
@@ -92,12 +132,34 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+            val app = DriveProbeApplication.instance
+            val assistState = assistViewModel.state.collectAsStateWithLifecycle().value
+            val intervention = app.interventions.controller.status.collectAsStateWithLifecycle().value
+            val latest = remember(app) { app.appDatabase.interventionHistoryDao().getLatestIntervention() }
+                .collectAsStateWithLifecycle(initialValue = null).value
+            val gear = app.vehicleRepository.gear.collectAsStateWithLifecycle().value
+            val voiceState = app.interventions.voiceTests.state.collectAsStateWithLifecycle().value
+            val navigationProbe = app.interventions.navigationProbeController.state.collectAsStateWithLifecycle().value
+            val dangerProbe = app.interventions.dangerNavigationProbe.state.collectAsStateWithLifecycle().value
+            val drivingVoicePrepared = DrivingVoiceService.ready.collectAsStateWithLifecycle().value
+            val drivingVoiceError = DrivingVoiceService.error.collectAsStateWithLifecycle().value
+            val voiceHistory = remember(app) { app.appDatabase.interventionHistoryDao().getLatestVoiceTest() }
+                .collectAsStateWithLifecycle(initialValue = null).value
+            var activeTab by rememberSaveable { mutableStateOf("vehicle") }
 
             // 앱 첫 화면 = '계속운전' 홈(ui/kd). 2번 '출발 전' 카드·상세 화면은 홈 안의 슬롯에 넣는다.
             // 2번 홈(DepartureHomeScreen)과 1번 API 탐색기는 [개발자 도구] 안에서 그대로 쓸 수 있다
             KeepDrivingApp(
                 appViewModel = kdViewModel,
                 reactionViewModel = reactionViewModel,
+                assistState = assistState,
+                drivingAssist = { onBack ->
+                    DrivingAssistScreen(assistState, onBack,
+                        onStart = { assistViewModel.startHelp(this@MainActivity) { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) } },
+                        onStop = { assistViewModel.stopHelp(this@MainActivity) },
+                        onRestSettings = { kdViewModel.open(KdPage.REST_STOP_SETTINGS) })
+                },
+                restStopSettings = { onBack -> RestStopSettingsScreen(assistViewModel, assistState, onBack) },
                 departureCard = { modifier, onOpen ->
                     DepartureHomeCard(model = departureHomeViewModel.model, onOpen = onOpen, modifier = modifier)
                 },
@@ -112,40 +174,110 @@ class MainActivity : ComponentActivity() {
                 },
                 devTools = {
                     VehicleSampleAppTheme {
-                        SampleApp(
-                            uiState = uiState,
-                            onOpenDomain = viewModel::showApiExplorer,
-                            onSelectFeature = viewModel::selectFeature,
-                            onSearchFeatures = viewModel::searchFeatures,
-                            onRunCapability = viewModel::runFeatureCapability,
-                            onRunRead = viewModel::runFeatureRead,
-                            onRunSet = viewModel::runFeatureSet,
-                            onStartUpdates = viewModel::startFeatureUpdates,
-                            onStopUpdates = viewModel::stopFeatureUpdates,
-                            onBackToFeatureList = viewModel::backToFeatureList,
-                            onDismissError = viewModel::dismissError,
-                            onGoHome = viewModel::showHome,
-                            home = {
-                                DepartureHomeScreen(
-                                    model = departureHomeViewModel.model,
-                                    onOpenDepartureDetail = viewModel::showDepartureDetail,
-                                    onOpenDriverCondition = viewModel::showDriverConditionSettings,
-                                    onOpenApiExplorer = viewModel::openApiExplorer
-                                )
-                            },
-                            departureDetail = {
-                                DepartureDetailScreen(
-                                    model = departureHomeViewModel.model,
-                                    onBack = viewModel::showHome
-                                )
-                            },
-                            driverConditionSettings = {
-                                DriverConditionSettingsScreen(
-                                    viewModel = driverConditionViewModel,
-                                    onBack = viewModel::closeDriverConditionSettings
-                                )
+                        Column {
+                            Row(Modifier.fillMaxWidth()) {
+                                TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "vehicle" }) { Text("차량 API") }
+                                TextButton(onClick = { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요"); activeTab = "intervention" }) { Text("개입 상태") }
+                                if (BuildConfig.DEBUG) TextButton(onClick = {
+                                    activeTab = "voice"
+                                    app.interventions.voiceTests.refreshCapabilities()
+                                }) { Text("음성 시험") }
+                                if (BuildConfig.DEBUG) TextButton(onClick = {
+                                    app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요")
+                                    activeTab = "navigation"
+                                }) { Text("내비 조회") }
+                                if (BuildConfig.DEBUG) TextButton(onClick = {
+                                    app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요")
+                                    activeTab = "dangerProbe"
+                                }) { Text("DANGER 통합") }
                             }
-                        )
+                            Box(Modifier.weight(1f)) {
+                                if (activeTab == "dangerProbe" && BuildConfig.DEBUG) {
+                                    DangerNavigationProbeScreen(dangerProbe, voiceState.allowed, drivingVoicePrepared, drivingVoiceError,
+                                        onPrepareVoice = {
+                                            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                                                DrivingVoiceService.prepare(this@MainActivity)
+                                            else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        },
+                                        onStart = { app.interventions.dangerNavigationProbe.start() },
+                                        onCancel = { app.interventions.dangerNavigationProbe.cancel() })
+                                } else if (activeTab == "navigation" && BuildConfig.DEBUG) {
+                                    RestNavigationScreen(app.restNavigation, app.serviceAreaReview, navigationProbe,
+                                        onStartProbe={NavigationProbeService.start(this@MainActivity)},
+                                        onCancelProbe={app.interventions.navigationProbeController.cancel()},
+                                        allowed=voiceState.allowed && !voiceState.running && !intervention.running && !dangerProbe.running)
+                                } else if (activeTab == "voice" && BuildConfig.DEBUG) {
+                                    DisposableEffect(Unit) {
+                                        onDispose { app.interventions.voiceTests.cancel("음성 시험 화면을 나갔어요") }
+                                    }
+                                    VoiceTestScreen(
+                                        state = voiceState,
+                                        latest = voiceHistory,
+                                        onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                        onRefresh = app.interventions.voiceTests::refreshCapabilities,
+                                        onStart = app.interventions::startVoiceTest,
+                                        onStop = { app.interventions.voiceTests.cancel() },
+                                    )
+                                } else if (activeTab == "intervention") {
+                                    InterventionScreen(
+                                        status = intervention,
+                                        latest = latest,
+                                        parked = gear == GearPosition.PARK,
+                                        voicePrepared = drivingVoicePrepared,
+                                        voicePreparationError = drivingVoiceError,
+                                        onPrepareVoice = {
+                                            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                                                DrivingVoiceService.prepare(this@MainActivity)
+                                            else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        },
+                                        onReleaseVoice = { DrivingVoiceService.stop(this@MainActivity) },
+                                        onEnabled = { enabled ->
+                                            if (!voiceState.running && !dangerProbe.running && !navigationProbe.running) {
+                                                app.interventions.setAutomaticEnabled(enabled)
+                                                if (!enabled) DrivingVoiceService.stop(this@MainActivity)
+                                            }
+                                        },
+                                        onMicrophone = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                                        onSimulate = app.interventions.controller::simulate,
+                                    )
+                                } else {
+                                    SampleApp(
+                                        uiState = uiState,
+                                        onOpenDomain = viewModel::showApiExplorer,
+                                        onSelectFeature = viewModel::selectFeature,
+                                        onSearchFeatures = viewModel::searchFeatures,
+                                        onRunCapability = viewModel::runFeatureCapability,
+                                        onRunRead = viewModel::runFeatureRead,
+                                        onRunSet = viewModel::runFeatureSet,
+                                        onStartUpdates = viewModel::startFeatureUpdates,
+                                        onStopUpdates = viewModel::stopFeatureUpdates,
+                                        onBackToFeatureList = viewModel::backToFeatureList,
+                                        onDismissError = viewModel::dismissError,
+                                        onGoHome = viewModel::showHome,
+                                        home = {
+                                            DepartureHomeScreen(
+                                                model = departureHomeViewModel.model,
+                                                onOpenDepartureDetail = viewModel::showDepartureDetail,
+                                                onOpenDriverCondition = viewModel::showDriverConditionSettings,
+                                                onOpenApiExplorer = viewModel::openApiExplorer
+                                            )
+                                        },
+                                        departureDetail = {
+                                            DepartureDetailScreen(
+                                                model = departureHomeViewModel.model,
+                                                onBack = viewModel::showHome
+                                            )
+                                        },
+                                        driverConditionSettings = {
+                                            DriverConditionSettingsScreen(
+                                                viewModel = driverConditionViewModel,
+                                                onBack = viewModel::closeDriverConditionSettings
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
             )

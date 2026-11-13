@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -33,7 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /**
- * 첫 화면(정차 중). 출발 전에 "오늘 운전해도 되나요?"와 "오늘 컨디션"을 한눈에 보고, 큰 타일 3개로 이동한다.
+ * 첫 화면(정차 중). 출발 전 확인과 오늘 컨디션을 보고, 주행 도움을 포함한 주요 기능(타일 4개)으로 이동한다.
  *
  * 화면 높이를 남김없이 쓴다: 위 두 카드가 남은 높이를 채우고, 그 아래에 '이번 주' 요약 띠와 메뉴 타일을 둔다.
  * (이전에는 아래 절반이 비어 있었다)
@@ -46,6 +47,7 @@ fun HomeScreen(
     onOpen: (KdPage) -> Unit,
     onDismissTripEnd: () -> Unit,
     onSkipCheck: () -> Unit = {},
+    assistSummary: String = "음성 준비 필요",
     departureCard: @Composable (Modifier) -> Unit = { DeparturePlaceholderCard(it, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) }) },
 ) {
     val recommended = state.checkAdvice.isRecommended
@@ -75,7 +77,7 @@ fun HomeScreen(
         Row(modifier = Modifier.fillMaxWidth().height(176.dp), horizontalArrangement = Arrangement.spacedBy(Kd.Gap)) {
             KdNavTile(
                 "컨디션 체크",
-                subtitle = "정차 중에 1분이면 끝나요",
+                subtitle = "정차 중 1분",
                 icon = Icons.Rounded.Favorite,
                 onClick = { onOpen(KdPage.REACTION_CHECK) },
                 // 권유할 때만 강조한다(팀 결정: 체크를 강요하지 않음)
@@ -83,15 +85,22 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-reaction"),
             )
             KdNavTile(
+                "주행 도움",
+                subtitle = assistSummary,
+                icon = Icons.Rounded.Notifications,
+                onClick = { onOpen(KdPage.DRIVING_ASSIST) },
+                modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-assist"),
+            )
+            KdNavTile(
                 "내 운전 조건",
-                subtitle = "야간 운전, 허용 반경, 도로 선택",
+                subtitle = "야간, 반경, 도로 조건",
                 icon = Icons.Rounded.Settings,
                 onClick = { onOpen(KdPage.DRIVER_CONDITION) },
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-condition"),
             )
             KdNavTile(
                 "내 기록",
-                subtitle = "컨디션 변화와 가족 안심 요약",
+                subtitle = "변화와 가족 요약",
                 icon = Icons.Rounded.DateRange,
                 onClick = { onOpen(KdPage.RECORDS) },
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-records"),

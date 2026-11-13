@@ -20,6 +20,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
@@ -54,6 +56,10 @@ object ConditionModule {
     @Volatile
     private var _engine: ConditionEngine? = null
 
+    private val _engines = MutableStateFlow<ConditionEngine?>(null)
+    /** Rebind consumers when the debug replay mode replaces the engine. */
+    val engines = _engines.asStateFlow()
+
     val engine: ConditionEngine
         get() = _engine ?: error("ConditionModule.init()을 먼저 불러야 합니다")
 
@@ -82,6 +88,7 @@ object ConditionModule {
             }
         }
         _engine = engine
+        _engines.value = engine
         engine.start()
         logJob?.cancel()
         logJob = scope.launch { logStateChanges(engine, mode) }

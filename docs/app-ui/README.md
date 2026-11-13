@@ -13,9 +13,13 @@
 | 가족 안심 요약 | `SummaryScreens.kt` | 예시값 | 목업(1차 제출 범위) |
 | 조건 해제 리포트 | `SummaryScreens.kt` | 예시값 + 반응 체크 추이 | 목업(1차 제출 범위) |
 | 운전 조건 설정 | 2번 `DriverConditionSettingsScreen` | — | 기존 화면을 그대로 띄움(밝은 테마) |
+| 주행 도움 | `DrivingAssistScreen.kt`, `DrivingAssistViewModel.kt` | 실제 차량 상태·자동 개입·음성 FGS | 홈에서 준비·중지, 사용자 선택 저장 |
+| 휴게소 설정 | `RestStopSettingsScreen` | 실제 경로·즐겨찾기·시설 확인 등록·ETA | 일반 사용자 화면. 정차 중 조회·등록, 경로 쓰기 없음 |
 | 개발자 도구 | 1번 `SampleApp`(API 탐색기) | — | 홈 오른쪽 아래 [개발자 도구] |
 
 화면 이동은 `KdAppViewModel`(`KdPage`) 하나가 맡는다. 주행 중에는 주행 화면에서 다른 화면으로 가지 않는다.
+
+일반 사용자는 홈의 **주행 도움**에서 음성 준비·도움 켜기/끄기·휴게소 시설 확인을 진행한다. [일반 앱 연결과 사용 절차](../driving-assist-app.md)를 참고한다. 개발자 도구의 음성 시험·실제 추가/복원·DANGER 통합 시험은 진단용으로 유지한다.
 
 ## 팀 결정을 반영한 표시 규칙
 
@@ -61,7 +65,11 @@ KeepDrivingApp(
 )
 ```
 
-4번 `feat/hvac-control`의 개입 상태 화면은 개발자 도구 쪽(디버그)으로 두고, 운전자에게는 `DrivingScreen`의 한 줄 안내와 내 기록의 "최근 도움 기록"으로 보여 주는 것을 제안한다.
+`feat/hvac-control` 통합 후 [개발자 도구]에서 [차량 API]·[개입 상태]를 열 수 있고, debug 빌드에서는 [음성 시험]·[내비 조회] 탭도 표시한다. 음성 시험 화면을 떠나면 수동 음성 시험을 취소한다. 실제 내비 추가·복원 시험은 기존 앱 범위 컨트롤러·전용 서비스에서 계속하며 결과를 보존한다.
+
+출발 전 화면은 debug 빌드의 `DemoNaviFallbackRepository`를 유지한다. 휴게소 시설 확인·실제 경유지 추가·복원과 내비 계측 시험은 `DriveProbeApplication.realNaviHelperRepository`의 실제 SDK 연결을 사용하며 예시 데이터로 대체하지 않는다. 두 경로는 같은 `NaviHelperRepositoryImpl` 인스턴스를 공유한다.
+
+2026-11-12: debug [DANGER 통합] 탭을 추가했다. [실제 효과와 시험 절차](../danger-navigation-probe.md)를 확인한다. 새 홈·내 기록·요약은 `getDrivingHistories()`로 실제 생산 기록만 읽으며, 수동 음성·DANGER 통합·Replay·배경 합성 시험은 진단 원본에 남기고 실제 주행 성과에서 제외한다. 주행 화면의 최근 개입 안내는 단계 번호만으로 성공을 가정하지 않고 실제 outcome·동의·내비 적용 상태를 구분한다.
 
 ## 에뮬레이터 확인 (2026-11-11, Pleos Connect v2.1.0)
 

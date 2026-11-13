@@ -80,6 +80,8 @@ buildTypes {
 
 dependencies {
     implementation(libs.vehicle.sdk)
+    implementation(libs.pleos.text.to.speech)
+    implementation(libs.pleos.speech.to.text)
     implementation(libs.kotlin.reflect)
     // 2번 출발 전 연동: NaviHelper SDK(내비 목적지·경로 상태·ETA·위치 조회) + 핵심 로직 모듈
     implementation(libs.navihelper.sdk)
@@ -102,6 +104,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

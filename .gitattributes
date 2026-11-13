@@ -1,0 +1,2 @@
+# Keep supplied CP949 CSV bytes unchanged so catalog provenance hashes survive checkout/stash.
+data/rest-stops/*.csv -text

@@ -1,6 +1,7 @@
 package ai.pleos.playground.sample.vehicle
 
 import android.app.Application
+import ai.pleos.playground.sample.vehicle.intervention.InterventionModule
 import ai.pleos.playground.sample.vehicle.condition.ConditionModule
 import ai.pleos.playground.sample.vehicle.data.local.AppDatabase
 import ai.pleos.playground.sample.vehicle.data.repository.DemoNaviFallbackRepository
@@ -14,11 +15,20 @@ import com.pleos.departure.DepartureConfig
 import com.pleos.departure.DepartureFeature
 import com.pleos.departure.port.DriverConditionRepository
 import java.time.Clock
+import ai.pleos.playground.sample.vehicle.navigation.RestNavigation
+import ai.pleos.playground.sample.vehicle.navigation.PleosTbtServiceAreaSource
+import android.os.SystemClock
+import ai.pleos.playground.sample.vehicle.navigation.ReviewedServiceAreas
+import ai.pleos.playground.sample.vehicle.navigation.ReviewedServiceAreaPreferences
+import ai.pleos.playground.sample.vehicle.navigation.ServiceAreaReview
 
 /**
  * 전역 의존성(Repository, Database) 관리 Application 클래스
  */
 class DriveProbeApplication : Application() {
+
+    lateinit var interventions: InterventionModule
+        private set
 
     lateinit var appDatabase: AppDatabase
         private set
@@ -27,6 +37,16 @@ class DriveProbeApplication : Application() {
         private set
 
     lateinit var naviHelperRepository: NaviHelperRepository
+        private set
+
+    /** 휴게소 등록·경유지 쓰기·기기 시험은 예시 데이터 없는 동일 SDK 연결을 공유한다. */
+    lateinit var realNaviHelperRepository: NaviHelperRepositoryImpl
+        private set
+
+    lateinit var restNavigation: RestNavigation
+        private set
+
+    lateinit var serviceAreaReview: ServiceAreaReview
         private set
 
     /** 2번 '출발 전' 동작 수치. departureFeature 와 운전자 조건 설정 화면이 같은 값을 쓴다 */
@@ -69,13 +89,24 @@ class DriveProbeApplication : Application() {
         }
 
         // 3. NaviHelper Repository 초기화
-        naviHelperRepository = NaviHelperRepositoryImpl(this).let { real -> // context: NaviHelper SDK 연결용(조회 계열)
-            // [시연] debug 빌드에서만: 내비가 응답하지 않으면 '출발 전' 조회 4개를 예시 값으로 대신한다(화면에 "내비 예시 데이터" 표시)
-            if (BuildConfig.DEBUG) DemoNaviFallbackRepository(real) else real
-        }
+        val navi = NaviHelperRepositoryImpl(this)
+        realNaviHelperRepository = navi
+        // 출발 전 화면의 debug 시연만 예시 조회를 허용한다. 실제 내비 작업에는 navi를 직접 넘긴다.
+        naviHelperRepository = if (BuildConfig.DEBUG) DemoNaviFallbackRepository(navi) else navi
+        val reviewed=ReviewedServiceAreas(ReviewedServiceAreaPreferences(this),System::currentTimeMillis)
+        val publicCatalog=ai.pleos.playground.sample.vehicle.navigation.PublicRestStopAssets(this)
+        serviceAreaReview=ServiceAreaReview(navi,reviewed, publicCandidates=publicCatalog::candidates, allowed={
+            val ux=vehicleRepository.uxRestriction.value
+            vehicleRepository.gear.value==ai.pleos.playground.sample.vehicle.data.model.GearPosition.PARK &&
+                vehicleRepository.hasSpeedSignal.value && vehicleRepository.vehicleSpeed.value==0f &&
+                ux?.source==ai.pleos.playground.sample.vehicle.data.model.UxRestrictionSource.CAR_SERVICE && !ux.requiresDistractionOptimization
+        })
+        restNavigation = RestNavigation(navi, PleosTbtServiceAreaSource(navi,reviewed,
+            publicCatalog), SystemClock::elapsedRealtime)
 
         // 4. 컨디션 판단 엔진 시작 (3번 포지션). 상태는 ConditionModule.engine.state 로 구독
         ConditionModule.init(this, vehicleRepository, ConditionModule.Mode.REAL)
+        interventions = InterventionModule(this, vehicleRepository, appDatabase.interventionHistoryDao(), restNavigation,navi::removeProbeWaypoint)
         ai.pleos.playground.sample.vehicle.trip.TripModule.init(this) // 5. 주행 기록·종료 요약 (5번 포지션)
     }
 

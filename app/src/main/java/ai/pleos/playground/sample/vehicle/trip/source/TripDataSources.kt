@@ -39,10 +39,9 @@ data class PreDriveCheck(val verdict: ReactionVerdict?, val source: DataSource)
 
 /**
  * 휴식 권고 횟수 출처.
- * TODO(4번 머지 후): intervention_histories에서 이 주행의 개입 중 interventionLevel >= 2(CAUTION·DANGER)를 센다.
- *   - 주행을 묶는 키(4번 sessionId ↔ 5번 tripId)는 4번이 정한 방식을 따른다
- *   - actionDetails JSON의 simulation=true(시연·음성 테스트)는 빼야 하는지 4번에 확인
- *   - 응답 = userResponse가 있거나 outcome이 ANSWERED/DECLINED인 기록
+ * 실제 앱은 [InterventionRestAdviceSource]로 sessionId == tripId인 CAUTION·DANGER 이력을 센다.
+ * simulation=false가 명시된 자동 개입만 포함하고, 응답은 비어 있지 않은 인식 문장으로 센다.
+ * 동의·거절·경로 변경 결과는 응답 여부와 별개로 원본 이력에 유지한다.
  */
 fun interface RestAdviceSource {
     suspend fun countFor(trip: CompletedTrip): RestAdvice

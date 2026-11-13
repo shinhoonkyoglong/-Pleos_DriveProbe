@@ -301,16 +301,16 @@ fun KdNavTile(
             .clip(Kd.CardShape)
             .background(bg)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)).background(iconBg),
+            Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(iconBg),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, tint = iconFg, modifier = Modifier.size(40.dp))
         }
-        Spacer(Modifier.width(24.dp))
+        Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, color = fg, fontSize = 30.sp, lineHeight = 38.sp, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = sub, fontSize = 22.sp, lineHeight = 30.sp)
