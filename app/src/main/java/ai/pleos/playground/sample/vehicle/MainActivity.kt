@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import ai.pleos.playground.sample.vehicle.ui.kd.KdAppViewModel
 import ai.pleos.playground.sample.vehicle.ui.kd.KdTheme
+import ai.pleos.playground.sample.vehicle.ui.kd.KdThemeMode
 import ai.pleos.playground.sample.vehicle.ui.kd.KeepDrivingApp
 import ai.pleos.playground.sample.vehicle.ui.kd.ReactionCheckViewModel
 import ai.pleos.playground.sample.vehicle.ui.kd.DrivingAssistViewModel
@@ -129,6 +130,7 @@ class MainActivity : ComponentActivity() {
         Log.i("DriveProbe", "Manual emulator test receiver ready; no driving-state verification")
         diagnosticHandler.post(diagnosticTick)
         enableEdgeToEdge()
+        KdThemeMode.load(this) // '계속운전' 화면 밝기(다크/라이트) 저장값 — 첫 화면을 그리기 전에 읽는다
 
         setContent {
             val uiState = viewModel.uiState.collectAsStateWithLifecycle().value

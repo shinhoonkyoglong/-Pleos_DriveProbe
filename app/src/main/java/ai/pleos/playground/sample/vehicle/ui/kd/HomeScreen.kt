@@ -121,6 +121,8 @@ private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
             if (state.vehicle.isReplay) KdTag("시연 모드")
             KdTag(state.vehicle.gear.label(), color = Kd.InkMuted)
             Spacer(Modifier.width(4.dp))
+            // 화면 밝기 전환(다크 ↔ 라이트). 정차 중 홈에서만 보이고, 주행 화면에는 두지 않는다
+            KdThemeToggleButton()
             // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
             KdButton(
                 "개발자 도구",
