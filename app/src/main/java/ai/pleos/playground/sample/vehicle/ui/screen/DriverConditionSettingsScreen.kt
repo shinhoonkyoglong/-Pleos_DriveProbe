@@ -9,6 +9,7 @@ import ai.pleos.playground.sample.vehicle.departure.SaveResult
 import ai.pleos.playground.sample.vehicle.departure.SaveStatus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,6 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -65,13 +68,34 @@ private val BodySize = 26.sp
 private val TitleSize = 34.sp
 private val MinTouch = 72.dp
 
-// 고대비 안내 배경(글자는 모두 진한 색). 1번 테마 색은 바꾸지 않고 이 화면에서만 쓴다
-private val InfoContainer = Color(0xFFE3EAFF)
-private val OkContainer = Color(0xFFDFF3E8)
-private val WarnContainer = Color(0xFFFFF0C2)
-private val ErrorContainer = Color(0xFFFFDDDA)
-private val StrongInk = Color(0xFF0B0D12)
-private val ErrorInk = Color(0xFF8C1D18)
+// 안내 배경·글자 색. 바탕이 어두운 테마('계속운전' 앱의 KdTheme)와 밝은 테마(개발자 도구의 1번 테마) 둘 다에서 쓰인다.
+// 밝은 테마: 고대비 옅은 배경 + 진한 글자(기존 그대로) / 어두운 테마: 상태색을 살짝 섞은 어두운 배경 + 밝은 글자, 굵은 테두리 없음
+private val isDarkTheme: Boolean
+    @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+private val InfoContainer: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) Color(0xFF0E2A3B) else Color(0xFFE3EAFF)
+private val OkContainer: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) Color(0xFF16302A) else Color(0xFFDFF3E8)
+private val WarnContainer: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) Color(0xFF362C16) else Color(0xFFFFF0C2)
+private val ErrorContainer: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) Color(0xFF3A1E21) else Color(0xFFFFDDDA)
+private val StrongInk: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) MaterialTheme.colorScheme.onSurface else Color(0xFF0B0D12)
+private val ErrorInk: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) Color(0xFFF58A8A) else Color(0xFF8C1D18)
+/** 안내 상자 테두리: 밝은 테마에서만 진한 선(어두운 테마는 배경색 차이로 충분) */
+private val BannerBorder: BorderStroke
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) BorderStroke(0.dp, Color.Transparent) else BorderStroke(2.dp, Color(0xFF0B0D12))
+/** 설정 줄 테두리: 어두운 테마는 테두리 없이 면 색만 */
+private val RowBorder: BorderStroke
+    @Composable @ReadOnlyComposable get() =
+        if (isDarkTheme) BorderStroke(0.dp, Color.Transparent) else BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+/** 보조 버튼 테두리 */
+private val ButtonBorderColor: Color
+    @Composable @ReadOnlyComposable get() = if (isDarkTheme) MaterialTheme.colorScheme.outline else Color(0xFF0B0D12)
+private val RowShape = RoundedCornerShape(24.dp)
 
 /**
  * 운전자 조건 설정 화면(2번 '출발 전', 작업 #17). 1번 API 탐색 화면 머리의 [운전 조건 설정] 버튼으로 들어온다.
@@ -128,6 +152,7 @@ fun DriverConditionSettingsContent(
     Surface(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Start))
             .padding(start = AaosSystemRailInset),
         color = MaterialTheme.colorScheme.background
@@ -136,10 +161,10 @@ fun DriverConditionSettingsContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp, vertical = 24.dp)
-                .widthIn(max = 1100.dp)
+                .padding(horizontal = 40.dp, vertical = 32.dp)
+                .widthIn(max = 1600.dp)
                 .testTag("driver-condition-settings"),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -148,7 +173,7 @@ fun DriverConditionSettingsContent(
                 OutlinedButton(
                     onClick = onBack,
                     modifier = Modifier.heightIn(min = MinTouch),
-                    border = BorderStroke(2.dp, StrongInk)
+                    border = BorderStroke(2.dp, ButtonBorderColor)
                 ) {
                     Text("← 돌아가기", fontSize = BodySize, color = StrongInk)
                 }
@@ -212,8 +237,9 @@ fun DriverConditionSettingsContent(
                 enabled = editable && !state.saving && state.locationStatus != LocationStatus.LOADING,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 88.dp)
-                    .testTag("driver-condition-save")
+                    .heightIn(min = 96.dp)
+                    .testTag("driver-condition-save"),
+                shape = RoundedCornerShape(22.dp)
             ) {
                 Text(
                     text = if (state.saving) "저장하는 중…" else "저장",
@@ -243,9 +269,9 @@ private fun StatusBanner(state: DriverConditionSettingsState) {
     }
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("driver-condition-status"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RowShape,
         color = container,
-        border = BorderStroke(2.dp, StrongInk)
+        border = BannerBorder
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp),
@@ -272,12 +298,12 @@ private fun ToggleRow(
             .fillMaxWidth()
             .heightIn(min = 104.dp)
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
-        shape = RoundedCornerShape(16.dp),
+        shape = RowShape,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+        border = RowBorder
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            modifier = Modifier.padding(horizontal = 32.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -367,7 +393,7 @@ private fun CenterRow(state: DriverConditionSettingsState, enabled: Boolean, onR
             onClick = onRefreshLocation,
             enabled = enabled && state.locationStatus != LocationStatus.LOADING,
             modifier = Modifier.heightIn(min = MinTouch),
-            border = BorderStroke(2.dp, StrongInk)
+            border = BorderStroke(2.dp, ButtonBorderColor)
         ) {
             val label = when {
                 !form.hasCenter && state.locationStatus == LocationStatus.FAILED -> "다시 시도"
@@ -384,9 +410,9 @@ private fun CenterRow(state: DriverConditionSettingsState, enabled: Boolean, onR
 private fun NaviTollSettingHint(failed: Boolean, onOpen: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("navi-toll-setting-hint"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RowShape,
         color = InfoContainer,
-        border = BorderStroke(2.dp, StrongInk)
+        border = BannerBorder
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
@@ -408,7 +434,7 @@ private fun NaviTollSettingHint(failed: Boolean, onOpen: () -> Unit) {
             OutlinedButton(
                 onClick = onOpen,
                 modifier = Modifier.heightIn(min = MinTouch).testTag("open-navi-settings"),
-                border = BorderStroke(2.dp, StrongInk)
+                border = BorderStroke(2.dp, ButtonBorderColor)
             ) {
                 Text("내비 설정 열기", fontSize = BodySize, color = StrongInk)
             }
@@ -420,12 +446,12 @@ private fun NaviTollSettingHint(failed: Boolean, onOpen: () -> Unit) {
 private fun SectionCard(content: @Composable RowScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().heightIn(min = 104.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RowShape,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+        border = RowBorder
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            modifier = Modifier.padding(horizontal = 32.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             content = content
@@ -439,8 +465,8 @@ private fun StepButton(label: String, description: String, enabled: Boolean, onC
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.size(88.dp).semantics { contentDescription = description },
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(2.dp, if (enabled) StrongInk else MaterialTheme.colorScheme.onSurfaceVariant),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(2.dp, if (enabled) ButtonBorderColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
         contentPadding = PaddingValues(0.dp)
     ) {
         Text(label, fontSize = 40.sp, fontWeight = FontWeight.Bold)

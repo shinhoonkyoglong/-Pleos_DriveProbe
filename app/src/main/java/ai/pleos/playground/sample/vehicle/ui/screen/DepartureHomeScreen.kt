@@ -19,7 +19,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import ai.pleos.playground.sample.vehicle.ui.kd.Kd
+import ai.pleos.playground.sample.vehicle.ui.kd.KdButton
+import ai.pleos.playground.sample.vehicle.ui.kd.KdButtonStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -78,16 +84,28 @@ fun DepartureDetailScreen(
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
+    // '계속운전' 앱의 다른 화면과 같은 머리(뒤로 + 제목)와 바탕색을 쓴다
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HomeBackground)
+            .background(Kd.Background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.padding(start = 32.dp, top = 16.dp).heightIn(min = 72.dp).testTag("departure-back"),
-        ) { Text("← 홈으로", fontSize = 28.sp, color = Color.White) }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 40.dp, end = 40.dp, top = 32.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            KdButton(
+                "홈",
+                onClick = onBack,
+                style = KdButtonStyle.SECONDARY,
+                minHeight = 80.dp,
+                icon = Icons.Rounded.ArrowBack,
+                modifier = Modifier.testTag("departure-back"),
+            )
+            Text("출발 전 확인", style = Kd.Headline)
+        }
         DepartureScreen(model = model, modifier = Modifier.weight(1f))
     }
 }

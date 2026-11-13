@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import ai.pleos.playground.sample.vehicle.ui.kd.KdAppViewModel
+import ai.pleos.playground.sample.vehicle.ui.kd.KdTheme
 import ai.pleos.playground.sample.vehicle.ui.kd.KeepDrivingApp
 import ai.pleos.playground.sample.vehicle.ui.kd.ReactionCheckViewModel
 import ai.pleos.playground.sample.vehicle.ui.kd.DrivingAssistViewModel
@@ -166,7 +167,8 @@ class MainActivity : ComponentActivity() {
                     DepartureDetailScreen(model = departureHomeViewModel.model, onBack = onBack)
                 },
                 driverCondition = { onBack ->
-                    VehicleSampleAppTheme {
+                    // '계속운전' 앱 안에서는 다른 화면과 같은 어두운 테마로 띄운다(개발자 도구 안에서는 1번 밝은 테마 그대로)
+                    KdTheme {
                         DriverConditionSettingsScreen(viewModel = driverConditionViewModel, onBack = onBack)
                     }
                 },
