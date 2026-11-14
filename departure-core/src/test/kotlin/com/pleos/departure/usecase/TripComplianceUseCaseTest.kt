@@ -234,6 +234,19 @@ class TripComplianceUseCaseTest {
         assertTrue(r.hasUnjudged)
     }
 
+    /** 반경 기능을 끄면(2026-11-14) 기준점이 있어도 반경은 NOT_APPLICABLE. 기준점은 일몰 기준 위치(집)로 계속 쓴다. */
+    @Test
+    fun radiusDisabled_radiusNotApplicable_centerStillUsedAsSunReference() {
+        val off = TripComplianceUseCase(DepartureConfig(radiusCheckEnabled = false))
+        val c = noNight.copy(radiusCenter = home)
+
+        val r = off.evaluate(c, at("2026-11-09", "14:00"), at("2026-11-09", "15:00"))
+
+        assertEquals(TripConditionStatus.NOT_APPLICABLE, r.radius)
+        assertEquals(SunReferenceSource.RADIUS_CENTER, r.sunReference.source)
+        assertFalse(r.hasUnjudged)
+    }
+
     @Test
     fun onlyUnjudgedConditions_overallNotJudged() {
         val c = DriverCondition(routePreference = RoutePreference.of(RouteConstraint.AVOID_HIGHWAY, RouteConstraint.PREFER_TOLL_FREE))

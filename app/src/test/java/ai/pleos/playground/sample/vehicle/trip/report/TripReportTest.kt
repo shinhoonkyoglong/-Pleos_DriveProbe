@@ -204,10 +204,21 @@ class TripReportTest {
             radiusCenter = GeoPoint(37.5, 127.0),
             allowedRadiusMeters = null,
         )
-        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0)
+        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0, radiusEnabled = true)
         assertEquals(setOf(ReportCondition.NO_NIGHT_DRIVING, ReportCondition.RADIUS), r.conditions)
         assertEquals(10.0, r.radiusKm!!, 0.0)
-        assertNull(DepartureDriverConditionsSource.toReport(DriverCondition(), 10_000.0).radiusKm)
+        assertNull(DepartureDriverConditionsSource.toReport(DriverCondition(), 10_000.0, radiusEnabled = true).radiusKm)
+    }
+
+    @Test
+    fun `반경 기능이 꺼져 있으면 기준점이 있어도 리포트에 반경 조건을 넣지 않는다`() {
+        val c = DriverCondition(
+            timeConstraints = setOf(TimeConstraint.NO_NIGHT_DRIVING),
+            radiusCenter = GeoPoint(37.5, 127.0),
+        )
+        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0, radiusEnabled = false)
+        assertEquals(setOf(ReportCondition.NO_NIGHT_DRIVING), r.conditions)
+        assertNull(r.radiusKm)
     }
 
     @Test

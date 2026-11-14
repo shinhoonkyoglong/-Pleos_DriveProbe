@@ -17,7 +17,7 @@ class ReactionCheckTest {
 
     /**
      * 10ms 프레임으로 반응 체크를 흉내 낸다.
-     * @param rt 시도 번호 → 반응시간(ms). null이면 누르지 않음
+     * @param rt 자극 번호(0부터) → 반응시간(ms). null이면 누르지 않음(놓침)
      * @param earlyTaps 자극 전에 누를 시각들
      */
     private fun simulate(
@@ -33,7 +33,6 @@ class ReactionCheckTest {
         val taps = ArrayList<Long>()
         val early = earlyTaps.toMutableList()
         var shownAt = -1L
-        var trial = 0
         var t = 0L
         while (t <= stopAt && s.phase != FINISHED && s.phase != ABORTED) {
             onFrame(s, t)
@@ -43,8 +42,8 @@ class ReactionCheckTest {
             if (early.isNotEmpty() && t >= early.first() && ph == WAITING) {
                 s.onTap(t); taps += t; early.removeAt(0)
             } else if (ph == STIMULUS) {
-                val r = rt(trial)
-                if (r != null && t - shownAt >= r) { s.onTap(t); taps += t; trial++ }
+                val r = rt(stimuli.size - 1)
+                if (r != null && t - shownAt >= r) { s.onTap(t); taps += t }
             }
             t += 10
         }
@@ -54,23 +53,25 @@ class ReactionCheckTest {
     private val evaluator get() = ReactionEvaluator(InMemoryReactionRecordStore())
 
     @Test
-    fun `유효 반응 10회가 모이면 40초 전에 끝나고, 자극 간격은 직전 터치 후 1_5~3초 무작위`() {
+    fun `유효 반응 5회가 모이면 끝나고, 자극 간격은 직전 터치 후 1_5~3초 무작위`() {
         val r = simulate(rt = { 300L })
         assertEquals(FINISHED, r.session.phase)
-        assertEquals(10, r.session.summary().validCount)
-        assertEquals(10, r.stimuli.size)
+        assertEquals(5, r.session.summary().validCount)
+        assertEquals(5, r.stimuli.size)
         val intervals = r.stimuli.drop(1).mapIndexed { i, st -> st - r.taps[i] }
         assertTrue(intervals.toString(), intervals.all { it in 1_500L..3_010L })
-        assertTrue("간격이 매번 같으면 안 됨", intervals.toSet().size > 3)
-        assertTrue("끝난 시각 ${r.taps.last()}ms", r.taps.last() in 15_000L..35_000L)
+        assertTrue("간격이 매번 같으면 안 됨", intervals.toSet().size > 1)
+        // 5회 × (1.5~3초 + 0.3초) = 9~16.5초
+        assertTrue("끝난 시각 ${r.taps.last()}ms", r.taps.last() in 9_000L..16_500L)
     }
 
     @Test
-    fun `반응을 계속 놓치면 최대 40초에서 끝난다`() {
+    fun `반응을 계속 놓치면 최대 25초 무렵 끝난다`() {
         var lastFrame = 0L
         val r = simulate(rt = { null }, onFrame = { _, t -> lastFrame = t })
         assertEquals(FINISHED, r.session.phase)
-        assertTrue("끝난 시각 ${lastFrame}ms", lastFrame in 40_000L..42_000L)
+        // 25초가 됐을 때 자극이 떠 있으면 그 자극의 놓침(2초)까지 기다린 뒤 끝난다
+        assertTrue("끝난 시각 ${lastFrame}ms", lastFrame in 25_000L..27_100L)
         assertEquals(0, r.session.summary().validCount)
     }
 
@@ -100,9 +101,16 @@ class ReactionCheckTest {
 
     @Test
     fun `평소엔 빠르지만 가끔 놓치면(느린 반응 2회) SLOWER`() {
-        val sum = simulate(rt = { if (it == 3 || it == 7) 800L else 300L }).session.summary()
+        val sum = simulate(rt = { if (it == 1 || it == 3) 800L else 300L }).session.summary()
         assertEquals(2, sum.slowCount)
         assertEquals(ReactionVerdict.SLOWER, evaluator.evaluate(sum).verdict)
+    }
+
+    @Test
+    fun `느린 반응 3회부터 많이 느림(MUCH_SLOWER)`() {
+        val sum = simulate(rt = { if (it == 0 || it == 2 || it == 4) 800L else 300L }).session.summary()
+        assertEquals(3, sum.slowCount)
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
     }
 
     @Test
@@ -117,7 +125,7 @@ class ReactionCheckTest {
     fun `자극 후 100ms 미만 터치는 너무 빠른 터치(예측)`() {
         val sum = simulate(rt = { 50L }).session.summary()
         assertEquals(0, sum.validCount)
-        assertTrue(sum.falseStartCount > 4)
+        assertTrue(sum.falseStartCount > 3)
         val res = evaluator.evaluate(sum)
         assertEquals(ReactionVerdict.INCONCLUSIVE, res.verdict)
         assertTrue(res.message, res.message.contains("신호가 나오기 전에"))
@@ -126,15 +134,40 @@ class ReactionCheckTest {
     @Test
     fun `2초 동안 안 누르면 놓침으로 기록하고 다음 자극으로 넘어간다`() {
         val sum = simulate(rt = { null }).session.summary()
-        assertTrue(sum.timeoutCount >= 5)
+        assertTrue(sum.timeoutCount >= 3)
         assertEquals(sum.timeoutCount, sum.slowCount)
         assertNull(sum.medianReactionMs)
-        assertEquals(ReactionVerdict.INCONCLUSIVE, evaluator.evaluate(sum).verdict)
+        // 한 번도 반응하지 못했으면 기록 부족이 아니라 많이 느림으로 본다
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
+    }
+
+    private fun summary(valid: Int, timeouts: Int, median: Long? = 300) = ReactionSummary(
+        trials = emptyList(), validCount = valid, medianReactionMs = median, meanReactionMs = median,
+        slowCount = timeouts, falseStartCount = 0, timeoutCount = timeouts, aborted = false,
+    )
+
+    @Test
+    fun `3번 이상 놓치면 유효 반응이 모자라도 판단 보류가 아니라 많이 느림`() {
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(summary(valid = 1, timeouts = 4)).verdict)
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(summary(valid = 0, timeouts = 3, median = null)).verdict)
+    }
+
+    @Test
+    fun `seed 200개 - 처음 4번 놓치면 많이 느림`() {
+        for (seed in seeds) {
+            val sum = simulate(rt = { if (it < 4) null else 350L }, seed = seed).session.summary()
+            assertEquals("seed=$seed $sum", ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
+        }
+    }
+
+    @Test
+    fun `놓침이 2회뿐이고 유효 반응이 모자라면 판단 보류`() {
+        assertEquals(ReactionVerdict.INCONCLUSIVE, evaluator.evaluate(summary(valid = 2, timeouts = 2)).verdict)
     }
 
     @Test
     fun `중단되면(기어 D) 판단 보류`() {
-        // 10회가 모이기 전(최소 1.8초 × 10 = 18초)에 중단
+        // 5회가 모이기 전(최소 1.8초 × 5 = 9초)에 중단
         val r = simulate(rt = { 300L }, onFrame = { s, t -> if (t == 8_000L) s.abort() })
         assertEquals(ABORTED, r.session.phase)
         val res = evaluator.evaluate(r.session.summary())
@@ -175,6 +208,45 @@ class ReactionCheckTest {
         }
     }
 
+    // ---- 무작위 간격에 기대지 않는지: seed 200개로 확인 (PR #20 리뷰: seed=1 고정이라 우연히 통과) ----
+
+    private val seeds = 1..200
+
+    @Test
+    fun `seed 200개 - 놓침 없이 터치하면 늘 시간 안에 유효 5회를 채운다`() {
+        for (seed in seeds) {
+            val r = simulate(rt = { 400L }, seed = seed)
+            assertEquals("seed=$seed", 5, r.session.summary().validCount)
+            assertTrue("seed=$seed 끝난 시각 ${r.taps.last()}", r.taps.last() < ReactionParams().durationMs)
+        }
+    }
+
+    @Test
+    fun `seed 200개 - 2번 놓쳐도 판단 보류가 아니라 조금 느림(SLOWER)`() {
+        for (seed in seeds) {
+            val sum = simulate(rt = { if (it == 1 || it == 3) null else 300L }, seed = seed).session.summary()
+            assertEquals("seed=$seed", 2, sum.timeoutCount)
+            assertEquals("seed=$seed $sum", ReactionVerdict.SLOWER, evaluator.evaluate(sum).verdict)
+        }
+    }
+
+    @Test
+    fun `seed 200개 - 3번 놓치면(가장 피곤한 경우) 판단 보류가 아니라 많이 느림(MUCH_SLOWER)`() {
+        for (seed in seeds) {
+            val sum = simulate(rt = { if (it in listOf(0, 2, 4)) null else 350L }, seed = seed).session.summary()
+            assertEquals("seed=$seed $sum", ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
+        }
+    }
+
+    @Test
+    fun `seed 200개 - 브레이크로 천천히(반응 600ms, 1초 밟음) 해도 시간 안에 유효 5회를 채운다`() {
+        for (seed in seeds) {
+            val sum = simulateBrake(rt = 600, holdMs = 1_000, seed = seed).first.summary()
+            assertEquals("seed=$seed", 5, sum.validCount)
+            assertEquals("seed=$seed", 0, sum.timeoutCount)
+        }
+    }
+
     // ---- 브레이크 페달 입력 ----
 
     /**
@@ -207,10 +279,10 @@ class ReactionCheckTest {
     }
 
     @Test
-    fun `브레이크 - 밟았다 떼기를 반복해 유효 10회가 모이면 끝난다`() {
+    fun `브레이크 - 밟았다 떼기를 반복해 유효 5회가 모이면 끝난다`() {
         val (s, _, _) = simulateBrake(rt = 450)
         assertEquals(FINISHED, s.phase)
-        assertEquals(10, s.summary().validCount)
+        assertEquals(5, s.summary().validCount)
         assertEquals(450L, s.summary().medianReactionMs)
     }
 

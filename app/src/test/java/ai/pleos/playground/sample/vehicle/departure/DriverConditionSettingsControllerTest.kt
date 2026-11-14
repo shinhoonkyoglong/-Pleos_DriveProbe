@@ -50,12 +50,17 @@ class DriverConditionSettingsControllerTest {
     private var locationCalls = 0
     private var location: DataResult<LocatedCenter> = DataResult.Available(LocatedCenter(here, "마포구 서교동"))
 
-    private fun controller(repo: DriverConditionRepository, treatUnknownAsRestricted: Boolean = true) =
+    private fun controller(
+        repo: DriverConditionRepository,
+        treatUnknownAsRestricted: Boolean = true,
+        radiusEnabled: Boolean = true,
+    ) =
         DriverConditionSettingsController(
             repository = repo,
             currentLocation = { locationCalls++; location },
             defaultAllowedRadiusMeters = 10_000.0,
             treatUnknownDrivingAsRestricted = treatUnknownAsRestricted,
+            radiusEnabled = radiusEnabled,
         ).also { it.onDrivingRestrictionChanged(DrivingRestriction.UNRESTRICTED) }
 
     @Test
@@ -249,5 +254,52 @@ class DriverConditionSettingsControllerTest {
         c.load()
         assertTrue(c.state.value.editingLocked)
         assertEquals(DrivingRestriction.RESTRICTED, c.state.value.drivingRestriction)
+    }
+
+    // ---- 반경 기능 꺼짐(앱 설정). PR #20 리뷰: 숨겨진 중심 줄 때문에 위치가 몰래 저장되고 저장 버튼이 막혔다 ----
+
+    @Test
+    fun radiusOff_noSavedCondition_doesNotReadLocation_andSaveIsNotBlocked() = runBlocking {
+        val repo = FakeRepository()
+        val c = controller(repo, radiusEnabled = false)
+        c.load()
+        assertEquals(0, locationCalls) // 화면에 없는 "집"을 현재 위치로 채우지 않는다
+        assertEquals(LocationStatus.IDLE, c.state.value.locationStatus) // 저장 버튼이 LOADING 으로 막히지 않는다
+        assertNull(c.state.value.form.centerLatitude)
+
+        c.save()
+        assertEquals(1, repo.saves.size)
+        assertNull("보이지 않는 중심을 저장하지 않는다", repo.saves.single().radiusCenter)
+        assertNull("고른 적 없는 기본 반경을 저장하지 않는다", repo.saves.single().allowedRadiusMeters)
+    }
+
+    @Test
+    fun radiusOff_storedNullRadius_staysNull() = runBlocking {
+        val repo = FakeRepository(stored = DriverCondition(radiusCenter = here, allowedRadiusMeters = null))
+        val c = controller(repo, radiusEnabled = false)
+        c.load()
+        c.setNoNightDriving(true)
+        c.save()
+        assertNull("앱 기본 반경(null)을 명시값으로 바꾸지 않는다", repo.saves.single().allowedRadiusMeters)
+    }
+
+    @Test
+    fun radiusOff_keepsAlreadySavedCenter() = runBlocking {
+        val repo = FakeRepository(stored = DriverCondition(radiusCenter = here, allowedRadiusMeters = 5_000.0))
+        val c = controller(repo, radiusEnabled = false)
+        c.load()
+        c.setNoNightDriving(true)
+        c.save()
+        assertEquals(0, locationCalls)
+        assertEquals(here, repo.saves.single().radiusCenter)
+        assertEquals(5_000.0, repo.saves.single().allowedRadiusMeters!!, 0.0) // 이미 저장된 반경은 그대로
+    }
+
+    @Test
+    fun radiusOff_refreshLocationIsIgnored() = runBlocking {
+        val c = controller(FakeRepository(), radiusEnabled = false)
+        c.load()
+        c.refreshLocation()
+        assertEquals(0, locationCalls)
     }
 }

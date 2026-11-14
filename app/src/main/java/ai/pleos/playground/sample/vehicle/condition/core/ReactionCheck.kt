@@ -12,7 +12,10 @@ import kotlin.random.Random
  *            → ReactionEvaluator가 본인 기준선과 비교해 ReactionResult(판정·문구)
  *            → ConditionProcessor.setPreDrive(result.verdict)로 피로 점수에 가산
  *
- * 소요 시간(2026-11-13 결정): "유효 반응 10회가 모이면 끝, 최대 40초" → 보통 약 30초.
+ * 소요 시간(2026-11-14 변경): "유효 반응 5회가 모이면 끝, 최대 25초" → 보통 약 13~16초.
+ * (2026-11-13엔 10회·최대 40초였다. 타겟을 운전 종사자로 좁히며 매일 하기 부담 없게 줄였다)
+ * 최대 시간을 15초로 하면 한 시도에 대기 1.5~3초 + 반응(브레이크는 밟고 떼기까지)이 들어 5회가 빠듯하고,
+ * 몇 번 놓친 운전자(= 가장 피곤한 경우)가 '판단 보류'로 빠지므로 25초로 둔다(PR #20 리뷰).
  */
 
 /** 반응을 받는 방법. 터치와 브레이크는 반응 시간이 달라 기준선을 따로 쓴다 */
@@ -20,11 +23,11 @@ enum class ReactionInput { TOUCH, BRAKE }
 
 data class ReactionParams(
     /** 최대 검사 시간 */
-    val durationMs: Long = 40_000L,
+    val durationMs: Long = 25_000L,
     val minIntervalMs: Long = 1_500L,
     val maxIntervalMs: Long = 3_000L,
     /** 유효 반응이 이만큼 모이면 바로 끝낸다. null이면 durationMs까지 계속 */
-    val targetValidTrials: Int? = 10,
+    val targetValidTrials: Int? = 5,
     /** 자극 후 이 시간 미만 반응 = 너무 빠른 반응(보고 반응한 게 아니라 예측) */
     val falseStartMs: Long = 100L,
     /** 이 시간 초과 = 느린 반응 */
@@ -232,13 +235,26 @@ data class ReactionBaselineParams(
     /** 기록이 쌓이기 전 기본값(반응시간 중앙값 ms) */
     val defaultMedian: RobustStat = RobustStat(median = 350f, scale = 50f),
     val minScaleMs: Float = 30f,
-    val minValidTrials: Int = 8,
-    val maxFalseStarts: Int = 4,
+    /**
+     * 유효 반응 5회 기준. 최대 25초 안에 3회도 못 모으면 판단 보류(10회일 때는 8).
+     * 4로 두면 2번만 놓쳐도 판단 보류가 되어, 피곤한 운전자일수록 '느림' 대신 '판단 보류'가 나온다(PR #20 리뷰)
+     */
+    val minValidTrials: Int = 3,
+    /** 유효 반응 5회 기준(10회일 때는 4) */
+    val maxFalseStarts: Int = 3,
     val slowerZ: Float = 1.5f,
     val muchSlowerZ: Float = 3f,
     val slowerSlowCount: Int = 2,
-    /** 유효 반응 10회 기준(이전 60초·약 15회일 때는 4) */
+    /**
+     * 유효 반응 5회 기준으로도 3을 유지한다. 2로 내리면 [slowerSlowCount]와 같아져 '조금 느림' 판정이 사라지고
+     * 느린 반응 2번만으로 '많이 느림'(기준선에도 안 남음)이 된다.
+     */
     val muchSlowerSlowCount: Int = 3,
+    /**
+     * 이만큼 놓치면(2초 안에 못 누름) 유효 반응 수와 상관없이 '많이 느림'.
+     * [muchSlowerSlowCount]와 따로 둔다: 느린 반응 기준을 바꿔도 '기록 부족 → 판단 보류' 경계가 같이 움직이지 않게
+     */
+    val muchSlowerTimeoutCount: Int = 3,
 ) {
     companion object {
         /**
@@ -281,14 +297,25 @@ class ReactionEvaluator(
     fun evaluate(s: ReactionSummary): ReactionResult {
         val (base, calibrating) = baseline()
         val median = s.medianReactionMs
-        val inconclusiveMsg = when {
+        val invalidMsg = when {
             s.aborted -> "반응 체크가 중간에 멈춰서 이번 기록은 평소와 비교하지 않았어요"
             s.falseStartCount > params.maxFalseStarts -> "신호가 나오기 전에 반응한 경우가 많아 이번에는 평소와 비교하지 않았어요"
-            s.validCount < params.minValidTrials || median == null -> "반응 기록이 충분하지 않아 이번에는 평소와 비교하지 않았어요"
             else -> null
         }
-        if (inconclusiveMsg != null) {
-            return ReactionResult(ReactionVerdict.INCONCLUSIVE, inconclusiveMsg, s, null, calibrating)
+        if (invalidMsg != null) {
+            return ReactionResult(ReactionVerdict.INCONCLUSIVE, invalidMsg, s, null, calibrating)
+        }
+        // 많이 놓친 경우는 유효 반응 수가 모자라도 '판단 보류'가 아니라 '많이 느림'이다.
+        // 가장 피곤한 운전자가 경고 없이 '기록 부족'으로 빠지지 않게 유효 반응 수 검사보다 먼저 본다(PR #21 리뷰)
+        if (s.timeoutCount >= params.muchSlowerTimeoutCount) {
+            return ReactionResult(
+                ReactionVerdict.MUCH_SLOWER, "신호를 여러 번 놓쳤어요. 충분히 쉬고 출발하는 걸 권해요", s, null, calibrating,
+            )
+        }
+        if (s.validCount < params.minValidTrials || median == null) {
+            return ReactionResult(
+                ReactionVerdict.INCONCLUSIVE, "반응 기록이 충분하지 않아 이번에는 평소와 비교하지 않았어요", s, null, calibrating,
+            )
         }
         val z = base.z(median!!.toFloat())
         val verdict = when {

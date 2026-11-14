@@ -36,6 +36,8 @@ class DepartureCheckUseCase(
     private val radiusCheck: RadiusCheckUseCase,
     private val conditionRoute: ConditionRouteUseCase,
     private val clock: Clock,
+    /** false 면 반경을 확인하지 않는다(결과 radius = null, 반경용 위치 조회도 안 함). DepartureConfig.radiusCheckEnabled. 기본값 없음 */
+    private val radiusCheckEnabled: Boolean,
 ) {
 
     /**
@@ -66,7 +68,8 @@ class DepartureCheckUseCase(
 
         val destination = naviRepository.getDestination().treatNullIslandAsNotSet()
         val destinationPresent = (destination as? DataResult.Available)?.value is NaviDestination.Present
-        val needsLocation = condition.noNightDriving || (destinationPresent && condition.radiusCenter != null)
+        val needsLocation = condition.noNightDriving ||
+            (radiusCheckEnabled && destinationPresent && condition.radiusCenter != null)
         // 필요 없으면 null 로 넘긴다. 이때 두 유스케이스는 위치를 쓰지 않는 분기로 끝나므로 따로 조회하지 않는다.
         val location: DataResult<GeoPoint>? = if (needsLocation) naviRepository.getCurrentLocation() else null
 
@@ -76,7 +79,11 @@ class DepartureCheckUseCase(
             destination = destination,
             currentLocation = location,
         )
-        val radius = radiusCheck.check(condition = condition, destination = destination, currentLocation = location)
+        val radius = if (radiusCheckEnabled) {
+            radiusCheck.check(condition = condition, destination = destination, currentLocation = location)
+        } else {
+            null
+        }
         val route = conditionRoute.check(preference = condition.routePreference, destination = destination)
 
         return DepartureSnapshot.Checked(

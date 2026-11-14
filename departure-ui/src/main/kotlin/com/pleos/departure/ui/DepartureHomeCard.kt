@@ -51,13 +51,15 @@ fun DepartureHomeCard(
     model: DepartureScreenModel,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    /** false면(예: 주행 중) 눌러도 열리지 않는다 */
+    enabled: Boolean = true,
 ) {
     LifecycleStartEffect(model) {
         model.onVisible()
         onStopOrDispose { model.onHidden() }
     }
     val ui by model.state.collectAsState()
-    DepartureHomeCardContent(state = HomeCardSummary.from(ui), onOpen = onOpen, modifier = modifier)
+    DepartureHomeCardContent(state = HomeCardSummary.from(ui), onOpen = onOpen, modifier = modifier, enabled = enabled)
 }
 
 @Composable
@@ -65,6 +67,7 @@ fun DepartureHomeCardContent(
     state: HomeCardState,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val accent = toneColor(state.tone)
     val shape = RoundedCornerShape(32.dp)
@@ -76,7 +79,7 @@ fun DepartureHomeCardContent(
             .clip(shape)
             .background(Brush.verticalGradient(listOf(DepartureColors.HeroGlow, CardBackground)))
             .border(1.5.dp, accent.copy(alpha = 0.45f), shape)
-            .clickable(enabled = state.openEnabled, role = Role.Button, onClickLabel = "출발 전 확인 자세히 보기", onClick = onOpen)
+            .clickable(enabled = enabled && state.openEnabled, role = Role.Button, onClickLabel = "출발 전 확인 자세히 보기", onClick = onOpen)
             .padding(32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

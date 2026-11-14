@@ -89,7 +89,7 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
                 title = "운전자 조건 미설정",
                 lines = listOf(
                     DisplayLine("조건이 없다고 제한이 없는 것은 아니에요", emphasis = true),
-                    DisplayLine("운전자 조건을 설정하면 출발 마감과 허용 반경을 알려 드려요"),
+                    DisplayLine("운전자 조건을 설정하면 출발 마감과 경로 조건을 알려 드려요"),
                 ),
             ),
             radius = null,
@@ -98,11 +98,12 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         )
         is DepartureSnapshot.Checked -> {
             val discourages = discouragesDeparture(snapshot.deadline.stage)
-            val radius = radiusCard(snapshot.radius, snapshot.condition, ctx)
+            // 반경 기능이 꺼져 있으면(snapshot.radius == null) 반경 카드를 만들지 않는다
+            val radius = snapshot.radius?.let { radiusCard(it, snapshot.condition, ctx) }
             DepartureContent(
                 conditionNotice = conditionNotice(snapshot.condition),
                 main = deadlineCard(snapshot.deadline, ctx),
-                radius = if (discourages) asSecondary(radius) else radius,
+                radius = radius?.let { if (discourages) asSecondary(it) else it },
                 route = if (discourages) null else routeCard(snapshot.route, snapshot.condition, ctx),
                 // 작업 #26: 출발 전 확인은 내비 목적지 기준. 확인된 '목적지 없음'만 false(확인 불가는 따로 '확인 불가'로 보인다)
                 destinationSet = (snapshot.destination as? com.pleos.departure.model.DataResult.Available)?.value
@@ -125,7 +126,7 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
             title = CHECK_FAILED_TITLE,
             lines = listOfNotNull(
                 DisplayLine("확인 중 오류가 났어요", emphasis = true),
-                DisplayLine("출발 마감·허용 반경·경로 조건을 지금은 알려 드릴 수 없어요"),
+                DisplayLine("출발 마감·경로 조건을 지금은 알려 드릴 수 없어요"),
                 DisplayLine("잠시 뒤 자동으로 다시 확인해요"),
                 if (ctx.controlsEnabled) DisplayLine("'다시 확인'을 눌러도 돼요") else null,
             ),

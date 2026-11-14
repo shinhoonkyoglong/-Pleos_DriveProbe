@@ -29,18 +29,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /**
- * 첫 화면(정차 중). 출발 전 확인과 오늘 컨디션을 보고, 주행 도움을 포함한 주요 기능(타일 4개)으로 이동한다.
+ * 첫 화면. 출발 전 확인과 오늘 컨디션을 보고, 주행 도움을 포함한 주요 기능(타일 4개)으로 이동한다.
+ *
+ * 주행 중에도 이 화면이 남는다(2026-11-14 회의: 주행 화면을 따로 띄우지 않고 개입은 음성으로만).
+ * 주행 중에는 다른 화면으로 가지 않으므로(KdAppViewModel.open) 그 사실을 맨 위에 알리고, 타일·이번 주 띠를 흐리게 해
+ * 누를 수 없음을 보여 주고, 출발 전용 문구("출발 전에 체크할까요?")는 감춘다(PR #20 리뷰).
  *
  * 화면 높이를 남김없이 쓴다: 위 두 카드가 남은 높이를 채우고, 그 아래에 '이번 주' 요약 띠와 메뉴 타일을 둔다.
  * (이전에는 아래 절반이 비어 있었다)
  *
  * @param departureCard 2번 '출발 전' 홈 카드 자리. 받은 Modifier 로 높이를 채워야 한다(fillMaxHeight 포함).
+ *   두 번째 인자 enabled=false(주행 중)면 눌리지 않게 그려야 한다.
+ * @param voicePhaseMessage 주행 중 음성 단계 안내("지금 말씀해 주세요" 등). 없으면 null
  */
 @Composable
 fun HomeScreen(
@@ -49,11 +56,19 @@ fun HomeScreen(
     onDismissTripEnd: () -> Unit,
     onSkipCheck: () -> Unit = {},
     assistSummary: String = "음성 준비 필요",
-    departureCard: @Composable (Modifier) -> Unit = { DeparturePlaceholderCard(it, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) }) },
+    /** 주행 중 음성 도움이 실제로 동작하는지(자동 도움 켜짐 + 음성 준비됨). 주행 중 문구를 이 값에 맞춘다 */
+    voiceAssistOn: Boolean = false,
+    voicePhaseMessage: String? = null,
+    departureCard: @Composable (Modifier, enabled: Boolean) -> Unit = { m, enabled ->
+        DeparturePlaceholderCard(m, enabled = enabled, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) })
+    },
 ) {
     val recommended = state.checkAdvice.isRecommended
+    val driving = state.vehicle.isDriving
     KdScreen(testTag = "kd-home") {
-        HomeHeader(state, onOpenDevTools = { onOpen(KdPage.DEV_TOOLS) })
+        HomeHeader(state, driving = driving, onOpenDevTools = { onOpen(KdPage.DEV_TOOLS) })
+
+        if (driving) DrivingNotice()
 
         if (state.showTripEnd) {
             TripEndBanner(state, onOpenRecords = { onOpen(KdPage.RECORDS) }, onDismiss = onDismissTripEnd)
@@ -63,8 +78,12 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
             horizontalArrangement = Arrangement.spacedBy(Kd.Gap),
         ) {
-            departureCard(Modifier.weight(1f).fillMaxHeight())
+            // 주행 중에는 다른 타일처럼 출발 카드도 흐리게 하고 누를 수 없게 한다(open()이 무시하므로 눌리는 것처럼 보이면 안 된다)
+            departureCard(Modifier.weight(1f).fillMaxHeight().alpha(if (driving) 0.4f else 1f), !driving)
             TodayConditionCard(
+                driving = driving,
+                voiceAssistOn = voiceAssistOn,
+                voicePhaseMessage = voicePhaseMessage,
                 advice = state.checkAdvice,
                 latest = state.reactionHistory.firstOrNull(),
                 onStart = { onOpen(KdPage.REACTION_CHECK) },
@@ -73,16 +92,17 @@ fun HomeScreen(
             )
         }
 
-        WeekStrip(state, onClick = { onOpen(KdPage.RECORDS) })
+        WeekStrip(state, enabled = !driving, onClick = { onOpen(KdPage.RECORDS) })
 
         Row(modifier = Modifier.fillMaxWidth().height(176.dp), horizontalArrangement = Arrangement.spacedBy(Kd.Gap)) {
             KdNavTile(
                 "컨디션 체크",
-                subtitle = "정차 중 약 30초",
+                subtitle = "정차 중 약 15초",
                 icon = Icons.Rounded.Favorite,
                 onClick = { onOpen(KdPage.REACTION_CHECK) },
                 // 권유할 때만 강조한다(팀 결정: 체크를 강요하지 않음)
-                highlighted = recommended,
+                highlighted = recommended && !driving,
+                enabled = !driving,
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-reaction"),
             )
             KdNavTile(
@@ -90,13 +110,15 @@ fun HomeScreen(
                 subtitle = assistSummary,
                 icon = Icons.Rounded.Notifications,
                 onClick = { onOpen(KdPage.DRIVING_ASSIST) },
+                enabled = !driving,
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-assist"),
             )
             KdNavTile(
                 "내 운전 조건",
-                subtitle = "야간, 반경, 도로 조건",
+                subtitle = "야간, 도로 조건",
                 icon = Icons.Rounded.Settings,
                 onClick = { onOpen(KdPage.DRIVER_CONDITION) },
+                enabled = !driving,
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-condition"),
             )
             KdNavTile(
@@ -104,6 +126,7 @@ fun HomeScreen(
                 subtitle = "변화와 가족 요약",
                 icon = Icons.Rounded.DateRange,
                 onClick = { onOpen(KdPage.RECORDS) },
+                enabled = !driving,
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-records"),
             )
         }
@@ -114,7 +137,7 @@ fun HomeScreen(
 private val SHOW_DEV_TOOLS = BuildConfig.DEBUG
 
 @Composable
-private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
+private fun HomeHeader(state: KdUiState, driving: Boolean, onOpenDevTools: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("계속운전", style = Kd.Headline)
@@ -125,19 +148,22 @@ private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
             if (state.vehicle.isReplay) KdTag("시연 모드")
             KdTag(state.vehicle.gear.label(), color = Kd.InkMuted)
             Spacer(Modifier.width(4.dp))
-            // 화면 밝기 전환(다크 ↔ 라이트). 정차 중 홈에서만 보이고, 주행 화면에는 두지 않는다
-            KdThemeToggleButton()
-            // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
-            // 시연 모드(재생) 촬영은 debug 빌드에서만 가능하므로 재생 중에도 숨긴다
-            if (SHOW_DEV_TOOLS && !state.vehicle.isReplay) {
-                KdButton(
-                    "개발자 도구",
-                    onClick = onOpenDevTools,
-                    style = KdButtonStyle.QUIET,
-                    minHeight = 64.dp,
-                    icon = Icons.Rounded.Build,
-                    modifier = Modifier.testTag("kd-home-devtools"),
-                )
+            // 주행 중에는 화면 밝기 전환·개발자 도구를 감춘다(운전 중 화면 전체가 바뀌거나, 눌러도 무시되는 버튼이 없게)
+            if (!driving) {
+                // 화면 밝기 전환(다크 ↔ 라이트). 정차 중에만 보인다
+                KdThemeToggleButton()
+                // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
+                // 시연 모드(재생) 촬영은 debug 빌드에서만 가능하므로 재생 중에도 숨긴다
+                if (SHOW_DEV_TOOLS && !state.vehicle.isReplay) {
+                    KdButton(
+                        "개발자 도구",
+                        onClick = onOpenDevTools,
+                        style = KdButtonStyle.QUIET,
+                        minHeight = 64.dp,
+                        icon = Icons.Rounded.Build,
+                        modifier = Modifier.testTag("kd-home-devtools"),
+                    )
+                }
             }
         }
     }
@@ -145,7 +171,7 @@ private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
 
 /** '이번 주' 한 줄 요약. 누르면 내 기록으로 간다 */
 @Composable
-private fun WeekStrip(state: KdUiState, onClick: () -> Unit) {
+private fun WeekStrip(state: KdUiState, enabled: Boolean, onClick: () -> Unit) {
     val week = rememberTripWeekNumbers()
     val weekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
     val helps = state.interventions.count { it.timestamp >= weekAgo }
@@ -155,7 +181,8 @@ private fun WeekStrip(state: KdUiState, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(Kd.CardShape)
             .background(Kd.Surface)
-            .clickable(role = Role.Button, onClickLabel = "내 기록 보기", onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = "내 기록 보기", onClick = onClick)
+            .alpha(if (enabled) 1f else 0.4f)
             .padding(horizontal = 32.dp, vertical = 32.dp)
             .testTag("kd-home-week"),
         verticalAlignment = Alignment.CenterVertically,
@@ -183,12 +210,12 @@ private fun StripDivider() {
 
 /** 2번 홈 카드가 들어올 자리. 문구는 2번 카드의 '목적지 없음' 상태와 같은 톤으로 둔다 */
 @Composable
-fun DeparturePlaceholderCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    KdCard(modifier = modifier, onClick = onClick) {
+fun DeparturePlaceholderCard(modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    KdCard(modifier = modifier, onClick = if (enabled) onClick else null) {
         Text("오늘 운전해도 되나요?", style = Kd.Eyebrow)
         Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
         KdStatusBadge(KdTone.INFO, "내비에 목적지를 정하면 확인해요")
-        Text("출발 마감 시각 · 허용 반경 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
+        Text("출발 마감 시각 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
         Spacer(Modifier.weight(1f))
         CardLink("자세히 보기")
     }
@@ -204,19 +231,55 @@ private fun CardLink(text: String, muted: Boolean = false) {
     }
 }
 
+/** 주행 중 맨 위 안내 한 줄. 메뉴가 눌리지 않는 이유를 알린다 */
+@Composable
+private fun DrivingNotice() {
+    KdCard(
+        modifier = Modifier.fillMaxWidth().testTag("kd-home-driving-notice"),
+        borderColor = KdTone.INFO.color,
+        contentPadding = 18.dp,
+    ) {
+        KdStatusBadge(KdTone.INFO, "주행 중이에요. 메뉴는 차를 세운 뒤에 열 수 있어요")
+    }
+}
+
 /**
  * '오늘 컨디션' 카드. 팀 결정에 따라 체크를 강요하지 않는다:
  * - 권유(밤·새벽, 지난 주행 피로 신호): "체크할까요?" + [체크하기] [바로 출발]
  * - 그 밖: "바로 출발해도 괜찮아요" + 최근 체크 기록(있으면)
+ * - 주행 중: 권유·버튼을 감추고 음성 도움 상태와 지금 음성 단계만 보인다
  */
 @Composable
 private fun TodayConditionCard(
+    driving: Boolean,
+    voiceAssistOn: Boolean,
+    voicePhaseMessage: String?,
     advice: CheckAdvice,
     latest: ReactionScoreEntity?,
     onStart: () -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (driving) {
+        // 출발 전용 권유·체크 버튼을 감춘다. 주행 중 컨디션 변화는 음성으로 알린다
+        KdCard(modifier = modifier.testTag("kd-home-condition-driving")) {
+            Text("오늘 컨디션", style = Kd.Eyebrow)
+            Spacer(Modifier.weight(1f))
+            KdStatusBadge(KdTone.INFO, "운전에 집중하세요", large = true)
+            // 음성 도움이 꺼져 있거나 준비되지 않았으면 오지 않을 경고를 약속하지 않는다(PR #21 리뷰)
+            if (voiceAssistOn) {
+                Text("피곤한 신호가 보이면 음성으로 알려 드려요", style = Kd.Body)
+            } else {
+                Text("음성 도움이 꺼져 있어요. 피곤하면 쉼터에 들러 쉬어 가세요", style = Kd.Body)
+            }
+            // 음성 안내를 놓친 운전자도 지금 말해야 하는지·경로를 바꾸는 중인지 알 수 있게(삭제된 주행 화면이 하던 일)
+            voicePhaseMessage?.let {
+                Text(it, style = Kd.Body.copy(color = Kd.Accent), modifier = Modifier.testTag("kd-home-voice-phase"))
+            }
+            Spacer(Modifier.weight(1f))
+        }
+        return
+    }
     if (advice == CheckAdvice.DONE_TODAY) {
         val verdict = latest?.notes?.let { n -> ReactionVerdict.entries.firstOrNull { it.name == n } }
         if (latest != null && verdict != null) {
@@ -238,7 +301,7 @@ private fun TodayConditionCard(
         KdCard(modifier = modifier, borderColor = Kd.Caution) {
             Text("오늘 컨디션", style = Kd.Eyebrow)
             Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
-            KdStatusBadge(KdTone.CAUTION, "출발 전에 30초 체크할까요?", large = true)
+            KdStatusBadge(KdTone.CAUTION, "출발 전에 15초 체크할까요?", large = true)
             Text(
                 if (advice == CheckAdvice.RECOMMEND_NIGHT) "어두운 시간이라 평소보다 반응이 느릴 수 있어요"
                 else "지난 운전에서 피곤한 신호가 있었어요",
@@ -271,7 +334,7 @@ private fun TodayConditionCard(
         KdStatusBadge(KdTone.GOOD, "바로 출발해도 괜찮아요", large = true)
         Text(
             if (advice == CheckAdvice.SKIPPED_TODAY) "오늘은 체크를 건너뛰었어요"
-            else "궁금할 때 30초 반응 체크로 평소와 비교해 볼 수 있어요",
+            else "궁금할 때 15초 반응 체크로 평소와 비교해 볼 수 있어요",
             style = Kd.Body,
         )
         Spacer(Modifier.weight(1f))

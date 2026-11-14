@@ -64,14 +64,43 @@ class DepartureCheckUseCaseTest {
         routeState = DataResult.Available(RouteState.Guiding(appliedOption = RouteOption.FREE, tollFare = 0)),
     )
 
-    private fun useCase(navi: ScriptedNavi, condition: DriverConditionRepository) = DepartureCheckUseCase(
+    private fun useCase(
+        navi: ScriptedNavi,
+        condition: DriverConditionRepository,
+        radiusCheckEnabled: Boolean = true,
+    ) = DepartureCheckUseCase(
         naviRepository = navi,
         driverConditionRepository = condition,
         departureDeadline = DepartureDeadlineUseCase(navi, clock, config),
         radiusCheck = RadiusCheckUseCase(navi, config),
         conditionRoute = ConditionRouteUseCase(navi),
         clock = clock,
+        radiusCheckEnabled = radiusCheckEnabled,
     )
+
+    /** 반경 기능을 끄면(2026-11-14) 기준점이 있어도 반경을 확인하지 않는다. 출발 마감·경로는 그대로 계산한다. */
+    @Test
+    fun radiusDisabled_skipsRadius_keepsDeadlineAndRoute() = runBlocking {
+        val navi = navi()
+        val r = useCase(navi, ScriptedCondition(DataResult.Available(fullCondition)), radiusCheckEnabled = false)
+            .check() as DepartureSnapshot.Checked
+
+        assertNull(r.radius)
+        assertTrue(r.deadline is DepartureDeadlineResult.Deadline)
+        assertTrue(r.route is RouteConditionCheck.Satisfied)
+    }
+
+    /** 반경 기능을 끄면 야간 제한이 없을 때 위치를 조회하지 않는다(반경 때문에 조회하던 것). */
+    @Test
+    fun radiusDisabled_withoutNightRestriction_doesNotQueryLocation() = runBlocking {
+        val navi = navi()
+        val dayOnly = fullCondition.copy(timeConstraints = emptySet())
+        val r = useCase(navi, ScriptedCondition(DataResult.Available(dayOnly)), radiusCheckEnabled = false)
+            .check() as DepartureSnapshot.Checked
+
+        assertNull(r.radius)
+        assertEquals(0, navi.locationCalls)
+    }
 
     @Test
     fun loadedCondition_queriesDestinationAndLocationOnce_andSharesThem() = runBlocking {

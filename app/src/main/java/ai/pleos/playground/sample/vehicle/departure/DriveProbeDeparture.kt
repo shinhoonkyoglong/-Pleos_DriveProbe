@@ -41,7 +41,8 @@ object DriveProbeDeparture {
 
     /**
      * 1번 Repository 위에 2번 기능을 만든다.
-     * @param config 동작 수치(출발 여유 시간, 반경, 타임아웃, 경고 임계값 등). 바꾸려면 DepartureConfig().copy(...)로 넘긴다.
+     * @param config 동작 수치(출발 여유 시간, 반경, 타임아웃, 경고 임계값 등). 앱은 DriveProbeApplication.departureConfig 를 넘긴다.
+     *   기본값을 두지 않는다 — 빠뜨리면 반경 판정이 켜진 DepartureConfig() 가 조용히 쓰이기 때문이다(PR #20 리뷰).
      * @param driverConditionRepository 운전자 조건 저장소. 앱은 [RoomDriverConditionRepository](Room driver_conditions 테이블),
      *   테스트는 [InMemoryDriverConditionRepository]를 넘긴다. 기본값을 두지 않는다(인메모리가 조용히 쓰이면 재시작 시 조건이 사라진다).
      * @param acceptMockNaviValues NaviHelper 미연결 시 Mock 값을 쓸지(DriveProbeNaviAdapter 참고). 기본 false.
@@ -49,7 +50,7 @@ object DriveProbeDeparture {
     fun createFeature(
         vehicleRepository: DriveProbeVehicleRepository,
         naviHelperRepository: NaviHelperRepository,
-        config: DepartureConfig = DepartureConfig(),
+        config: DepartureConfig,
         clock: Clock = Clock.system(config.timeZone),
         driverConditionRepository: DriverConditionRepository,
         acceptMockNaviValues: Boolean = false,

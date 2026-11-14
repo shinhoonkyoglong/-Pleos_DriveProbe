@@ -13,6 +13,7 @@ import ai.pleos.playground.sample.vehicle.data.repository.NaviHelperRepositoryIm
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.pleos.departure.DepartureConfig
 import com.pleos.departure.model.DataResult
 import com.pleos.departure.model.DepartureDeadlineResult
 import com.pleos.departure.model.DepartureSnapshot
@@ -292,6 +293,8 @@ class NaviHelperQuerySmokeTest {
         val feature = DriveProbeDeparture.createFeature(
             vehicleRepository = DriveProbeApplication.instance.vehicleRepository,
             naviHelperRepository = repo,
+            // 이 스모크 테스트는 반경 확인(3-radius)까지 보므로 앱 설정(반경 꺼짐)과 달리 반경을 켠다
+            config = DepartureConfig(radiusCheckEnabled = true),
             driverConditionRepository = InMemoryDriverConditionRepository(condition),
         )
         val snapshot = feature.departureCheck.check()

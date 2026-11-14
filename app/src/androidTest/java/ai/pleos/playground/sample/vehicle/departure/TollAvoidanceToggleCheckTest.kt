@@ -107,6 +107,7 @@ class TollAvoidanceToggleCheckTest {
             val feature = DriveProbeDeparture.createFeature(
                 vehicleRepository = DriveProbeApplication.instance.vehicleRepository,
                 naviHelperRepository = repo,
+                config = DriveProbeApplication.instance.departureConfig,
                 driverConditionRepository = InMemoryDriverConditionRepository(
                     DriverCondition(routePreference = RoutePreference.of(RouteConstraint.PREFER_TOLL_FREE)),
                 ),

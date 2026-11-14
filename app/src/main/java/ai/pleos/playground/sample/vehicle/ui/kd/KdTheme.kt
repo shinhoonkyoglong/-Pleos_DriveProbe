@@ -17,6 +17,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -447,7 +448,7 @@ fun KdButton(
 
 /**
  * 큰 메뉴 타일: 왼쪽 아이콘, 제목·설명, 오른쪽 화살표. 주어진 높이를 모두 채운다.
- * [highlighted]면 주 버튼 색(지금 권하는 행동).
+ * [highlighted]면 주 버튼 색(지금 권하는 행동). [enabled]가 false면 흐리게 보이고 눌리지 않는다(주행 중 홈).
  */
 @Composable
 fun KdNavTile(
@@ -457,6 +458,7 @@ fun KdNavTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     highlighted: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val bg = if (highlighted) Kd.Primary else Kd.Surface
     val fg = if (highlighted) Kd.OnPrimary else Kd.Ink
@@ -468,7 +470,8 @@ fun KdNavTile(
             .heightIn(min = Kd.MinTouch)
             .clip(Kd.CardShape)
             .background(bg)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.4f)
             .padding(horizontal = 24.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

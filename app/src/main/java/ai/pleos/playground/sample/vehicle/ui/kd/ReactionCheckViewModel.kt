@@ -57,7 +57,7 @@ data class ReactionUiState(
  * [ReactionSession]·[ReactionEvaluator]·[ReactionGate]를 그대로 쓴다.
  *
  * 반응 입력(2026-11-13): 실제 차량에서는 **브레이크 페달**(SDK 콜백 지연이 에뮬레이터 실측 표준편차 3ms로 작음),
- * 시연 재생 중이거나 차량 신호가 없으면 터치. 유효 반응 10회 또는 최대 40초.
+ * 시연 재생 중이거나 차량 신호가 없으면 터치. 유효 반응 5회 또는 최대 25초.
  * 시각은 모두 SystemClock.elapsedRealtime 기준(브레이크 이벤트 시각과 같은 시계).
  *
  * 결과 처리:
@@ -214,7 +214,10 @@ class ReactionCheckViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun save(result: ReactionResult) {
-        val median = result.summary.medianReactionMs ?: return
+        // 한 번도 반응하지 못한 '많이 느림'도 남긴다. 반응 시간은 놓침 기준(timeoutMs)으로 적는다(가장 느린 값).
+        // 남기지 않으면 오늘 체크가 안 된 것으로 보여 덜 나쁜 결과가 나올 때까지 다시 할 수 있다(PR #21 리뷰)
+        val median = result.summary.medianReactionMs
+            ?: if (result.verdict == ReactionVerdict.MUCH_SLOWER) params.timeoutMs else return
         val entity = ReactionScoreEntity(
             sessionId = UUID.randomUUID().toString(),
             simpleReactionTimeMs = median,

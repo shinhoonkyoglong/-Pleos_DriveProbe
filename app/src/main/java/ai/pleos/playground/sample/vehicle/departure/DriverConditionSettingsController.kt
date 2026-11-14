@@ -1,6 +1,7 @@
 package ai.pleos.playground.sample.vehicle.departure
 
 import com.pleos.departure.model.DataResult
+import com.pleos.departure.model.DriverCondition
 import com.pleos.departure.model.DrivingRestriction
 import com.pleos.departure.model.GeoPoint
 import com.pleos.departure.model.UnavailableReason
@@ -20,6 +21,8 @@ data class LocatedCenter(val point: GeoPoint, val address: String = "")
  * 동작 규칙
  * - [load]: 저장된 조건이 있으면 그 값을 보여 준다. 없으면 기본값([DriverConditionDefaults])을 채우고 현재 위치를 중심으로 읽는다.
  *   기본값은 [save] 전까지 저장하지 않는다(저장 안 됨 = 조건 미설정).
+ * - 반경 기능이 꺼져 있으면([radiusEnabled] = false) 현재 위치를 읽지 않는다. 중심 줄이 화면에 없으므로, 읽으면 사용자가
+ *   모르는 위치(예: 회사)가 "집"으로 저장되고 고칠 방법도 없다. 이미 저장된 중심은 건드리지 않고 그대로 둔다(PR #20 리뷰).
  * - 주행 중(RESTRICTED, 또는 UNKNOWN + treatUnknownDrivingAsRestricted)에는 모든 입력·저장·위치 다시 읽기를 무시한다.
  * - 저장 중([DriverConditionSettingsState.saving])에는 입력을 무시한다. 저장이 끝나면 화면 값이 저장값으로 바뀌므로,
  *   그 사이 입력을 받으면 사용자가 바꾼 값이 말없이 사라지기 때문이다.
@@ -33,8 +36,13 @@ class DriverConditionSettingsController(
     private val currentLocation: suspend () -> DataResult<LocatedCenter>,
     private val defaultAllowedRadiusMeters: Double,
     private val treatUnknownDrivingAsRestricted: Boolean,
+    /**
+     * DepartureConfig.radiusCheckEnabled. false 면 반경·중심을 화면에 보이지 않고, 현재 위치를 읽지 않으며, 저장 검사에서도 뺀다.
+     * 기본값을 두지 않는다 — 빠뜨린 호출부에서 반경 기능이 조용히 다시 켜지지 않게(PR #20 리뷰).
+     */
+    private val radiusEnabled: Boolean,
 ) {
-    private val _state = MutableStateFlow(DriverConditionSettingsState())
+    private val _state = MutableStateFlow(DriverConditionSettingsState(radiusEnabled = radiusEnabled))
     val state: StateFlow<DriverConditionSettingsState> = _state.asStateFlow()
 
     /** 화면을 열 때마다 부른다. 이전 입력은 버리고 저장된 값(없으면 기본값)으로 다시 채운다. */
@@ -43,10 +51,11 @@ class DriverConditionSettingsController(
         _state.value = DriverConditionSettingsState(
             drivingRestriction = restriction,
             editingLocked = isLocked(restriction),
+            radiusEnabled = radiusEnabled,
         )
         when (val saved = repository.getCondition()) {
             is DataResult.Available -> {
-                val form = DriverConditionForm.from(saved.value, defaultAllowedRadiusMeters)
+                val form = formOf(saved.value)
                 _state.update { it.copy(loading = false, form = form, savedForm = form) }
             }
             is DataResult.Unavailable -> {
@@ -54,19 +63,30 @@ class DriverConditionSettingsController(
                 _state.update {
                     it.copy(
                         loading = false,
-                        form = DriverConditionForm.defaults(),
+                        // 반경 기능이 꺼져 있으면 기본 반경(50 km)을 채우지 않는다. 사용자가 고른 적 없는 값이 저장되지 않게
+                        form = DriverConditionForm.defaults().let { f -> if (radiusEnabled) f else f.copy(radiusKm = null) },
                         savedForm = null,
                         loadFailed = saved.reason != UnavailableReason.NO_DATA,
                     )
                 }
-                fetchLocation()
+                if (radiusEnabled) fetchLocation()
             }
         }
     }
 
+    /**
+     * 저장된 조건 → 입력값. 반경 기능이 꺼져 있으면 저장된 반경을 그대로 둔다(null 이면 null).
+     * 켜져 있을 때처럼 앱 기본 반경으로 채우면, 저장할 때 사용자가 고른 적 없는 값이 명시적으로 남는다(PR #21 리뷰).
+     */
+    private fun formOf(condition: DriverCondition): DriverConditionForm {
+        val form = DriverConditionForm.from(condition, defaultAllowedRadiusMeters)
+        return if (radiusEnabled) form
+        else form.copy(radiusKm = condition.allowedRadiusMeters?.div(DriverConditionForm.METERS_PER_KM))
+    }
+
     /** 사용자 "다시 시도" / "지금 위치로 바꾸기". 주행 중이면 무시한다. */
     suspend fun refreshLocation() {
-        if (_state.value.editingLocked) return
+        if (!radiusEnabled || _state.value.editingLocked) return
         fetchLocation()
     }
 
@@ -85,15 +105,15 @@ class DriverConditionSettingsController(
         val current = _state.value
         // 위치를 읽는 중에는 저장하지 않는다(중심이 빈 채로 저장되는 것을 막음)
         if (current.editingLocked || current.saving || current.loading || current.locationStatus == LocationStatus.LOADING) return
-        val errors = current.form.validate()
+        val errors = current.form.validate(radiusEnabled)
         if (errors.isNotEmpty()) {
             _state.update { it.copy(errors = errors, saveResult = null) }
             return
         }
         _state.update { it.copy(saving = true, errors = emptyList(), saveResult = null) }
-        when (val stored = repository.saveCondition(current.form.toCondition())) {
+        when (val stored = repository.saveCondition(current.form.toCondition(radiusEnabled))) {
             is DataResult.Available -> {
-                val storedForm = DriverConditionForm.from(stored.value, defaultAllowedRadiusMeters)
+                val storedForm = formOf(stored.value)
                 _state.update {
                     it.copy(saving = false, form = storedForm, savedForm = storedForm, loadFailed = false, saveResult = SaveResult.SAVED)
                 }
@@ -141,8 +161,10 @@ class DriverConditionSettingsController(
  * @property loadFailed 저장된 조건을 읽지 못했다(DB 오류 등). 기본값을 보여 주는 중이다
  * @property centerAddress 이번에 읽은 현재 위치의 구·동 이름. 저장된 중심에는 없다(DB 에 주소를 두지 않음)
  * @property errors 마지막 [DriverConditionSettingsController.save] 시도의 입력 오류
+ * @property radiusEnabled 반경 기능을 쓰는가. false 면 화면에 허용 반경·반경 중심 줄을 그리지 않는다
  */
 data class DriverConditionSettingsState(
+    val radiusEnabled: Boolean,
     val loading: Boolean = true,
     val form: DriverConditionForm = DriverConditionForm.defaults(),
     val savedForm: DriverConditionForm? = null,

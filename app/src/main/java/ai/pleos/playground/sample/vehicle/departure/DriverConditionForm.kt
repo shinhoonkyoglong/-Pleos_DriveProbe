@@ -22,8 +22,12 @@ data class DriverConditionForm(
     val centerLatitude: Double?,
     val centerLongitude: Double?,
 ) {
-    /** 입력 오류 목록. 비어 있으면 저장할 수 있다. */
-    fun validate(): List<DriverConditionFormError> = buildList {
+    /**
+     * 입력 오류 목록. 비어 있으면 저장할 수 있다.
+     * @param radiusEnabled false 면(반경 기능 꺼짐) 반경·중심을 검사하지 않는다. 화면에 보이지 않는 값으로 저장을 막지 않기 위해서다.
+     */
+    fun validate(radiusEnabled: Boolean): List<DriverConditionFormError> = buildList {
+        if (!radiusEnabled) return@buildList
         when {
             radiusKm == null || radiusKm.isNaN() -> add(DriverConditionFormError.RADIUS_MISSING)
             radiusKm <= 0.0 -> add(DriverConditionFormError.RADIUS_NOT_POSITIVE)
@@ -42,10 +46,23 @@ data class DriverConditionForm(
     /**
      * 저장할 모델로 바꾼다. [validate]가 비어 있을 때만 부른다(아니면 IllegalArgumentException).
      * 반경은 늘 값을 넣는다(km × 1000 m). 중심이 없으면 radiusCenter = null(반경 확인 "확인 불가" — 계약 §4.3).
+     *
+     * [radiusEnabled] = false(반경 기능 꺼짐)면 반경·중심을 검사하지 않으므로, 올바른 값만 저장하고 잘못된 값은 null 로 비운다
+     * (중심은 출발 마감의 "집" 대체값으로 계속 쓰인다).
      */
-    fun toCondition(): DriverCondition {
-        val errors = validate()
+    fun toCondition(radiusEnabled: Boolean): DriverCondition {
+        val errors = validate(radiusEnabled)
         require(errors.isEmpty()) { "invalid form: $errors" }
+        // 반경 기능이 꺼져 있어도 켜졌을 때의 검사([validate] true)를 그대로 써서, 통과하지 못하는 값은 비운다.
+        // 범위 규칙을 여기서 다시 적지 않으므로 validate 가 바뀌어도 어긋나지 않는다(PR #21 리뷰: 999 km 가 저장됐다)
+        val hidden = if (radiusEnabled) emptyList() else validate(radiusEnabled = true)
+        val centerValid = hasCenter && hidden.none {
+            it == DriverConditionFormError.CENTER_INCOMPLETE || it == DriverConditionFormError.CENTER_OUT_OF_RANGE
+        }
+        val radiusValid = radiusKm != null && hidden.none {
+            it == DriverConditionFormError.RADIUS_MISSING || it == DriverConditionFormError.RADIUS_NOT_POSITIVE ||
+                it == DriverConditionFormError.RADIUS_TOO_LARGE
+        }
         return DriverCondition(
             timeConstraints = if (noNightDriving) setOf(TimeConstraint.NO_NIGHT_DRIVING) else emptySet(),
             routePreference = RoutePreference(
@@ -54,8 +71,8 @@ data class DriverConditionForm(
                     if (avoidHighway) add(RouteConstraint.AVOID_HIGHWAY)
                 }
             ),
-            radiusCenter = if (hasCenter) GeoPoint(latitude = centerLatitude!!, longitude = centerLongitude!!) else null,
-            allowedRadiusMeters = radiusKm!! * METERS_PER_KM,
+            radiusCenter = if (centerValid) GeoPoint(latitude = centerLatitude!!, longitude = centerLongitude!!) else null,
+            allowedRadiusMeters = if (radiusValid) radiusKm!! * METERS_PER_KM else null,
         )
     }
 

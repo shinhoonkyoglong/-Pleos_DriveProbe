@@ -20,6 +20,7 @@ import java.time.Instant
  *   일몰 기준은 출발 마감과 같은 [DepartureConfig.nightStartReference](기본: 도로교통법 '해가 진 후'), 일출도 같은 천정각으로 계산한다.
  *   시간대는 [DepartureConfig.timeZone].
  * - 고속도로·반경: 주행 경로·위치 기록이 없어 조건이 있으면 NOT_JUDGED.
+ *   반경 기능이 꺼져 있으면([DepartureConfig.radiusCheckEnabled] = false) 반경은 늘 NOT_APPLICABLE.
  * - 조건 미설정(null)·빈 조건이면 모두 NOT_APPLICABLE.
  *
  * 기준 위치 순서: [location] → 운전자 조건의 반경 기준점(집) → [DepartureConfig.defaultSunReferencePoint].
@@ -60,7 +61,7 @@ class TripComplianceUseCase(
         } else {
             TripConditionStatus.NOT_APPLICABLE
         }
-        val radius = if (condition?.radiusCenter != null) {
+        val radius = if (config.radiusCheckEnabled && condition?.radiusCenter != null) {
             TripConditionStatus.NOT_JUDGED // TODO(위치 기록): 주행 위치 기록이 생기면 GeoDistance 로 판정
         } else {
             TripConditionStatus.NOT_APPLICABLE

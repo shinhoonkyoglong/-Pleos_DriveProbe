@@ -76,7 +76,7 @@ object HomeCardSummary {
                 icon = StatusIcon.INFO,
                 verdict = VERDICT_NO_DESTINATION,
                 headline = content.main.headline,
-                lines = listOf(HomeCardLine(Tone.INFO, StatusIcon.INFO, "출발 마감·허용 반경·경로 조건을 확인해요")),
+                lines = listOf(HomeCardLine(Tone.INFO, StatusIcon.INFO, "출발 마감·경로 조건을 확인해요")),
                 openEnabled = ui.controlsEnabled,
             )
         }
