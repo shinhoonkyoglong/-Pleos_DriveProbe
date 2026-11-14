@@ -137,7 +137,32 @@ class ReactionCheckTest {
         assertTrue(sum.timeoutCount >= 3)
         assertEquals(sum.timeoutCount, sum.slowCount)
         assertNull(sum.medianReactionMs)
-        assertEquals(ReactionVerdict.INCONCLUSIVE, evaluator.evaluate(sum).verdict)
+        // 한 번도 반응하지 못했으면 기록 부족이 아니라 많이 느림으로 본다
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
+    }
+
+    private fun summary(valid: Int, timeouts: Int, median: Long? = 300) = ReactionSummary(
+        trials = emptyList(), validCount = valid, medianReactionMs = median, meanReactionMs = median,
+        slowCount = timeouts, falseStartCount = 0, timeoutCount = timeouts, aborted = false,
+    )
+
+    @Test
+    fun `3번 이상 놓치면 유효 반응이 모자라도 판단 보류가 아니라 많이 느림`() {
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(summary(valid = 1, timeouts = 4)).verdict)
+        assertEquals(ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(summary(valid = 0, timeouts = 3, median = null)).verdict)
+    }
+
+    @Test
+    fun `seed 200개 - 처음 4번 놓치면 많이 느림`() {
+        for (seed in seeds) {
+            val sum = simulate(rt = { if (it < 4) null else 350L }, seed = seed).session.summary()
+            assertEquals("seed=$seed $sum", ReactionVerdict.MUCH_SLOWER, evaluator.evaluate(sum).verdict)
+        }
+    }
+
+    @Test
+    fun `놓침이 2회뿐이고 유효 반응이 모자라면 판단 보류`() {
+        assertEquals(ReactionVerdict.INCONCLUSIVE, evaluator.evaluate(summary(valid = 2, timeouts = 2)).verdict)
     }
 
     @Test

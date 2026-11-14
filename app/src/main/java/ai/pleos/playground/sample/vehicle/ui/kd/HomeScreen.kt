@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -53,12 +56,14 @@ fun HomeScreen(
     onDismissTripEnd: () -> Unit,
     onSkipCheck: () -> Unit = {},
     assistSummary: String = "음성 준비 필요",
+    /** 주행 중 음성 도움이 실제로 동작하는지(자동 도움 켜짐 + 음성 준비됨). 주행 중 문구를 이 값에 맞춘다 */
+    voiceAssistOn: Boolean = false,
     departureCard: @Composable (Modifier) -> Unit = { DeparturePlaceholderCard(it, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) }) },
 ) {
     val recommended = state.checkAdvice.isRecommended
     val driving = state.vehicle.isDriving
     KdScreen(testTag = "kd-home") {
-        HomeHeader(state, onOpenDevTools = { onOpen(KdPage.DEV_TOOLS) })
+        HomeHeader(state, driving = driving, onOpenDevTools = { onOpen(KdPage.DEV_TOOLS) })
 
         if (driving) DrivingNotice()
 
@@ -70,9 +75,14 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
             horizontalArrangement = Arrangement.spacedBy(Kd.Gap),
         ) {
-            departureCard(Modifier.weight(1f).fillMaxHeight())
+            // 주행 중에는 출발 카드를 흐리게 하고 터치를 막는다(open()이 무시하므로 눌리는 것처럼 보이면 안 된다)
+            Box(Modifier.weight(1f).fillMaxHeight().alpha(if (driving) 0.4f else 1f)) {
+                departureCard(Modifier.fillMaxSize())
+                if (driving) Box(Modifier.matchParentSize().consumeAllTouches().testTag("kd-home-departure-locked"))
+            }
             TodayConditionCard(
                 driving = driving,
+                voiceAssistOn = voiceAssistOn,
                 advice = state.checkAdvice,
                 latest = state.reactionHistory.firstOrNull(),
                 onStart = { onOpen(KdPage.REACTION_CHECK) },
@@ -123,7 +133,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
+private fun HomeHeader(state: KdUiState, driving: Boolean, onOpenDevTools: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("계속운전", style = Kd.Headline)
@@ -134,17 +144,20 @@ private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
             if (state.vehicle.isReplay) KdTag("시연 모드")
             KdTag(state.vehicle.gear.label(), color = Kd.InkMuted)
             Spacer(Modifier.width(4.dp))
-            // 화면 밝기 전환(다크 ↔ 라이트). 정차 중 홈에서만 보이고, 주행 화면에는 두지 않는다
-            KdThemeToggleButton()
-            // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
-            KdButton(
-                "개발자 도구",
-                onClick = onOpenDevTools,
-                style = KdButtonStyle.QUIET,
-                minHeight = 64.dp,
-                icon = Icons.Rounded.Build,
-                modifier = Modifier.testTag("kd-home-devtools"),
-            )
+            // 주행 중에는 화면 밝기 전환·개발자 도구를 감춘다(운전 중 화면 전체가 바뀌거나, 눌러도 무시되는 버튼이 없게)
+            if (!driving) {
+                // 화면 밝기 전환(다크 ↔ 라이트). 정차 중에만 보인다
+                KdThemeToggleButton()
+                // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
+                KdButton(
+                    "개발자 도구",
+                    onClick = onOpenDevTools,
+                    style = KdButtonStyle.QUIET,
+                    minHeight = 64.dp,
+                    icon = Icons.Rounded.Build,
+                    modifier = Modifier.testTag("kd-home-devtools"),
+                )
+            }
         }
     }
 }
@@ -216,6 +229,13 @@ private fun CardLink(text: String, muted: Boolean = false) {
  * - 권유(밤·새벽, 지난 주행 피로 신호): "체크할까요?" + [체크하기] [바로 출발]
  * - 그 밖: "바로 출발해도 괜찮아요" + 최근 체크 기록(있으면)
  */
+/** 아래에 깔린 카드가 터치를 받지 못하게 모든 포인터 이벤트를 먹는다 */
+private fun Modifier.consumeAllTouches(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+    }
+}
+
 /** 주행 중 맨 위 안내 한 줄. 메뉴가 눌리지 않는 이유를 알린다 */
 @Composable
 private fun DrivingNotice() {
@@ -231,6 +251,7 @@ private fun DrivingNotice() {
 @Composable
 private fun TodayConditionCard(
     driving: Boolean,
+    voiceAssistOn: Boolean,
     advice: CheckAdvice,
     latest: ReactionScoreEntity?,
     onStart: () -> Unit,
@@ -243,7 +264,12 @@ private fun TodayConditionCard(
             Text("오늘 컨디션", style = Kd.Eyebrow)
             Spacer(Modifier.weight(1f))
             KdStatusBadge(KdTone.INFO, "운전에 집중하세요", large = true)
-            Text("피곤한 신호가 보이면 음성으로 알려 드려요", style = Kd.Body)
+            // 음성 도움이 꺼져 있거나 준비되지 않았으면 오지 않을 경고를 약속하지 않는다(PR #21 리뷰)
+            if (voiceAssistOn) {
+                Text("피곤한 신호가 보이면 음성으로 알려 드려요", style = Kd.Body)
+            } else {
+                Text("음성 도움이 꺼져 있어요. 피곤하면 쉼터에 들러 쉬어 가세요", style = Kd.Body)
+            }
             Spacer(Modifier.weight(1f))
         }
         return

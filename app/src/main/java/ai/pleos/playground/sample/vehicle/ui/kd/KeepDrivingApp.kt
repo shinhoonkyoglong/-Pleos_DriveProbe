@@ -49,6 +49,7 @@ fun KeepDrivingApp(
                 onDismissTripEnd = appViewModel::dismissTripEnd,
                 onSkipCheck = appViewModel::skipCheckToday,
                 assistSummary = assistState.summary,
+                voiceAssistOn = assistState.automaticEnabled && assistState.voiceReady,
                 departureCard = { m ->
                     val open = { appViewModel.open(KdPage.DEPARTURE_DETAIL) }
                     if (departureCard != null) departureCard(m, open) else DeparturePlaceholderCard(m, open)

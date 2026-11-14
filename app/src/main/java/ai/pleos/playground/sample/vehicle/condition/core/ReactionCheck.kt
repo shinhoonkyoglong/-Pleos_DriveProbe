@@ -292,14 +292,25 @@ class ReactionEvaluator(
     fun evaluate(s: ReactionSummary): ReactionResult {
         val (base, calibrating) = baseline()
         val median = s.medianReactionMs
-        val inconclusiveMsg = when {
+        val invalidMsg = when {
             s.aborted -> "반응 체크가 중간에 멈춰서 이번 기록은 평소와 비교하지 않았어요"
             s.falseStartCount > params.maxFalseStarts -> "신호가 나오기 전에 반응한 경우가 많아 이번에는 평소와 비교하지 않았어요"
-            s.validCount < params.minValidTrials || median == null -> "반응 기록이 충분하지 않아 이번에는 평소와 비교하지 않았어요"
             else -> null
         }
-        if (inconclusiveMsg != null) {
-            return ReactionResult(ReactionVerdict.INCONCLUSIVE, inconclusiveMsg, s, null, calibrating)
+        if (invalidMsg != null) {
+            return ReactionResult(ReactionVerdict.INCONCLUSIVE, invalidMsg, s, null, calibrating)
+        }
+        // 많이 놓친 경우는 유효 반응 수가 모자라도 '판단 보류'가 아니라 '많이 느림'이다.
+        // 가장 피곤한 운전자가 경고 없이 '기록 부족'으로 빠지지 않게 유효 반응 수 검사보다 먼저 본다(PR #21 리뷰)
+        if (s.timeoutCount >= params.muchSlowerSlowCount) {
+            return ReactionResult(
+                ReactionVerdict.MUCH_SLOWER, "신호를 여러 번 놓쳤어요. 충분히 쉬고 출발하는 걸 권해요", s, null, calibrating,
+            )
+        }
+        if (s.validCount < params.minValidTrials || median == null) {
+            return ReactionResult(
+                ReactionVerdict.INCONCLUSIVE, "반응 기록이 충분하지 않아 이번에는 평소와 비교하지 않았어요", s, null, calibrating,
+            )
         }
         val z = base.z(median!!.toFloat())
         val verdict = when {
