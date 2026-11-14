@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -35,8 +37,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-buildTypes {
+    // release 서명: 키 정보는 local.properties(git 제외)에서 읽는다.
+    // 값이 없으면(다른 PC) 서명 없이 빌드되므로 기존 빌드는 그대로 동작한다.
+    val localProps = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    val releaseStoreFile = localProps.getProperty("RELEASE_STORE_FILE")
+    val releaseSigning = if (releaseStoreFile != null && file(releaseStoreFile).exists()) {
+        signingConfigs.create("release") {
+            storeFile = file(releaseStoreFile)
+            storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+            keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+            keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+        }
+    } else null
+
+    buildTypes {
         release {
+            if (releaseSigning != null) signingConfig = releaseSigning
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
