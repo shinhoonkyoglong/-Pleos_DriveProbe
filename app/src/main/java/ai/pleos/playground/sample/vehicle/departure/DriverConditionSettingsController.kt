@@ -1,6 +1,7 @@
 package ai.pleos.playground.sample.vehicle.departure
 
 import com.pleos.departure.model.DataResult
+import com.pleos.departure.model.DriverCondition
 import com.pleos.departure.model.DrivingRestriction
 import com.pleos.departure.model.GeoPoint
 import com.pleos.departure.model.UnavailableReason
@@ -54,7 +55,7 @@ class DriverConditionSettingsController(
         )
         when (val saved = repository.getCondition()) {
             is DataResult.Available -> {
-                val form = DriverConditionForm.from(saved.value, defaultAllowedRadiusMeters)
+                val form = formOf(saved.value)
                 _state.update { it.copy(loading = false, form = form, savedForm = form) }
             }
             is DataResult.Unavailable -> {
@@ -62,7 +63,8 @@ class DriverConditionSettingsController(
                 _state.update {
                     it.copy(
                         loading = false,
-                        form = DriverConditionForm.defaults(),
+                        // 반경 기능이 꺼져 있으면 기본 반경(50 km)을 채우지 않는다. 사용자가 고른 적 없는 값이 저장되지 않게
+                        form = DriverConditionForm.defaults().let { f -> if (radiusEnabled) f else f.copy(radiusKm = null) },
                         savedForm = null,
                         loadFailed = saved.reason != UnavailableReason.NO_DATA,
                     )
@@ -70,6 +72,16 @@ class DriverConditionSettingsController(
                 if (radiusEnabled) fetchLocation()
             }
         }
+    }
+
+    /**
+     * 저장된 조건 → 입력값. 반경 기능이 꺼져 있으면 저장된 반경을 그대로 둔다(null 이면 null).
+     * 켜져 있을 때처럼 앱 기본 반경으로 채우면, 저장할 때 사용자가 고른 적 없는 값이 명시적으로 남는다(PR #21 리뷰).
+     */
+    private fun formOf(condition: DriverCondition): DriverConditionForm {
+        val form = DriverConditionForm.from(condition, defaultAllowedRadiusMeters)
+        return if (radiusEnabled) form
+        else form.copy(radiusKm = condition.allowedRadiusMeters?.div(DriverConditionForm.METERS_PER_KM))
     }
 
     /** 사용자 "다시 시도" / "지금 위치로 바꾸기". 주행 중이면 무시한다. */
@@ -101,7 +113,7 @@ class DriverConditionSettingsController(
         _state.update { it.copy(saving = true, errors = emptyList(), saveResult = null) }
         when (val stored = repository.saveCondition(current.form.toCondition(radiusEnabled))) {
             is DataResult.Available -> {
-                val storedForm = DriverConditionForm.from(stored.value, defaultAllowedRadiusMeters)
+                val storedForm = formOf(stored.value)
                 _state.update {
                     it.copy(saving = false, form = storedForm, savedForm = storedForm, loadFailed = false, saveResult = SaveResult.SAVED)
                 }

@@ -36,8 +36,14 @@ class DriverConditionFormTest {
 
         val saved = broken.toCondition(radiusEnabled = false)
         assertEquals(null, saved.radiusCenter)
-        assertEquals(999_000.0, saved.allowedRadiusMeters!!, 0.0) // 0보다 크면 계약상 유효 → 그대로 둔다
+        assertEquals(null, saved.allowedRadiusMeters) // 상한(300 km)을 넘으면 비운다. 다시 켰을 때 저장이 막히지 않게
         assertTrue(saved.noNightDriving)
+    }
+
+    @Test
+    fun radiusDisabled_inRangeRadius_isKept() {
+        val saved = valid.copy(radiusKm = 5.0).toCondition(radiusEnabled = false)
+        assertEquals(5_000.0, saved.allowedRadiusMeters!!, 0.0)
     }
 
     @Test

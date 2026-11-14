@@ -32,7 +32,7 @@ fun KeepDrivingApp(
     reactionViewModel: ReactionCheckViewModel,
     driverCondition: @Composable (onBack: () -> Unit) -> Unit,
     devTools: @Composable () -> Unit,
-    departureCard: (@Composable (Modifier, onOpen: () -> Unit) -> Unit)? = null,
+    departureCard: (@Composable (Modifier, enabled: Boolean, onOpen: () -> Unit) -> Unit)? = null,
     departureDetail: (@Composable (onBack: () -> Unit) -> Unit)? = null,
     assistState: DrivingAssistState = DrivingAssistState(),
     drivingAssist: @Composable (onBack: () -> Unit) -> Unit = {},
@@ -50,9 +50,10 @@ fun KeepDrivingApp(
                 onSkipCheck = appViewModel::skipCheckToday,
                 assistSummary = assistState.summary,
                 voiceAssistOn = assistState.automaticEnabled && assistState.voiceReady,
-                departureCard = { m ->
+                voicePhaseMessage = assistVoiceMessage(assistState.phase),
+                departureCard = { m, enabled ->
                     val open = { appViewModel.open(KdPage.DEPARTURE_DETAIL) }
-                    if (departureCard != null) departureCard(m, open) else DeparturePlaceholderCard(m, open)
+                    if (departureCard != null) departureCard(m, enabled, open) else DeparturePlaceholderCard(m, enabled, open)
                 },
             )
             KdPage.REACTION_CHECK -> ReactionCheckScreen(reactionViewModel, isReplay = state.vehicle.isReplay, onBack = home)

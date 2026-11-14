@@ -250,6 +250,11 @@ data class ReactionBaselineParams(
      * 느린 반응 2번만으로 '많이 느림'(기준선에도 안 남음)이 된다.
      */
     val muchSlowerSlowCount: Int = 3,
+    /**
+     * 이만큼 놓치면(2초 안에 못 누름) 유효 반응 수와 상관없이 '많이 느림'.
+     * [muchSlowerSlowCount]와 따로 둔다: 느린 반응 기준을 바꿔도 '기록 부족 → 판단 보류' 경계가 같이 움직이지 않게
+     */
+    val muchSlowerTimeoutCount: Int = 3,
 ) {
     companion object {
         /**
@@ -302,7 +307,7 @@ class ReactionEvaluator(
         }
         // 많이 놓친 경우는 유효 반응 수가 모자라도 '판단 보류'가 아니라 '많이 느림'이다.
         // 가장 피곤한 운전자가 경고 없이 '기록 부족'으로 빠지지 않게 유효 반응 수 검사보다 먼저 본다(PR #21 리뷰)
-        if (s.timeoutCount >= params.muchSlowerSlowCount) {
+        if (s.timeoutCount >= params.muchSlowerTimeoutCount) {
             return ReactionResult(
                 ReactionVerdict.MUCH_SLOWER, "신호를 여러 번 놓쳤어요. 충분히 쉬고 출발하는 걸 권해요", s, null, calibrating,
             )

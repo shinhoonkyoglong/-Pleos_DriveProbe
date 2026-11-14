@@ -162,8 +162,8 @@ class MainActivity : ComponentActivity() {
                         onRestSettings = { kdViewModel.open(KdPage.REST_STOP_SETTINGS) })
                 },
                 restStopSettings = { onBack -> RestStopSettingsScreen(assistViewModel, assistState, onBack) },
-                departureCard = { modifier, onOpen ->
-                    DepartureHomeCard(model = departureHomeViewModel.model, onOpen = onOpen, modifier = modifier)
+                departureCard = { modifier, enabled, onOpen ->
+                    DepartureHomeCard(model = departureHomeViewModel.model, onOpen = onOpen, modifier = modifier, enabled = enabled)
                 },
                 departureDetail = { onBack ->
                     DepartureDetailScreen(model = departureHomeViewModel.model, onBack = onBack)

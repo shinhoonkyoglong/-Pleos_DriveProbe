@@ -53,8 +53,16 @@ data class DriverConditionForm(
     fun toCondition(radiusEnabled: Boolean): DriverCondition {
         val errors = validate(radiusEnabled)
         require(errors.isEmpty()) { "invalid form: $errors" }
-        val centerValid = hasCenter && centerLatitude!! in -90.0..90.0 && centerLongitude!! in -180.0..180.0
-        val radiusValid = radiusKm != null && !radiusKm.isNaN() && radiusKm > 0.0
+        // 반경 기능이 꺼져 있어도 켜졌을 때의 검사([validate] true)를 그대로 써서, 통과하지 못하는 값은 비운다.
+        // 범위 규칙을 여기서 다시 적지 않으므로 validate 가 바뀌어도 어긋나지 않는다(PR #21 리뷰: 999 km 가 저장됐다)
+        val hidden = if (radiusEnabled) emptyList() else validate(radiusEnabled = true)
+        val centerValid = hasCenter && hidden.none {
+            it == DriverConditionFormError.CENTER_INCOMPLETE || it == DriverConditionFormError.CENTER_OUT_OF_RANGE
+        }
+        val radiusValid = radiusKm != null && hidden.none {
+            it == DriverConditionFormError.RADIUS_MISSING || it == DriverConditionFormError.RADIUS_NOT_POSITIVE ||
+                it == DriverConditionFormError.RADIUS_TOO_LARGE
+        }
         return DriverCondition(
             timeConstraints = if (noNightDriving) setOf(TimeConstraint.NO_NIGHT_DRIVING) else emptySet(),
             routePreference = RoutePreference(

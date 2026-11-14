@@ -214,7 +214,10 @@ class ReactionCheckViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun save(result: ReactionResult) {
-        val median = result.summary.medianReactionMs ?: return
+        // 한 번도 반응하지 못한 '많이 느림'도 남긴다. 반응 시간은 놓침 기준(timeoutMs)으로 적는다(가장 느린 값).
+        // 남기지 않으면 오늘 체크가 안 된 것으로 보여 덜 나쁜 결과가 나올 때까지 다시 할 수 있다(PR #21 리뷰)
+        val median = result.summary.medianReactionMs
+            ?: if (result.verdict == ReactionVerdict.MUCH_SLOWER) params.timeoutMs else return
         val entity = ReactionScoreEntity(
             sessionId = UUID.randomUUID().toString(),
             simpleReactionTimeMs = median,

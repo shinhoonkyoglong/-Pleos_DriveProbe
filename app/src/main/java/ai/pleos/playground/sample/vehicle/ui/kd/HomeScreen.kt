@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -31,8 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -48,6 +45,8 @@ import androidx.compose.ui.unit.dp
  * (이전에는 아래 절반이 비어 있었다)
  *
  * @param departureCard 2번 '출발 전' 홈 카드 자리. 받은 Modifier 로 높이를 채워야 한다(fillMaxHeight 포함).
+ *   두 번째 인자 enabled=false(주행 중)면 눌리지 않게 그려야 한다.
+ * @param voicePhaseMessage 주행 중 음성 단계 안내("지금 말씀해 주세요" 등). 없으면 null
  */
 @Composable
 fun HomeScreen(
@@ -58,7 +57,10 @@ fun HomeScreen(
     assistSummary: String = "음성 준비 필요",
     /** 주행 중 음성 도움이 실제로 동작하는지(자동 도움 켜짐 + 음성 준비됨). 주행 중 문구를 이 값에 맞춘다 */
     voiceAssistOn: Boolean = false,
-    departureCard: @Composable (Modifier) -> Unit = { DeparturePlaceholderCard(it, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) }) },
+    voicePhaseMessage: String? = null,
+    departureCard: @Composable (Modifier, enabled: Boolean) -> Unit = { m, enabled ->
+        DeparturePlaceholderCard(m, enabled = enabled, onClick = { onOpen(KdPage.DEPARTURE_DETAIL) })
+    },
 ) {
     val recommended = state.checkAdvice.isRecommended
     val driving = state.vehicle.isDriving
@@ -75,14 +77,12 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
             horizontalArrangement = Arrangement.spacedBy(Kd.Gap),
         ) {
-            // 주행 중에는 출발 카드를 흐리게 하고 터치를 막는다(open()이 무시하므로 눌리는 것처럼 보이면 안 된다)
-            Box(Modifier.weight(1f).fillMaxHeight().alpha(if (driving) 0.4f else 1f)) {
-                departureCard(Modifier.fillMaxSize())
-                if (driving) Box(Modifier.matchParentSize().consumeAllTouches().testTag("kd-home-departure-locked"))
-            }
+            // 주행 중에는 다른 타일처럼 출발 카드도 흐리게 하고 누를 수 없게 한다(open()이 무시하므로 눌리는 것처럼 보이면 안 된다)
+            departureCard(Modifier.weight(1f).fillMaxHeight().alpha(if (driving) 0.4f else 1f), !driving)
             TodayConditionCard(
                 driving = driving,
                 voiceAssistOn = voiceAssistOn,
+                voicePhaseMessage = voicePhaseMessage,
                 advice = state.checkAdvice,
                 latest = state.reactionHistory.firstOrNull(),
                 onStart = { onOpen(KdPage.REACTION_CHECK) },
@@ -203,8 +203,8 @@ private fun StripDivider() {
 
 /** 2번 홈 카드가 들어올 자리. 문구는 2번 카드의 '목적지 없음' 상태와 같은 톤으로 둔다 */
 @Composable
-fun DeparturePlaceholderCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    KdCard(modifier = modifier, onClick = onClick) {
+fun DeparturePlaceholderCard(modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    KdCard(modifier = modifier, onClick = if (enabled) onClick else null) {
         Text("오늘 운전해도 되나요?", style = Kd.Eyebrow)
         Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
         KdStatusBadge(KdTone.INFO, "내비에 목적지를 정하면 확인해요")
@@ -224,18 +224,6 @@ private fun CardLink(text: String, muted: Boolean = false) {
     }
 }
 
-/**
- * '오늘 컨디션' 카드. 팀 결정에 따라 체크를 강요하지 않는다:
- * - 권유(밤·새벽, 지난 주행 피로 신호): "체크할까요?" + [체크하기] [바로 출발]
- * - 그 밖: "바로 출발해도 괜찮아요" + 최근 체크 기록(있으면)
- */
-/** 아래에 깔린 카드가 터치를 받지 못하게 모든 포인터 이벤트를 먹는다 */
-private fun Modifier.consumeAllTouches(): Modifier = pointerInput(Unit) {
-    awaitPointerEventScope {
-        while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-    }
-}
-
 /** 주행 중 맨 위 안내 한 줄. 메뉴가 눌리지 않는 이유를 알린다 */
 @Composable
 private fun DrivingNotice() {
@@ -248,10 +236,17 @@ private fun DrivingNotice() {
     }
 }
 
+/**
+ * '오늘 컨디션' 카드. 팀 결정에 따라 체크를 강요하지 않는다:
+ * - 권유(밤·새벽, 지난 주행 피로 신호): "체크할까요?" + [체크하기] [바로 출발]
+ * - 그 밖: "바로 출발해도 괜찮아요" + 최근 체크 기록(있으면)
+ * - 주행 중: 권유·버튼을 감추고 음성 도움 상태와 지금 음성 단계만 보인다
+ */
 @Composable
 private fun TodayConditionCard(
     driving: Boolean,
     voiceAssistOn: Boolean,
+    voicePhaseMessage: String?,
     advice: CheckAdvice,
     latest: ReactionScoreEntity?,
     onStart: () -> Unit,
@@ -269,6 +264,10 @@ private fun TodayConditionCard(
                 Text("피곤한 신호가 보이면 음성으로 알려 드려요", style = Kd.Body)
             } else {
                 Text("음성 도움이 꺼져 있어요. 피곤하면 쉼터에 들러 쉬어 가세요", style = Kd.Body)
+            }
+            // 음성 안내를 놓친 운전자도 지금 말해야 하는지·경로를 바꾸는 중인지 알 수 있게(삭제된 주행 화면이 하던 일)
+            voicePhaseMessage?.let {
+                Text(it, style = Kd.Body.copy(color = Kd.Accent), modifier = Modifier.testTag("kd-home-voice-phase"))
             }
             Spacer(Modifier.weight(1f))
         }

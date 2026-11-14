@@ -270,6 +270,17 @@ class DriverConditionSettingsControllerTest {
         c.save()
         assertEquals(1, repo.saves.size)
         assertNull("보이지 않는 중심을 저장하지 않는다", repo.saves.single().radiusCenter)
+        assertNull("고른 적 없는 기본 반경을 저장하지 않는다", repo.saves.single().allowedRadiusMeters)
+    }
+
+    @Test
+    fun radiusOff_storedNullRadius_staysNull() = runBlocking {
+        val repo = FakeRepository(stored = DriverCondition(radiusCenter = here, allowedRadiusMeters = null))
+        val c = controller(repo, radiusEnabled = false)
+        c.load()
+        c.setNoNightDriving(true)
+        c.save()
+        assertNull("앱 기본 반경(null)을 명시값으로 바꾸지 않는다", repo.saves.single().allowedRadiusMeters)
     }
 
     @Test
@@ -281,6 +292,7 @@ class DriverConditionSettingsControllerTest {
         c.save()
         assertEquals(0, locationCalls)
         assertEquals(here, repo.saves.single().radiusCenter)
+        assertEquals(5_000.0, repo.saves.single().allowedRadiusMeters!!, 0.0) // 이미 저장된 반경은 그대로
     }
 
     @Test
