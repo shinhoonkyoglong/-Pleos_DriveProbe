@@ -24,14 +24,14 @@ class DriverConditionFormTest {
         assertFalse(form.avoidHighway)
         assertEquals(50.0, form.radiusKm!!, 0.0)
         assertFalse(form.hasCenter)
-        assertTrue(form.validate().isEmpty()) // 중심 없음도 저장 가능(반경 확인 "확인 불가", 계약 §4.3)
+        assertTrue(form.validate(radiusEnabled = true).isEmpty()) // 중심 없음도 저장 가능(반경 확인 "확인 불가", 계약 §4.3)
     }
 
     /** 반경 기능이 꺼져 있으면(2026-11-14) 화면에 없는 반경·중심 값으로 저장을 막지 않는다. 잘못된 값은 비워서 저장한다. */
     @Test
     fun radiusDisabled_invalidRadiusAndCenter_doNotBlockSave_andAreCleared() {
         val broken = valid.copy(radiusKm = 999.0, centerLatitude = 95.0, centerLongitude = null)
-        assertTrue(broken.validate().isNotEmpty())
+        assertTrue(broken.validate(radiusEnabled = true).isNotEmpty())
         assertTrue(broken.validate(radiusEnabled = false).isEmpty())
 
         val saved = broken.toCondition(radiusEnabled = false)
@@ -56,7 +56,7 @@ class DriverConditionFormTest {
                 radiusCenter = center,
                 allowedRadiusMeters = 50_000.0,
             ),
-            valid.toCondition()
+            valid.toCondition(radiusEnabled = true)
         )
     }
 
@@ -70,16 +70,16 @@ class DriverConditionFormTest {
                 radiusCenter = null,
                 allowedRadiusMeters = 50_000.0,
             ),
-            form.toCondition()
+            form.toCondition(radiusEnabled = true)
         )
     }
 
     @Test
     fun from_savedCondition_roundTrips() {
-        val saved = valid.copy(avoidHighway = true, radiusKm = 12.5).toCondition()
+        val saved = valid.copy(avoidHighway = true, radiusKm = 12.5).toCondition(radiusEnabled = true)
         val form = DriverConditionForm.from(saved, defaultAllowedRadiusMeters = 10_000.0)
         assertEquals(valid.copy(avoidHighway = true, radiusKm = 12.5), form)
-        assertEquals(saved, form.toCondition())
+        assertEquals(saved, form.toCondition(radiusEnabled = true))
     }
 
     @Test
@@ -92,27 +92,27 @@ class DriverConditionFormTest {
 
     @Test
     fun validate_radiusBoundaries() {
-        assertEquals(listOf(DriverConditionFormError.RADIUS_MISSING), valid.copy(radiusKm = null).validate())
-        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = 0.0).validate())
-        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = -5.0).validate())
-        assertTrue(valid.copy(radiusKm = 0.1).validate().isEmpty())
-        assertTrue(valid.copy(radiusKm = 300.0).validate().isEmpty())
-        assertEquals(listOf(DriverConditionFormError.RADIUS_TOO_LARGE), valid.copy(radiusKm = 300.1).validate())
+        assertEquals(listOf(DriverConditionFormError.RADIUS_MISSING), valid.copy(radiusKm = null).validate(radiusEnabled = true))
+        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = 0.0).validate(radiusEnabled = true))
+        assertEquals(listOf(DriverConditionFormError.RADIUS_NOT_POSITIVE), valid.copy(radiusKm = -5.0).validate(radiusEnabled = true))
+        assertTrue(valid.copy(radiusKm = 0.1).validate(radiusEnabled = true).isEmpty())
+        assertTrue(valid.copy(radiusKm = 300.0).validate(radiusEnabled = true).isEmpty())
+        assertEquals(listOf(DriverConditionFormError.RADIUS_TOO_LARGE), valid.copy(radiusKm = 300.1).validate(radiusEnabled = true))
     }
 
     @Test
     fun validate_centerBothOrNeither() {
-        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLongitude = null).validate())
-        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLatitude = null).validate())
-        assertTrue(valid.copy(centerLatitude = null, centerLongitude = null).validate().isEmpty())
-        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLatitude = 90.5).validate())
-        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLongitude = -180.5).validate())
-        assertTrue(valid.copy(centerLatitude = 90.0, centerLongitude = -180.0).validate().isEmpty())
+        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLongitude = null).validate(radiusEnabled = true))
+        assertEquals(listOf(DriverConditionFormError.CENTER_INCOMPLETE), valid.copy(centerLatitude = null).validate(radiusEnabled = true))
+        assertTrue(valid.copy(centerLatitude = null, centerLongitude = null).validate(radiusEnabled = true).isEmpty())
+        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLatitude = 90.5).validate(radiusEnabled = true))
+        assertEquals(listOf(DriverConditionFormError.CENTER_OUT_OF_RANGE), valid.copy(centerLongitude = -180.5).validate(radiusEnabled = true))
+        assertTrue(valid.copy(centerLatitude = 90.0, centerLongitude = -180.0).validate(radiusEnabled = true).isEmpty())
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun toCondition_invalid_throws() {
-        valid.copy(radiusKm = 0.0).toCondition()
+        valid.copy(radiusKm = 0.0).toCondition(radiusEnabled = true)
     }
 
     @Test

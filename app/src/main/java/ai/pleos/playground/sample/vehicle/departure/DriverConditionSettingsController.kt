@@ -20,6 +20,8 @@ data class LocatedCenter(val point: GeoPoint, val address: String = "")
  * 동작 규칙
  * - [load]: 저장된 조건이 있으면 그 값을 보여 준다. 없으면 기본값([DriverConditionDefaults])을 채우고 현재 위치를 중심으로 읽는다.
  *   기본값은 [save] 전까지 저장하지 않는다(저장 안 됨 = 조건 미설정).
+ * - 반경 기능이 꺼져 있으면([radiusEnabled] = false) 현재 위치를 읽지 않는다. 중심 줄이 화면에 없으므로, 읽으면 사용자가
+ *   모르는 위치(예: 회사)가 "집"으로 저장되고 고칠 방법도 없다. 이미 저장된 중심은 건드리지 않고 그대로 둔다(PR #20 리뷰).
  * - 주행 중(RESTRICTED, 또는 UNKNOWN + treatUnknownDrivingAsRestricted)에는 모든 입력·저장·위치 다시 읽기를 무시한다.
  * - 저장 중([DriverConditionSettingsState.saving])에는 입력을 무시한다. 저장이 끝나면 화면 값이 저장값으로 바뀌므로,
  *   그 사이 입력을 받으면 사용자가 바꾼 값이 말없이 사라지기 때문이다.
@@ -33,8 +35,11 @@ class DriverConditionSettingsController(
     private val currentLocation: suspend () -> DataResult<LocatedCenter>,
     private val defaultAllowedRadiusMeters: Double,
     private val treatUnknownDrivingAsRestricted: Boolean,
-    /** DepartureConfig.radiusCheckEnabled. false 면 반경·중심을 화면에 보이지 않고 저장 검사에서도 뺀다 */
-    private val radiusEnabled: Boolean = true,
+    /**
+     * DepartureConfig.radiusCheckEnabled. false 면 반경·중심을 화면에 보이지 않고, 현재 위치를 읽지 않으며, 저장 검사에서도 뺀다.
+     * 기본값을 두지 않는다 — 빠뜨린 호출부에서 반경 기능이 조용히 다시 켜지지 않게(PR #20 리뷰).
+     */
+    private val radiusEnabled: Boolean,
 ) {
     private val _state = MutableStateFlow(DriverConditionSettingsState(radiusEnabled = radiusEnabled))
     val state: StateFlow<DriverConditionSettingsState> = _state.asStateFlow()
@@ -62,14 +67,14 @@ class DriverConditionSettingsController(
                         loadFailed = saved.reason != UnavailableReason.NO_DATA,
                     )
                 }
-                fetchLocation()
+                if (radiusEnabled) fetchLocation()
             }
         }
     }
 
     /** 사용자 "다시 시도" / "지금 위치로 바꾸기". 주행 중이면 무시한다. */
     suspend fun refreshLocation() {
-        if (_state.value.editingLocked) return
+        if (!radiusEnabled || _state.value.editingLocked) return
         fetchLocation()
     }
 
@@ -147,7 +152,7 @@ class DriverConditionSettingsController(
  * @property radiusEnabled 반경 기능을 쓰는가. false 면 화면에 허용 반경·반경 중심 줄을 그리지 않는다
  */
 data class DriverConditionSettingsState(
-    val radiusEnabled: Boolean = true,
+    val radiusEnabled: Boolean,
     val loading: Boolean = true,
     val form: DriverConditionForm = DriverConditionForm.defaults(),
     val savedForm: DriverConditionForm? = null,

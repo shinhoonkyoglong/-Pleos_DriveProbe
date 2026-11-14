@@ -27,8 +27,8 @@ fun interface DriverConditionsSource {
 class DepartureDriverConditionsSource(
     private val repository: () -> DriverConditionRepository,
     private val defaultRadiusMeters: () -> Double,
-    /** DepartureConfig.radiusCheckEnabled. false 면 리포트에 반경 조건을 넣지 않는다 */
-    private val radiusEnabled: () -> Boolean = { true },
+    /** DepartureConfig.radiusCheckEnabled. false 면 리포트에 반경 조건을 넣지 않는다. 기본값 없음(빠뜨리면 컴파일 오류) */
+    private val radiusEnabled: () -> Boolean,
 ) : DriverConditionsSource {
 
     override fun observe(): Flow<DriverConditions?> =
@@ -37,7 +37,7 @@ class DepartureDriverConditionsSource(
         }
 
     companion object {
-        fun toReport(c: DriverCondition, defaultRadiusMeters: Double, radiusEnabled: Boolean = true): DriverConditions {
+        fun toReport(c: DriverCondition, defaultRadiusMeters: Double, radiusEnabled: Boolean): DriverConditions {
             val set = buildSet {
                 if (c.noNightDriving) add(ReportCondition.NO_NIGHT_DRIVING)
                 if (RouteConstraint.AVOID_HIGHWAY in c.routePreference.constraints) add(ReportCondition.AVOID_HIGHWAY)

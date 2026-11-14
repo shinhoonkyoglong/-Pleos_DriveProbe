@@ -204,10 +204,10 @@ class TripReportTest {
             radiusCenter = GeoPoint(37.5, 127.0),
             allowedRadiusMeters = null,
         )
-        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0)
+        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0, radiusEnabled = true)
         assertEquals(setOf(ReportCondition.NO_NIGHT_DRIVING, ReportCondition.RADIUS), r.conditions)
         assertEquals(10.0, r.radiusKm!!, 0.0)
-        assertNull(DepartureDriverConditionsSource.toReport(DriverCondition(), 10_000.0).radiusKm)
+        assertNull(DepartureDriverConditionsSource.toReport(DriverCondition(), 10_000.0, radiusEnabled = true).radiusKm)
     }
 
     @Test

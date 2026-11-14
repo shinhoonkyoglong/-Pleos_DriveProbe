@@ -26,7 +26,7 @@ data class DriverConditionForm(
      * 입력 오류 목록. 비어 있으면 저장할 수 있다.
      * @param radiusEnabled false 면(반경 기능 꺼짐) 반경·중심을 검사하지 않는다. 화면에 보이지 않는 값으로 저장을 막지 않기 위해서다.
      */
-    fun validate(radiusEnabled: Boolean = true): List<DriverConditionFormError> = buildList {
+    fun validate(radiusEnabled: Boolean): List<DriverConditionFormError> = buildList {
         if (!radiusEnabled) return@buildList
         when {
             radiusKm == null || radiusKm.isNaN() -> add(DriverConditionFormError.RADIUS_MISSING)
@@ -50,7 +50,7 @@ data class DriverConditionForm(
      * [radiusEnabled] = false(반경 기능 꺼짐)면 반경·중심을 검사하지 않으므로, 올바른 값만 저장하고 잘못된 값은 null 로 비운다
      * (중심은 출발 마감의 "집" 대체값으로 계속 쓰인다).
      */
-    fun toCondition(radiusEnabled: Boolean = true): DriverCondition {
+    fun toCondition(radiusEnabled: Boolean): DriverCondition {
         val errors = validate(radiusEnabled)
         require(errors.isEmpty()) { "invalid form: $errors" }
         val centerValid = hasCenter && centerLatitude!! in -90.0..90.0 && centerLongitude!! in -180.0..180.0

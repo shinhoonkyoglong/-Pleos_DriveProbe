@@ -36,8 +36,8 @@ class DepartureCheckUseCase(
     private val radiusCheck: RadiusCheckUseCase,
     private val conditionRoute: ConditionRouteUseCase,
     private val clock: Clock,
-    /** false 면 반경을 확인하지 않는다(결과 radius = null, 반경용 위치 조회도 안 함). DepartureConfig.radiusCheckEnabled */
-    private val radiusCheckEnabled: Boolean = true,
+    /** false 면 반경을 확인하지 않는다(결과 radius = null, 반경용 위치 조회도 안 함). DepartureConfig.radiusCheckEnabled. 기본값 없음 */
+    private val radiusCheckEnabled: Boolean,
 ) {
 
     /**

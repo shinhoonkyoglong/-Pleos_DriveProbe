@@ -57,7 +57,7 @@ data class ReactionUiState(
  * [ReactionSession]·[ReactionEvaluator]·[ReactionGate]를 그대로 쓴다.
  *
  * 반응 입력(2026-11-13): 실제 차량에서는 **브레이크 페달**(SDK 콜백 지연이 에뮬레이터 실측 표준편차 3ms로 작음),
- * 시연 재생 중이거나 차량 신호가 없으면 터치. 유효 반응 5회 또는 최대 15초.
+ * 시연 재생 중이거나 차량 신호가 없으면 터치. 유효 반응 5회 또는 최대 25초.
  * 시각은 모두 SystemClock.elapsedRealtime 기준(브레이크 이벤트 시각과 같은 시계).
  *
  * 결과 처리:

@@ -12,8 +12,10 @@ import kotlin.random.Random
  *            → ReactionEvaluator가 본인 기준선과 비교해 ReactionResult(판정·문구)
  *            → ConditionProcessor.setPreDrive(result.verdict)로 피로 점수에 가산
  *
- * 소요 시간(2026-11-14 변경): "유효 반응 5회가 모이면 끝, 최대 15초" → 보통 약 13초.
+ * 소요 시간(2026-11-14 변경): "유효 반응 5회가 모이면 끝, 최대 25초" → 보통 약 13~16초.
  * (2026-11-13엔 10회·최대 40초였다. 타겟을 운전 종사자로 좁히며 매일 하기 부담 없게 줄였다)
+ * 최대 시간을 15초로 하면 한 시도에 대기 1.5~3초 + 반응(브레이크는 밟고 떼기까지)이 들어 5회가 빠듯하고,
+ * 몇 번 놓친 운전자(= 가장 피곤한 경우)가 '판단 보류'로 빠지므로 25초로 둔다(PR #20 리뷰).
  */
 
 /** 반응을 받는 방법. 터치와 브레이크는 반응 시간이 달라 기준선을 따로 쓴다 */
@@ -21,7 +23,7 @@ enum class ReactionInput { TOUCH, BRAKE }
 
 data class ReactionParams(
     /** 최대 검사 시간 */
-    val durationMs: Long = 15_000L,
+    val durationMs: Long = 25_000L,
     val minIntervalMs: Long = 1_500L,
     val maxIntervalMs: Long = 3_000L,
     /** 유효 반응이 이만큼 모이면 바로 끝낸다. null이면 durationMs까지 계속 */
@@ -233,8 +235,11 @@ data class ReactionBaselineParams(
     /** 기록이 쌓이기 전 기본값(반응시간 중앙값 ms) */
     val defaultMedian: RobustStat = RobustStat(median = 350f, scale = 50f),
     val minScaleMs: Float = 30f,
-    /** 유효 반응 5회 기준. 최대 15초 안에 4회도 못 모으면 판단 보류(10회일 때는 8) */
-    val minValidTrials: Int = 4,
+    /**
+     * 유효 반응 5회 기준. 최대 25초 안에 3회도 못 모으면 판단 보류(10회일 때는 8).
+     * 4로 두면 2번만 놓쳐도 판단 보류가 되어, 피곤한 운전자일수록 '느림' 대신 '판단 보류'가 나온다(PR #20 리뷰)
+     */
+    val minValidTrials: Int = 3,
     /** 유효 반응 5회 기준(10회일 때는 4) */
     val maxFalseStarts: Int = 3,
     val slowerZ: Float = 1.5f,

@@ -28,7 +28,6 @@ import java.time.ZonedDateTime
 enum class KdPage {
     HOME,
     REACTION_CHECK,
-    DRIVING,
     RECORDS,
     FAMILY_SUMMARY,
     REPORT,

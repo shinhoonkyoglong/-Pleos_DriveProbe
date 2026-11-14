@@ -55,7 +55,6 @@ fun KeepDrivingApp(
                 },
             )
             KdPage.REACTION_CHECK -> ReactionCheckScreen(reactionViewModel, isReplay = state.vehicle.isReplay, onBack = home)
-            KdPage.DRIVING -> DrivingScreen(state, assistState)
             KdPage.DRIVING_ASSIST -> drivingAssist(home)
             KdPage.REST_STOP_SETTINGS -> restStopSettings { appViewModel.open(KdPage.DRIVING_ASSIST) }
             KdPage.RECORDS -> RecordsScreen(state, onOpen = appViewModel::open, onBack = home)
