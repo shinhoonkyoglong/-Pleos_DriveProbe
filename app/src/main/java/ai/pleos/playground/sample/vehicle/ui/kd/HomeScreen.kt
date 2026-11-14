@@ -93,7 +93,7 @@ fun HomeScreen(
             )
             KdNavTile(
                 "내 운전 조건",
-                subtitle = "야간, 반경, 도로 조건",
+                subtitle = "야간, 도로 조건",
                 icon = Icons.Rounded.Settings,
                 onClick = { onOpen(KdPage.DRIVER_CONDITION) },
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-condition"),
@@ -181,7 +181,7 @@ fun DeparturePlaceholderCard(modifier: Modifier = Modifier, onClick: () -> Unit)
         Text("오늘 운전해도 되나요?", style = Kd.Eyebrow)
         Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
         KdStatusBadge(KdTone.INFO, "내비에 목적지를 정하면 확인해요")
-        Text("출발 마감 시각 · 허용 반경 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
+        Text("출발 마감 시각 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
         Spacer(Modifier.weight(1f))
         CardLink("자세히 보기")
     }

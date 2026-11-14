@@ -136,7 +136,8 @@ fun DepartureScreenContent(
             .padding(horizontal = 40.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        state.drivingNotice?.let { Banner(text = it, color = toneColor(Tone.CAUTION)) }
+        // 주행 중에는 창을 표시하지 않음 (어차피 UX 제한으로 가려짐)
+        // state.drivingNotice?.let { Banner(text = it, color = toneColor(Tone.CAUTION)) }
         if (state.showLoadingIndicator && state.content != null) LoadingBanner()
         if (naviSettingsFailed && state.controlsEnabled) Banner(text = DepartureDisplayMapper.NAVI_SETTINGS_FALLBACK, color = toneColor(Tone.CAUTION))
 

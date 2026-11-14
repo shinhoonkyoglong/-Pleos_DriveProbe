@@ -147,17 +147,14 @@ fun DriverConditionSettingsContent(
                 onChange = onAvoidHighwayChange
             )
 
-            RadiusRow(
-                radiusKm = form.radiusKm,
-                canDecrease = editable && form.canDecreaseRadius(),
-                canIncrease = editable && form.canIncreaseRadius(),
-                onDecrease = onDecreaseRadius,
-                onIncrease = onIncreaseRadius
-            )
+            // 반경 기능 비활성화 — docs/archived/radius-ui-backup.kt 참고
+            // RadiusRow(...)
+            // CenterRow(...)
 
-            CenterRow(state = state, enabled = editable, onRefreshLocation = onRefreshLocation)
-
-            state.errors.forEach { error ->
+            state.errors.filter { it != DriverConditionFormError.RADIUS_MISSING &&
+                it != DriverConditionFormError.RADIUS_NOT_POSITIVE && it != DriverConditionFormError.RADIUS_TOO_LARGE &&
+                it != DriverConditionFormError.CENTER_INCOMPLETE && it != DriverConditionFormError.CENTER_OUT_OF_RANGE
+            }.forEach { error ->
                 Text(text = "! ${errorText(error)}", style = Kd.Body, color = Kd.Danger)
             }
 
@@ -174,10 +171,10 @@ fun DriverConditionSettingsContent(
 /** 화면 맨 위 안내 한 줄. 여러 상태가 겹치면 가장 중요한 것 하나만 보여 준다(한 화면 한 메시지). */
 @Composable
 private fun StatusBanner(state: DriverConditionSettingsState) {
+    // 주행 중에는 창을 표시하지 않음 (어차피 UX 제한으로 가려짐)
+    if (state.editingLocked && state.drivingRestriction == DrivingRestriction.RESTRICTED) return
     val (tone, text) = when {
         state.loading -> KdTone.INFO to "저장된 조건을 불러오는 중이에요"
-        state.editingLocked && state.drivingRestriction == DrivingRestriction.RESTRICTED ->
-            KdTone.CAUTION to "주행 중에는 설정을 바꿀 수 없어요"
         state.editingLocked -> KdTone.CAUTION to "차량 상태를 확인하는 중이라 아직 바꿀 수 없어요"
         state.saveResult == SaveResult.FAILED -> KdTone.DANGER to "저장하지 못했어요. [저장]을 다시 눌러 주세요"
         state.saveResult == SaveResult.SAVED -> KdTone.GOOD to "저장했어요. 이제 이 조건으로 확인해요"

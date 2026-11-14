@@ -98,11 +98,10 @@ class DepartureDisplayMapper(private val zone: ZoneId) {
         )
         is DepartureSnapshot.Checked -> {
             val discourages = discouragesDeparture(snapshot.deadline.stage)
-            val radius = radiusCard(snapshot.radius, snapshot.condition, ctx)
             DepartureContent(
                 conditionNotice = conditionNotice(snapshot.condition),
                 main = deadlineCard(snapshot.deadline, ctx),
-                radius = if (discourages) asSecondary(radius) else radius,
+                radius = null, // 반경 기능 비활성화 (docs/archived/radius-ui-backup.kt 참고)
                 route = if (discourages) null else routeCard(snapshot.route, snapshot.condition, ctx),
                 // 작업 #26: 출발 전 확인은 내비 목적지 기준. 확인된 '목적지 없음'만 false(확인 불가는 따로 '확인 불가'로 보인다)
                 destinationSet = (snapshot.destination as? com.pleos.departure.model.DataResult.Available)?.value
