@@ -109,6 +109,9 @@ fun HomeScreen(
     }
 }
 
+/** 시연용으로 홈의 [개발자 도구] 버튼을 숨김. 다시 보이려면 true */
+private const val SHOW_DEV_TOOLS = false
+
 @Composable
 private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -124,14 +127,16 @@ private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
             // 화면 밝기 전환(다크 ↔ 라이트). 정차 중 홈에서만 보이고, 주행 화면에는 두지 않는다
             KdThemeToggleButton()
             // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
-            KdButton(
-                "개발자 도구",
-                onClick = onOpenDevTools,
-                style = KdButtonStyle.QUIET,
-                minHeight = 64.dp,
-                icon = Icons.Rounded.Build,
-                modifier = Modifier.testTag("kd-home-devtools"),
-            )
+            if (SHOW_DEV_TOOLS) {
+                KdButton(
+                    "개발자 도구",
+                    onClick = onOpenDevTools,
+                    style = KdButtonStyle.QUIET,
+                    minHeight = 64.dp,
+                    icon = Icons.Rounded.Build,
+                    modifier = Modifier.testTag("kd-home-devtools"),
+                )
+            }
         }
     }
 }
