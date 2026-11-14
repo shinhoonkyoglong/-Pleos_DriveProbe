@@ -22,8 +22,12 @@ data class DriverConditionForm(
     val centerLatitude: Double?,
     val centerLongitude: Double?,
 ) {
-    /** 입력 오류 목록. 비어 있으면 저장할 수 있다. */
-    fun validate(): List<DriverConditionFormError> = buildList {
+    /**
+     * 입력 오류 목록. 비어 있으면 저장할 수 있다.
+     * @param radiusEnabled false 면(반경 기능 꺼짐) 반경·중심을 검사하지 않는다. 화면에 보이지 않는 값으로 저장을 막지 않기 위해서다.
+     */
+    fun validate(radiusEnabled: Boolean = true): List<DriverConditionFormError> = buildList {
+        if (!radiusEnabled) return@buildList
         when {
             radiusKm == null || radiusKm.isNaN() -> add(DriverConditionFormError.RADIUS_MISSING)
             radiusKm <= 0.0 -> add(DriverConditionFormError.RADIUS_NOT_POSITIVE)
@@ -42,10 +46,15 @@ data class DriverConditionForm(
     /**
      * 저장할 모델로 바꾼다. [validate]가 비어 있을 때만 부른다(아니면 IllegalArgumentException).
      * 반경은 늘 값을 넣는다(km × 1000 m). 중심이 없으면 radiusCenter = null(반경 확인 "확인 불가" — 계약 §4.3).
+     *
+     * [radiusEnabled] = false(반경 기능 꺼짐)면 반경·중심을 검사하지 않으므로, 올바른 값만 저장하고 잘못된 값은 null 로 비운다
+     * (중심은 출발 마감의 "집" 대체값으로 계속 쓰인다).
      */
-    fun toCondition(): DriverCondition {
-        val errors = validate()
+    fun toCondition(radiusEnabled: Boolean = true): DriverCondition {
+        val errors = validate(radiusEnabled)
         require(errors.isEmpty()) { "invalid form: $errors" }
+        val centerValid = hasCenter && centerLatitude!! in -90.0..90.0 && centerLongitude!! in -180.0..180.0
+        val radiusValid = radiusKm != null && !radiusKm.isNaN() && radiusKm > 0.0
         return DriverCondition(
             timeConstraints = if (noNightDriving) setOf(TimeConstraint.NO_NIGHT_DRIVING) else emptySet(),
             routePreference = RoutePreference(
@@ -54,8 +63,8 @@ data class DriverConditionForm(
                     if (avoidHighway) add(RouteConstraint.AVOID_HIGHWAY)
                 }
             ),
-            radiusCenter = if (hasCenter) GeoPoint(latitude = centerLatitude!!, longitude = centerLongitude!!) else null,
-            allowedRadiusMeters = radiusKm!! * METERS_PER_KM,
+            radiusCenter = if (centerValid) GeoPoint(latitude = centerLatitude!!, longitude = centerLongitude!!) else null,
+            allowedRadiusMeters = if (radiusValid) radiusKm!! * METERS_PER_KM else null,
         )
     }
 

@@ -21,25 +21,27 @@ fun interface DriverConditionsSource {
 
 /**
  * 2번 운전자 조건 저장소([DriverConditionRepository.observeCondition])를 **읽기만** 한다.
- * - 야간 금지 → NO_NIGHT_DRIVING, 고속도로 회피 → AVOID_HIGHWAY, 반경 기준점이 있으면 RADIUS
+ * - 야간 금지 → NO_NIGHT_DRIVING, 고속도로 회피 → AVOID_HIGHWAY, 반경 기능이 켜져 있고 기준점이 있으면 RADIUS
  * - 무료도로 선호는 면허 조건이 아니라 경로 선호라 리포트에 넣지 않는다
  */
 class DepartureDriverConditionsSource(
     private val repository: () -> DriverConditionRepository,
     private val defaultRadiusMeters: () -> Double,
+    /** DepartureConfig.radiusCheckEnabled. false 면 리포트에 반경 조건을 넣지 않는다 */
+    private val radiusEnabled: () -> Boolean = { true },
 ) : DriverConditionsSource {
 
     override fun observe(): Flow<DriverConditions?> =
         repository().observeCondition().map { result ->
-            (result as? DataResult.Available)?.value?.let { toReport(it, defaultRadiusMeters()) }
+            (result as? DataResult.Available)?.value?.let { toReport(it, defaultRadiusMeters(), radiusEnabled()) }
         }
 
     companion object {
-        fun toReport(c: DriverCondition, defaultRadiusMeters: Double): DriverConditions {
+        fun toReport(c: DriverCondition, defaultRadiusMeters: Double, radiusEnabled: Boolean = true): DriverConditions {
             val set = buildSet {
                 if (c.noNightDriving) add(ReportCondition.NO_NIGHT_DRIVING)
                 if (RouteConstraint.AVOID_HIGHWAY in c.routePreference.constraints) add(ReportCondition.AVOID_HIGHWAY)
-                if (c.radiusCenter != null) add(ReportCondition.RADIUS)
+                if (radiusEnabled && c.radiusCenter != null) add(ReportCondition.RADIUS)
             }
             val radiusKm = if (ReportCondition.RADIUS in set) c.effectiveRadiusMeters(defaultRadiusMeters) / 1000.0 else null
             return DriverConditions(set, radiusKm)

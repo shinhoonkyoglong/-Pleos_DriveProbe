@@ -12,7 +12,8 @@ import kotlin.random.Random
  *            → ReactionEvaluator가 본인 기준선과 비교해 ReactionResult(판정·문구)
  *            → ConditionProcessor.setPreDrive(result.verdict)로 피로 점수에 가산
  *
- * 소요 시간(2026-11-13 결정): "유효 반응 10회가 모이면 끝, 최대 40초" → 보통 약 30초.
+ * 소요 시간(2026-11-14 변경): "유효 반응 5회가 모이면 끝, 최대 15초" → 보통 약 13초.
+ * (2026-11-13엔 10회·최대 40초였다. 타겟을 운전 종사자로 좁히며 매일 하기 부담 없게 줄였다)
  */
 
 /** 반응을 받는 방법. 터치와 브레이크는 반응 시간이 달라 기준선을 따로 쓴다 */
@@ -20,11 +21,11 @@ enum class ReactionInput { TOUCH, BRAKE }
 
 data class ReactionParams(
     /** 최대 검사 시간 */
-    val durationMs: Long = 40_000L,
+    val durationMs: Long = 15_000L,
     val minIntervalMs: Long = 1_500L,
     val maxIntervalMs: Long = 3_000L,
     /** 유효 반응이 이만큼 모이면 바로 끝낸다. null이면 durationMs까지 계속 */
-    val targetValidTrials: Int? = 10,
+    val targetValidTrials: Int? = 5,
     /** 자극 후 이 시간 미만 반응 = 너무 빠른 반응(보고 반응한 게 아니라 예측) */
     val falseStartMs: Long = 100L,
     /** 이 시간 초과 = 느린 반응 */
@@ -232,12 +233,17 @@ data class ReactionBaselineParams(
     /** 기록이 쌓이기 전 기본값(반응시간 중앙값 ms) */
     val defaultMedian: RobustStat = RobustStat(median = 350f, scale = 50f),
     val minScaleMs: Float = 30f,
-    val minValidTrials: Int = 8,
-    val maxFalseStarts: Int = 4,
+    /** 유효 반응 5회 기준. 최대 15초 안에 4회도 못 모으면 판단 보류(10회일 때는 8) */
+    val minValidTrials: Int = 4,
+    /** 유효 반응 5회 기준(10회일 때는 4) */
+    val maxFalseStarts: Int = 3,
     val slowerZ: Float = 1.5f,
     val muchSlowerZ: Float = 3f,
     val slowerSlowCount: Int = 2,
-    /** 유효 반응 10회 기준(이전 60초·약 15회일 때는 4) */
+    /**
+     * 유효 반응 5회 기준으로도 3을 유지한다. 2로 내리면 [slowerSlowCount]와 같아져 '조금 느림' 판정이 사라지고
+     * 느린 반응 2번만으로 '많이 느림'(기준선에도 안 남음)이 된다.
+     */
     val muchSlowerSlowCount: Int = 3,
 ) {
     companion object {

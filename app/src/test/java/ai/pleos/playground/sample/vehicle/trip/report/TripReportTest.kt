@@ -211,6 +211,17 @@ class TripReportTest {
     }
 
     @Test
+    fun `반경 기능이 꺼져 있으면 기준점이 있어도 리포트에 반경 조건을 넣지 않는다`() {
+        val c = DriverCondition(
+            timeConstraints = setOf(TimeConstraint.NO_NIGHT_DRIVING),
+            radiusCenter = GeoPoint(37.5, 127.0),
+        )
+        val r = DepartureDriverConditionsSource.toReport(c, defaultRadiusMeters = 10_000.0, radiusEnabled = false)
+        assertEquals(setOf(ReportCondition.NO_NIGHT_DRIVING), r.conditions)
+        assertNull(r.radiusKm)
+    }
+
+    @Test
     fun `인쇄용 HTML은 그래프 3개와 표를 담고 글자를 이스케이프한다`() {
         val r = DrivingReport.build(steadyEightWeeks(), DriverConditions(setOf(ReportCondition.NO_NIGHT_DRIVING)), now)
         val html = DrivingReportHtml.render(r, zone = seoul)

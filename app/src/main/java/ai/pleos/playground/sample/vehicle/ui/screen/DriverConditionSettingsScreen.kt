@@ -147,15 +147,18 @@ fun DriverConditionSettingsContent(
                 onChange = onAvoidHighwayChange
             )
 
-            RadiusRow(
-                radiusKm = form.radiusKm,
-                canDecrease = editable && form.canDecreaseRadius(),
-                canIncrease = editable && form.canIncreaseRadius(),
-                onDecrease = onDecreaseRadius,
-                onIncrease = onIncreaseRadius
-            )
+            // 반경 기능이 꺼져 있으면(2026-11-14 회의) 반경·중심 줄을 그리지 않는다. 저장 검사에서도 빠진다(DriverConditionForm.validate)
+            if (state.radiusEnabled) {
+                RadiusRow(
+                    radiusKm = form.radiusKm,
+                    canDecrease = editable && form.canDecreaseRadius(),
+                    canIncrease = editable && form.canIncreaseRadius(),
+                    onDecrease = onDecreaseRadius,
+                    onIncrease = onIncreaseRadius
+                )
 
-            CenterRow(state = state, enabled = editable, onRefreshLocation = onRefreshLocation)
+                CenterRow(state = state, enabled = editable, onRefreshLocation = onRefreshLocation)
+            }
 
             state.errors.forEach { error ->
                 Text(text = "! ${errorText(error)}", style = Kd.Body, color = Kd.Danger)

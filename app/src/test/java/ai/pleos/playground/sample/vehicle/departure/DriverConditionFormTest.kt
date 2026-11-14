@@ -27,6 +27,26 @@ class DriverConditionFormTest {
         assertTrue(form.validate().isEmpty()) // 중심 없음도 저장 가능(반경 확인 "확인 불가", 계약 §4.3)
     }
 
+    /** 반경 기능이 꺼져 있으면(2026-11-14) 화면에 없는 반경·중심 값으로 저장을 막지 않는다. 잘못된 값은 비워서 저장한다. */
+    @Test
+    fun radiusDisabled_invalidRadiusAndCenter_doNotBlockSave_andAreCleared() {
+        val broken = valid.copy(radiusKm = 999.0, centerLatitude = 95.0, centerLongitude = null)
+        assertTrue(broken.validate().isNotEmpty())
+        assertTrue(broken.validate(radiusEnabled = false).isEmpty())
+
+        val saved = broken.toCondition(radiusEnabled = false)
+        assertEquals(null, saved.radiusCenter)
+        assertEquals(999_000.0, saved.allowedRadiusMeters!!, 0.0) // 0보다 크면 계약상 유효 → 그대로 둔다
+        assertTrue(saved.noNightDriving)
+    }
+
+    @Test
+    fun radiusDisabled_validCenter_isKeptAsHome() {
+        val saved = valid.copy(radiusKm = null).toCondition(radiusEnabled = false)
+        assertEquals(center, saved.radiusCenter)
+        assertEquals(null, saved.allowedRadiusMeters)
+    }
+
     @Test
     fun toCondition_defaultsWithCenter_mapsToContractModel() {
         assertEquals(

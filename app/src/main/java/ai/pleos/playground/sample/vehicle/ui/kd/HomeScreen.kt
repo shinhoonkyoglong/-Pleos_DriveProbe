@@ -77,7 +77,7 @@ fun HomeScreen(
         Row(modifier = Modifier.fillMaxWidth().height(176.dp), horizontalArrangement = Arrangement.spacedBy(Kd.Gap)) {
             KdNavTile(
                 "컨디션 체크",
-                subtitle = "정차 중 약 30초",
+                subtitle = "정차 중 약 15초",
                 icon = Icons.Rounded.Favorite,
                 onClick = { onOpen(KdPage.REACTION_CHECK) },
                 // 권유할 때만 강조한다(팀 결정: 체크를 강요하지 않음)
@@ -93,7 +93,7 @@ fun HomeScreen(
             )
             KdNavTile(
                 "내 운전 조건",
-                subtitle = "야간, 반경, 도로 조건",
+                subtitle = "야간, 도로 조건",
                 icon = Icons.Rounded.Settings,
                 onClick = { onOpen(KdPage.DRIVER_CONDITION) },
                 modifier = Modifier.weight(1f).fillMaxHeight().testTag("kd-home-condition"),
@@ -181,7 +181,7 @@ fun DeparturePlaceholderCard(modifier: Modifier = Modifier, onClick: () -> Unit)
         Text("오늘 운전해도 되나요?", style = Kd.Eyebrow)
         Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
         KdStatusBadge(KdTone.INFO, "내비에 목적지를 정하면 확인해요")
-        Text("출발 마감 시각 · 허용 반경 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
+        Text("출발 마감 시각 · 무료도로 경로를 차가 먼저 따져 드려요", style = Kd.Body)
         Spacer(Modifier.weight(1f))
         CardLink("자세히 보기")
     }
@@ -231,7 +231,7 @@ private fun TodayConditionCard(
         KdCard(modifier = modifier, borderColor = Kd.Caution) {
             Text("오늘 컨디션", style = Kd.Eyebrow)
             Spacer(Modifier.weight(1f)) // 본문을 세로 가운데로(카드가 높아도 가운데가 비어 보이지 않게)
-            KdStatusBadge(KdTone.CAUTION, "출발 전에 30초 체크할까요?", large = true)
+            KdStatusBadge(KdTone.CAUTION, "출발 전에 15초 체크할까요?", large = true)
             Text(
                 if (advice == CheckAdvice.RECOMMEND_NIGHT) "어두운 시간이라 평소보다 반응이 느릴 수 있어요"
                 else "지난 운전에서 피곤한 신호가 있었어요",
@@ -264,7 +264,7 @@ private fun TodayConditionCard(
         KdStatusBadge(KdTone.GOOD, "바로 출발해도 괜찮아요", large = true)
         Text(
             if (advice == CheckAdvice.SKIPPED_TODAY) "오늘은 체크를 건너뛰었어요"
-            else "궁금할 때 30초 반응 체크로 평소와 비교해 볼 수 있어요",
+            else "궁금할 때 15초 반응 체크로 평소와 비교해 볼 수 있어요",
             style = Kd.Body,
         )
         Spacer(Modifier.weight(1f))

@@ -71,7 +71,7 @@ class DepartureDisplayMapperTest {
 
     private fun snapshot(
         deadline: DepartureDeadlineResult = deadline(DeadlineStage.CAUTION, Duration.ofMinutes(39)),
-        radius: RadiusCheckResult = radiusIn,
+        radius: RadiusCheckResult? = radiusIn,
         route: RouteConditionCheck = satisfied,
         condition: ResolvedCondition = loaded,
     ) = DepartureSnapshot.Checked(now, condition, DataResult.Available(NaviDestination.Present(dest)), deadline, radius, route)
@@ -80,6 +80,23 @@ class DepartureDisplayMapperTest {
     private fun DepartureContent.allText(): String =
         listOfNotNull(conditionNotice, main, radius, route?.card).joinToString("\n") { c -> (listOfNotNull(c.title, c.headline) + c.lines.map { it.text }).joinToString("\n") } +
             route?.steps.orEmpty().joinToString("\n")
+
+    // ------------------------------------------------ 반경 기능 꺼짐(2026-11-14)
+
+    @Test
+    fun radiusDisabled_noRadiusCard_mainAndRouteUnchanged() {
+        val content = map(snapshot(radius = null))
+        assertNull(content.radius)
+        assertEquals(map(snapshot()).main, content.main)
+        assertEquals(map(snapshot()).route, content.route)
+        assertFalse(content.allText(), content.allText().contains("반경"))
+    }
+
+    @Test
+    fun radiusDisabled_discouragedDeparture_stillNoRadiusCard() {
+        val content = map(snapshot(deadline = deadline(DeadlineStage.PASSED, Duration.ofMinutes(-5)), radius = null))
+        assertNull(content.radius)
+    }
 
     // ------------------------------------------------ 출발 마감
 

@@ -67,7 +67,7 @@ data class KdUiState(
  *
  * - 컨디션: ConditionModule.engine (시연 모드 전환 시 엔진이 바뀌므로 매번 다시 읽는다)
  * - 기록: Room reaction_scores / intervention_histories
- * - 주행이 시작되면(engine.isDriving) 주행 화면으로 자동 전환, 끝나면 홈 + 주행 요약
+ * - 주행이 시작되면(engine.isDriving) 홈으로 돌린다(주행 화면은 띄우지 않음), 끝나면 홈 + 주행 요약
  */
 class KdAppViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -114,8 +114,9 @@ class KdAppViewModel(application: Application) : AndroidViewModel(application) {
             var page = s.page
             var showTripEnd = s.showTripEnd
             if (vehicle.isDriving && !wasDriving) {
-                // 주행 시작: 화면 조작을 막고 한눈에 보는 주행 화면으로
-                page = KdPage.DRIVING
+                // 주행 시작: 주행 화면을 띄우지 않고 홈으로 돌려 둔다(2026-11-14 회의 — 주행 중 개입은 음성으로만).
+                // 설정·체크 화면을 연 채로 출발해도 그 화면이 남지 않게 한다
+                page = KdPage.HOME
                 showTripEnd = false
             } else if (!vehicle.isDriving && wasDriving) {
                 page = KdPage.HOME
@@ -130,8 +131,8 @@ class KdAppViewModel(application: Application) : AndroidViewModel(application) {
         (DriveProbeApplication.instance.naviHelperRepository as? DemoNaviFallbackRepository)?.usingDemo?.value == true
 
     fun open(page: KdPage) {
-        // 주행 중에는 주행 화면에서 다른 화면으로 가지 않는다(Pleos 주행 중 UX 제한)
-        if (_state.value.vehicle.isDriving && page != KdPage.DRIVING) return
+        // 주행 중에는 홈에서 다른 화면으로 가지 않는다(Pleos 주행 중 UX 제한)
+        if (_state.value.vehicle.isDriving && page != KdPage.HOME) return
         _state.update { it.copy(page = page) }
     }
 

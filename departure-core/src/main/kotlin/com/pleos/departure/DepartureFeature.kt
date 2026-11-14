@@ -57,6 +57,7 @@ class DepartureFeature(
         radiusCheck = radiusCheck,
         conditionRoute = conditionRoute,
         clock = dependencies.clock,
+        radiusCheckEnabled = dependencies.config.radiusCheckEnabled,
     )
 
     /** 끝난 주행의 조건 준수 판정(작업 #29). 순수 계산 — 운전자 조건을 직접 넘길 때 쓴다. */

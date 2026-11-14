@@ -36,6 +36,7 @@ class DriverConditionSettingsViewModel(application: Application) : AndroidViewMo
         },
         defaultAllowedRadiusMeters = app.departureConfig.defaultAllowedRadiusMeters,
         treatUnknownDrivingAsRestricted = app.departureConfig.treatUnknownDrivingAsRestricted,
+        radiusEnabled = app.departureConfig.radiusCheckEnabled,
     )
 
     val state: StateFlow<DriverConditionSettingsState> = controller.state

@@ -232,6 +232,7 @@ object TripModule {
             driverConditionsSource = DepartureDriverConditionsSource(
                 repository = { a.driverConditionRepository },
                 defaultRadiusMeters = { a.departureConfig.defaultAllowedRadiusMeters },
+                radiusEnabled = { a.departureConfig.radiusCheckEnabled },
             )
         }
         recorder = TripRecorder(

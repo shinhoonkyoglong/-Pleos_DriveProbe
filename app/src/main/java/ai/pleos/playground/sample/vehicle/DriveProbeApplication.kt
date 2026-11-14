@@ -50,7 +50,8 @@ class DriveProbeApplication : Application() {
         private set
 
     /** 2번 '출발 전' 동작 수치. departureFeature 와 운전자 조건 설정 화면이 같은 값을 쓴다 */
-    val departureConfig: DepartureConfig by lazy { DepartureConfig() }
+    // 반경 기능은 끈다(2026-11-14 회의: 타겟을 운전 종사자로 좁힘). 저장된 반경 기준점은 "집"으로만 쓴다
+    val departureConfig: DepartureConfig by lazy { DepartureConfig(radiusCheckEnabled = false) }
 
     private val departureClock: Clock by lazy { Clock.system(departureConfig.timeZone) }
 

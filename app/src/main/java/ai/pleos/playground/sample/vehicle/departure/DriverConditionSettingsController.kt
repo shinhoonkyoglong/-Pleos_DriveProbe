@@ -33,8 +33,10 @@ class DriverConditionSettingsController(
     private val currentLocation: suspend () -> DataResult<LocatedCenter>,
     private val defaultAllowedRadiusMeters: Double,
     private val treatUnknownDrivingAsRestricted: Boolean,
+    /** DepartureConfig.radiusCheckEnabled. false 면 반경·중심을 화면에 보이지 않고 저장 검사에서도 뺀다 */
+    private val radiusEnabled: Boolean = true,
 ) {
-    private val _state = MutableStateFlow(DriverConditionSettingsState())
+    private val _state = MutableStateFlow(DriverConditionSettingsState(radiusEnabled = radiusEnabled))
     val state: StateFlow<DriverConditionSettingsState> = _state.asStateFlow()
 
     /** 화면을 열 때마다 부른다. 이전 입력은 버리고 저장된 값(없으면 기본값)으로 다시 채운다. */
@@ -43,6 +45,7 @@ class DriverConditionSettingsController(
         _state.value = DriverConditionSettingsState(
             drivingRestriction = restriction,
             editingLocked = isLocked(restriction),
+            radiusEnabled = radiusEnabled,
         )
         when (val saved = repository.getCondition()) {
             is DataResult.Available -> {
@@ -85,13 +88,13 @@ class DriverConditionSettingsController(
         val current = _state.value
         // 위치를 읽는 중에는 저장하지 않는다(중심이 빈 채로 저장되는 것을 막음)
         if (current.editingLocked || current.saving || current.loading || current.locationStatus == LocationStatus.LOADING) return
-        val errors = current.form.validate()
+        val errors = current.form.validate(radiusEnabled)
         if (errors.isNotEmpty()) {
             _state.update { it.copy(errors = errors, saveResult = null) }
             return
         }
         _state.update { it.copy(saving = true, errors = emptyList(), saveResult = null) }
-        when (val stored = repository.saveCondition(current.form.toCondition())) {
+        when (val stored = repository.saveCondition(current.form.toCondition(radiusEnabled))) {
             is DataResult.Available -> {
                 val storedForm = DriverConditionForm.from(stored.value, defaultAllowedRadiusMeters)
                 _state.update {
@@ -141,8 +144,10 @@ class DriverConditionSettingsController(
  * @property loadFailed 저장된 조건을 읽지 못했다(DB 오류 등). 기본값을 보여 주는 중이다
  * @property centerAddress 이번에 읽은 현재 위치의 구·동 이름. 저장된 중심에는 없다(DB 에 주소를 두지 않음)
  * @property errors 마지막 [DriverConditionSettingsController.save] 시도의 입력 오류
+ * @property radiusEnabled 반경 기능을 쓰는가. false 면 화면에 허용 반경·반경 중심 줄을 그리지 않는다
  */
 data class DriverConditionSettingsState(
+    val radiusEnabled: Boolean = true,
     val loading: Boolean = true,
     val form: DriverConditionForm = DriverConditionForm.defaults(),
     val savedForm: DriverConditionForm? = null,

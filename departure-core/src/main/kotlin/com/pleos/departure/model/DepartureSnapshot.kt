@@ -45,13 +45,14 @@ sealed interface DepartureSnapshot {
     /**
      * 확인했다.
      * @property destination 이번에 한 번 조회한 내비 목적지((0,0) 방어 적용 후). 화면은 직전 목적지와 비교해 경로 교체 중인지 판단한다.
+     * @property radius 반경 확인 결과. 반경 기능이 꺼져 있으면(DepartureConfig.radiusCheckEnabled = false) null.
      */
     data class Checked(
         override val evaluatedAt: Instant,
         val condition: ResolvedCondition,
         val destination: DataResult<NaviDestination>,
         val deadline: DepartureDeadlineResult,
-        val radius: RadiusCheckResult,
+        val radius: RadiusCheckResult?,
         val route: RouteConditionCheck,
     ) : DepartureSnapshot
 }

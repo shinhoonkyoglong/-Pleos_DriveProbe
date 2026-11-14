@@ -27,6 +27,15 @@ data class DepartureConfig(
     val defaultAllowedRadiusMeters: Double = 10_000.0,
 
     /**
+     * 허용 반경 기능(출발 전 반경 확인, 끝난 주행의 반경 판정)을 쓸지.
+     * false 면 반경 기준점(radiusCenter)이 저장돼 있어도 반경을 판정하지 않는다
+     * (출발 전 DepartureSnapshot.Checked.radius = null, 주행 판정 radius = NOT_APPLICABLE).
+     * 반경 기준점은 그대로 "집"(출발 마감 출발지·일몰 기준점의 대체값)으로 쓴다.
+     * [설계 판단] 앱은 false 로 넘긴다(2026-11-14 회의: 타겟을 운전 종사자로 좁혀 반경 기능을 뺐다). 기본값 true 는 기존 동작.
+     */
+    val radiusCheckEnabled: Boolean = true,
+
+    /**
      * 일몰·출발 마감 계산 기준 시간대.
      * [설계 판단] Asia/Seoul. 국내 공모전 기준. 차량 시스템 시간대와 다를 수 있어 고정한다.
      */
