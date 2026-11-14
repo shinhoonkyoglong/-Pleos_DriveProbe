@@ -1,5 +1,6 @@
 package ai.pleos.playground.sample.vehicle.ui.kd
 
+import ai.pleos.playground.sample.vehicle.BuildConfig
 import ai.pleos.playground.sample.vehicle.condition.core.FatigueLevel
 import ai.pleos.playground.sample.vehicle.condition.core.ReactionVerdict
 import ai.pleos.playground.sample.vehicle.data.local.entity.ReactionScoreEntity
@@ -109,8 +110,8 @@ fun HomeScreen(
     }
 }
 
-/** 시연용으로 홈의 [개발자 도구] 버튼을 숨김. 다시 보이려면 true */
-private const val SHOW_DEV_TOOLS = false
+/** 홈의 [개발자 도구] 버튼은 debug 빌드에서만 보인다(시연용 release 빌드에서는 숨김) */
+private val SHOW_DEV_TOOLS = BuildConfig.DEBUG
 
 @Composable
 private fun HomeHeader(state: KdUiState, onOpenDevTools: () -> Unit) {
