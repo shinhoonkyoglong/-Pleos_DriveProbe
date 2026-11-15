@@ -1,13 +1,23 @@
 package ai.pleos.playground.sample.vehicle.intervention
 
 import ai.pleos.playground.sample.vehicle.condition.core.FatigueLevel
+import android.util.Log
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 /** Shared by real automatic interventions and explicitly selected parked flow tests. */
 class InterventionSpeechAction(private val voice: VoiceConversation) {
     suspend fun execute(level: FatigueLevel, phase: (VoicePhase) -> Unit = {}, promptOverride: String? = null): InterventionResult {
         require(level == FatigueLevel.CAUTION || level == FatigueLevel.DANGER)
         return try {
+            DemoVoiceAnswers.answerFor(level)?.let { text ->
+                // Debug 시연 전용: 질문은 실제로 재생하고, 마이크·STT 대신 정해진 답을 받은 것으로 처리한다
+                voice.play(promptOverride ?: prompt(level), phase)
+                phase(VoicePhase.LISTENING)
+                delay(DemoVoiceAnswers.DELAY_MS)
+                Log.i("VoiceTest", "demo scripted answer level=$level text=$text")
+                return evaluate(level, VoiceAnswer(text, DemoVoiceAnswers.DELAY_MS, responseTiming = DemoVoiceAnswers.TIMING))
+            }
             val answer = voice.askTimed(promptOverride ?: prompt(level), phase)
             evaluate(level, answer)
         } catch (e: CancellationException) {

@@ -153,8 +153,10 @@ private fun HomeHeader(state: KdUiState, driving: Boolean, onOpenDevTools: () ->
                 // 화면 밝기 전환(다크 ↔ 라이트). 정차 중에만 보인다
                 KdThemeToggleButton()
                 // 운전자용 기능이 아니라 오른쪽 위에 작게 둔다(이전: 화면 아래 큰 버튼)
-                // 시연 모드(재생) 촬영은 debug 빌드에서만 가능하므로 재생 중에도 숨긴다
-                if (SHOW_DEV_TOOLS && !state.vehicle.isReplay) {
+                // 시연 모드(재생) 촬영은 debug 빌드에서만 가능하므로 재생 중에도 숨긴다.
+                // 실제 주행(REAL) 시연영상 촬영(음성 답변 자동 입력을 켠 상태, scripts/Prepare-Demo.ps1)에서도 숨긴다
+                if (SHOW_DEV_TOOLS && !state.vehicle.isReplay &&
+                    !ai.pleos.playground.sample.vehicle.intervention.DemoVoiceAnswers.enabled) {
                     KdButton(
                         "개발자 도구",
                         onClick = onOpenDevTools,

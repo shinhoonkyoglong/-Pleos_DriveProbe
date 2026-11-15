@@ -200,6 +200,10 @@ class RestNavigation(
             if (now < proposal.createdAtMs || now >= proposal.expiresAtMs)
                 return result(proposal,RestNavigationStatus.PROPOSAL_EXPIRED,"휴게소 제안 시간이 지나 경로를 변경하지 않았어요. 새 제안이 필요해요")
             currentCoroutineContext().ensureActive()
+            // 내비의 주기 재탐색(약 5분)이 '확인 읽기'와 '쓰기 직전 재확인' 사이에 끼면 routeId만 바뀌어 요청이 취소된다.
+            // 아직 아무것도 보내지 않았을 때만(dispatched=false) 한 번 더 최신 경로를 읽어 같은 동등성 검사를 거친 뒤 다시 시도한다. 쓰기 재시도는 하지 않는다
+            var routeRetry = 0
+            while (true) {
             val (fresh, remaining, refreshed) = stableRouteRead {
                 val snapshot=port.snapshot()
                 validateSnapshot(snapshot)
@@ -216,12 +220,17 @@ class RestNavigation(
                 return result(proposal,RestNavigationStatus.CONTEXT_CHANGED,"제안한 휴게소가 현재 경로의 다음 휴게소가 아니에요. 새 제안과 동의가 필요해요")
             if (clock() >= proposal.expiresAtMs) return result(proposal,RestNavigationStatus.PROPOSAL_EXPIRED,"휴게소 제안 시간이 지났어요")
             currentCoroutineContext().ensureActive()
-            val after = port.addFirstWaypoint(proposal.candidate,fresh) {
-                beforeDispatch()
-                if (clock() >= proposal.expiresAtMs) throw RestNavigationFailure(RestNavigationStatus.PROPOSAL_EXPIRED,"경로 확인 중 제안 시간이 지났어요")
-                val age = clock() - refreshed.observedAtMs
-                if (age < 0 || age > SOURCE_MAX_AGE_MS) throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA,"경로 확인 중 휴게소 정보의 유효 시간이 지났어요")
-                dispatched = true
+            val after = try {
+                port.addFirstWaypoint(proposal.candidate,fresh) {
+                    beforeDispatch()
+                    if (clock() >= proposal.expiresAtMs) throw RestNavigationFailure(RestNavigationStatus.PROPOSAL_EXPIRED,"경로 확인 중 제안 시간이 지났어요")
+                    val age = clock() - refreshed.observedAtMs
+                    if (age < 0 || age > SOURCE_MAX_AGE_MS) throw RestNavigationFailure(RestNavigationStatus.STALE_ROUTE_DATA,"경로 확인 중 휴게소 정보의 유효 시간이 지났어요")
+                    dispatched = true
+                }
+            } catch (e: RestNavigationFailure) {
+                if (e.status == RestNavigationStatus.CONTEXT_CHANGED && !dispatched && routeRetry == 0) { routeRetry++; continue }
+                throw e
             }
             val status=waypointApplicationStatus(fresh,proposal.candidate.place,after)
             return result(proposal,status,when(status) {
@@ -229,6 +238,7 @@ class RestNavigation(
                 RestNavigationStatus.WAYPOINT_OBSERVED -> "${proposal.candidate.place.name} 경유 항목 생성을 확인했어요. 내비가 좌표를 제공하지 않아 위치는 내비에서 확인해 주세요"
                 else -> "휴게소 경유지를 요청했지만 적용 여부를 확인하지 못했어요. 내비에서 확인해 주세요"
             },dispatched,after)
+            }
         } catch (e: CancellationException) {
             throw RestNavigationCancelled(result(proposal,
                 if(dispatched) RestNavigationStatus.CANCELLED_AFTER_REQUEST_UNCONFIRMED else RestNavigationStatus.CANCELLED_BEFORE_REQUEST,

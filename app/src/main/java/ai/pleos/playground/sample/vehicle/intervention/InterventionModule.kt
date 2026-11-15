@@ -214,6 +214,13 @@ class InterventionModule(
             }
         }
         if (BuildConfig.DEBUG) {
+            DemoVoiceAnswers.load(context.applicationContext)
+            ContextCompat.registerReceiver(context.applicationContext, object : BroadcastReceiver() {
+                override fun onReceive(receiverContext: Context?, intent: Intent?) {
+                    DemoVoiceAnswers.set(context.applicationContext, intent?.getBooleanExtra("enabled", true) != false)
+                    Log.i("VoiceTest", "demo scripted answers enabled=${DemoVoiceAnswers.enabled}")
+                }
+            }, IntentFilter(DemoVoiceAnswers.ACTION), android.Manifest.permission.DUMP, null, ContextCompat.RECEIVER_EXPORTED)
             ContextCompat.registerReceiver(context.applicationContext, object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     val level = FatigueLevel.entries.firstOrNull { it.name == intent?.getStringExtra("level") } ?: return

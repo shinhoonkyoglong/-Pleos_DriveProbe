@@ -34,6 +34,12 @@ class TripSummaryActivity : ComponentActivity() {
         }
     }
 
+    /** 화면이 실제로 보일 때만 '요약 보여 줌'으로 처리한다(뒤에서 만들어지기만 한 경우는 대기 유지) */
+    override fun onResume() {
+        super.onResume()
+        TripModule.markSummaryShown(tripId)
+    }
+
     /** 이미 열려 있을 때 새 주행이 끝나면 그 주행으로 바꾼다 */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

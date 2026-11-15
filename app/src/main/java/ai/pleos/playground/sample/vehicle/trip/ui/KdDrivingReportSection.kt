@@ -71,7 +71,7 @@ fun KdDrivingReportContent(report: DrivingReport, modifier: Modifier = Modifier)
     Column(modifier = modifier.testTag("kd-driving-report"), verticalArrangement = Arrangement.spacedBy(Kd.Gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${report.periodText()} · ${report.weeks}주", style = Kd.BodyMuted, modifier = Modifier.weight(1f))
-            if (report.isDemo) KdTag("시연 기록", color = Kd.Unknown)
+            if (report.isDemo && SHOW_DEMO_RECORD_TAGS) KdTag("시연 기록", color = Kd.Unknown)
             if (report.hasMock) {
                 Spacer(Modifier.width(12.dp))
                 KdTag("임시값 포함", color = Kd.Unknown)

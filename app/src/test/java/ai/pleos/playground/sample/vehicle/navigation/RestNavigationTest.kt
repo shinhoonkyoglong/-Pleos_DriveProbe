@@ -134,6 +134,33 @@ class RestNavigationTest {
         assertEquals(0,changed.writes)
     }
 
+    @Test fun `periodic reroute between check and write retries once before dispatch and writes once`()=runTest {
+        val f=Fixture();f.batch=f.batch.copy(routePath=listOf("road:부산","rest:기흥","arrive"))
+        val p=f.nav.prepareProposal();var calls=0
+        f.write={ candidate,sent ->
+            calls++
+            if(calls==1) {
+                // 재확인 직전에 내비가 같은 경로로 주기 재탐색 → 아직 보내지 않은 상태로 취소
+                f.state=f.state.copy(routeId="periodic");f.batch=f.batch.copy(routeId="periodic")
+                throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"검색 중 목적지·경유지·경로 옵션이 바뀌어 쉼터 요청을 취소했어요")
+            }
+            sent();f.writes++
+            f.state.copy(waypoints=listOf(NaviWaypoint(candidate.place.latitude,candidate.place.longitude,candidate.place.name)))
+        }
+        assertEquals(RestNavigationStatus.VERIFIED_WAYPOINT,f.nav.accept(p).status)
+        assertEquals(2,calls);assertEquals(1,f.writes);assertEquals("periodic",f.expectedWriteRouteId)
+    }
+
+    @Test fun `context change after dispatch or twice in a row is not retried`()=runTest {
+        val twice=Fixture();twice.batch=twice.batch.copy(routePath=listOf("road:부산","arrive"))
+        val p=twice.nav.prepareProposal();var calls=0
+        twice.write={ _,_ -> calls++;throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"바뀜") }
+        assertEquals(RestNavigationStatus.CONTEXT_CHANGED,twice.nav.accept(p).status);assertEquals(2,calls);assertEquals(0,twice.writes)
+        val sent=Fixture();val q=sent.nav.prepareProposal();var sentCalls=0
+        sent.write={ _,dispatched -> sentCalls++;dispatched();throw RestNavigationFailure(RestNavigationStatus.CONTEXT_CHANGED,"보낸 뒤 바뀜") }
+        assertNotEquals(RestNavigationStatus.VERIFIED_WAYPOINT,sent.nav.accept(q).status);assertEquals(1,sentCalls)
+    }
+
     @Test fun `read crossing a reroute retries coherently and still dispatches only once`()=runTest {
         val f=Fixture()
         val nav=RestNavigation(f.port,RouteServiceAreaSource { _,_ ->
