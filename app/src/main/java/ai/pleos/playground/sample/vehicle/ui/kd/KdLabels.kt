@@ -36,7 +36,7 @@ fun GearPosition.label(): String = when (this) {
 
 private val ZONE: ZoneId = ZoneId.of("Asia/Seoul")
 private val DATE_TIME = DateTimeFormatter.ofPattern("M월 d일 a h시 m분", Locale.KOREAN)
-private val DATE_SHORT = DateTimeFormatter.ofPattern("M/d", Locale.KOREAN)
+private val DATE_SHORT = DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN)
 private val TODAY = DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN)
 
 fun formatDateTime(epochMs: Long): String = DATE_TIME.format(Instant.ofEpochMilli(epochMs).atZone(ZONE))

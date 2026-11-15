@@ -56,13 +56,13 @@ data class WeekRow(val stats: TripPeriodStats) {
     val from: Long get() = stats.from
     val to: Long get() = stats.to
 
-    /** 그래프 x축 글자(예: "11/5") */
+    /** 그래프 x축 글자(예: "11월 5일") */
     fun label(zone: TimeZone = TimeZone.getDefault()): String =
-        SimpleDateFormat("M/d", Locale.KOREAN).apply { timeZone = zone }.format(Date(from))
+        SimpleDateFormat("M월 d일", Locale.KOREAN).apply { timeZone = zone }.format(Date(from))
 
-    /** 기간 글자(예: "11/5~11/11") */
+    /** 기간 글자(예: "11월 5일~11월 11일") */
     fun rangeLabel(zone: TimeZone = TimeZone.getDefault()): String {
-        val f = SimpleDateFormat("M/d", Locale.KOREAN).apply { timeZone = zone }
+        val f = SimpleDateFormat("M월 d일", Locale.KOREAN).apply { timeZone = zone }
         return "${f.format(Date(from))}~${f.format(Date(to - 1))}"
     }
 }

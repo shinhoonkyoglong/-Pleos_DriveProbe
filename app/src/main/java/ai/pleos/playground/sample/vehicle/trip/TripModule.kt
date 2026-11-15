@@ -252,10 +252,30 @@ object TripModule {
         scope.launch {
             // 앱 시작 때의 null은 건너뛰고, 새 주행 기록이 저장될 때마다 요약 화면을 띄운다
             tripEnded.collect { tripId ->
+                // 내비 등 다른 앱이 앞에 있으면 Android가 화면 띄우기를 막는다(BAL_BLOCK).
+                // 요약이 실제로 보이기 전까지 남겨 두고, 앱이 앞으로 오면 그때 띄운다([showPendingSummary])
+                pendingSummaryTripId = tripId
                 showSummary(app, tripId)
             }
         }
         registerDebugReceiver(app)
+    }
+
+    /** 주행이 끝났지만 요약 화면이 아직 사용자에게 보이지 않은 주행 ID */
+    @Volatile
+    var pendingSummaryTripId: String? = null
+        private set
+
+    /** 요약 화면이 실제로 보였을 때 부른다(같은 주행이면 대기 해제) */
+    fun markSummaryShown(tripId: String?) {
+        if (tripId == null || tripId == pendingSummaryTripId) pendingSummaryTripId = null
+    }
+
+    /** 앱 화면이 앞으로 왔을 때 부른다. 막혔던 요약이 있으면 지금 띄운다 */
+    fun showPendingSummary(context: Context) {
+        val id = pendingSummaryTripId ?: return
+        if (summaryPresenter == null) { pendingSummaryTripId = null; return }
+        showSummary(context, id)
     }
 
     /** [summaryPresenter]로 요약을 보여준다. [tripId]가 null이면 가장 최근 주행. presenter가 없으면 아무것도 안 함 */

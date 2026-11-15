@@ -85,6 +85,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         Log.i("DriveProbe", "activity onResume")
         DriveProbeApplication.instance.interventions.voiceTests.refreshCapabilities()
+        // 주행이 끝날 때 다른 앱이 앞에 있어 막혔던 주행 요약을 지금 보여 준다
+        ai.pleos.playground.sample.vehicle.trip.TripModule.showPendingSummary(this)
     }
     override fun onPause() { Log.i("DriveProbe", "activity onPause"); super.onPause() }
     override fun onStop() {

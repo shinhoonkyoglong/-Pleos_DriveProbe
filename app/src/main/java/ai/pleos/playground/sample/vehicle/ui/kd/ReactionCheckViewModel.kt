@@ -183,6 +183,8 @@ class ReactionCheckViewModel(application: Application) : AndroidViewModel(applic
     )
 
     private fun publish(nowMs: Long, outcome: TrialOutcome? = _state.value.lastOutcome) {
+        // Debug 시연 도구(scripts/Prepare-Demo.ps1 -React)가 이 줄을 보고 Virtual Console 브레이크를 밟는다
+        if (BuildConfig.DEBUG && session.isStimulusVisible && !_state.value.stimulusVisible) Log.i(TAG, "demo stimulus shown")
         _state.value = _state.value.copy(
             phase = session.phase,
             stimulusVisible = session.isStimulusVisible,
