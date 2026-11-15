@@ -5,7 +5,7 @@
 - 팀명: **계운**
 - 공모전: 현대자동차그룹 차량용 앱 개발 공모전
 - APK: [`apk/계운_계속운전_release.apk`](apk/계운_계속운전_release.apk)
-- 시연영상: [아래 시연영상](#시연영상) 참고 (약 6분, 에뮬레이터 실제 주행 신호로 촬영)
+- 시연영상: [Google Drive에서 보기](https://drive.google.com/file/d/1hXIUDx8YPC3GUBaeKbKu7FjXA0P5KGiY/view?usp=sharing) (약 6분, 에뮬레이터 실제 주행 신호로 촬영 · [장면 안내](#시연영상))
 
 ## 주요 기능
 
@@ -20,6 +20,8 @@
 주행 중에는 운전에 집중하도록 앱 화면을 쓰지 않습니다. 차량 정책(주행 중 사용 제한)으로 앱 화면이 가려지며, 화면 조작 없이 공조 변화와 음성으로만 안내·응답합니다. 피로 단계도 주행 중에는 화면에 띄우지 않고, 정차 후 주행 요약에서 보여 줍니다. 휴게시설은 공공데이터 휴게소 215곳·졸음쉼터 253곳과 대조해 진행 방향이 맞는 시설만 안내합니다.
 
 ## 시연영상
+
+**[▶ 시연영상 보기 (Google Drive)](https://drive.google.com/file/d/1hXIUDx8YPC3GUBaeKbKu7FjXA0P5KGiY/view?usp=sharing)**
 
 에뮬레이터에 Virtual Console로 실제 주행 신호(D단·80km/h·조향)를 넣어 앱의 실제 판단·개입 흐름을 촬영했습니다.
 
