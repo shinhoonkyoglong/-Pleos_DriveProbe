@@ -245,8 +245,8 @@ class TripReportTest {
             assertEquals(0, c.get(java.util.Calendar.HOUR_OF_DAY))
         }
         r.weekly.zipWithNext().forEach { (a, b) -> assertEquals(a.to, b.from) }
-        assertEquals("9/17~9/23", r.weekly.first().rangeLabel(la))
-        assertEquals("11/5~11/11", r.weekly.last().rangeLabel(la))
+        assertEquals("9월 17일~9월 23일", r.weekly.first().rangeLabel(la))
+        assertEquals("11월 5일~11월 11일", r.weekly.last().rangeLabel(la))
     }
 
     // ---- 시연용 가상 기록 ----

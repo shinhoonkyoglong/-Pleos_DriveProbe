@@ -137,7 +137,7 @@ private fun SummaryHeader(content: TripSummaryContent, showTitle: Boolean) {
             Spacer(Modifier.width(16.dp))
         }
         Text(endedText(content.endedAt), fontSize = 22.sp, color = InfoColor)
-        if (content.isDemo) {
+        if (content.isDemo && SHOW_DEMO_RECORD_TAGS) {
             Spacer(Modifier.width(16.dp))
             Chip("시연 기록", InfoColor, InfoBg)
         }
@@ -198,7 +198,7 @@ private fun HistoryRow(item: TripHistoryItem, onSelect: (String) -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(dateText(item.endedAt), fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    if (item.isDemo) {
+                    if (item.isDemo && SHOW_DEMO_RECORD_TAGS) {
                         Spacer(Modifier.width(12.dp))
                         Chip("시연", InfoColor, InfoBg)
                     }

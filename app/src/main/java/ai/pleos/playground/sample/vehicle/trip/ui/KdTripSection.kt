@@ -82,7 +82,7 @@ fun rememberTripWeekNumbers(): TripWeekNumbers {
             else -> KdTone.CAUTION
         },
         tag = when {
-            w.isDemo -> "시연 기록"
+            w.isDemo && SHOW_DEMO_RECORD_TAGS -> "시연 기록"
             w.complianceMock -> "조건 준수는 임시값"
             else -> null
         },
@@ -131,7 +131,7 @@ fun KdTripSummaryCard(content: TripSummaryContent, modifier: Modifier = Modifier
     KdCard(modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(formatDateTime(content.endedAt) + " 종료", style = Kd.BodyMuted, modifier = Modifier.weight(1f))
-            if (content.isDemo) KdTag("시연 기록", color = Kd.Unknown)
+            if (content.isDemo && SHOW_DEMO_RECORD_TAGS) KdTag("시연 기록", color = Kd.Unknown)
         }
         KdStatusBadge(content.headlineTone.kd(), content.headline, modifier = Modifier.fillMaxWidth())
         KdDivider()
@@ -210,7 +210,7 @@ private fun KdHistoryRow(item: TripHistoryItem, selected: Boolean, onClick: () -
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatDateTime(item.endedAt), style = if (selected) Kd.Label.copy(color = Kd.Accent) else Kd.Label)
-                if (item.isDemo) {
+                if (item.isDemo && SHOW_DEMO_RECORD_TAGS) {
                     Spacer(Modifier.width(12.dp))
                     KdTag("시연", color = Kd.Unknown)
                 }

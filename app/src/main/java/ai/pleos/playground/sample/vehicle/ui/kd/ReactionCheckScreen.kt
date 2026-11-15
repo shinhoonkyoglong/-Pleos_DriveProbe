@@ -272,7 +272,7 @@ private fun RunningView(state: ReactionUiState, isReplay: Boolean, onTap: () -> 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "제때 ${state.validCount}/${state.targetValid}회 · 최대 ${(state.remainingMs + 999) / 1000}초",
+                    "제때 ${state.validCount}/${state.targetValid}회 · 남은 시간 ${(state.remainingMs + 999) / 1000}초",
                     style = Kd.Title,
                     modifier = Modifier.weight(1f),
                 )

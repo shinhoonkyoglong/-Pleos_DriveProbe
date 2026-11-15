@@ -145,7 +145,7 @@ private fun TitleRow(title: String?, subtitle: String, isDemo: Boolean) {
             Spacer(Modifier.width(16.dp))
         }
         Text(subtitle, fontSize = 22.sp, color = InfoColor)
-        if (isDemo) {
+        if (isDemo && SHOW_DEMO_RECORD_TAGS) {
             Spacer(Modifier.width(16.dp))
             Chip("시연 기록", InfoColor, InfoBg)
         }

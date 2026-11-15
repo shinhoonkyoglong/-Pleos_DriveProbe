@@ -36,9 +36,9 @@ object KdDemoData {
     const val driverName = "김순자"
 
     val reactionTrend = listOf(
-        TrendPoint("11/3", 372), TrendPoint("11/4", 358), TrendPoint("11/5", 365),
-        TrendPoint("11/6", 349), TrendPoint("11/7", 361), TrendPoint("11/9", 344),
-        TrendPoint("11/10", 352),
+        TrendPoint("11월 3일", 372), TrendPoint("11월 4일", 358), TrendPoint("11월 5일", 365),
+        TrendPoint("11월 6일", 349), TrendPoint("11월 7일", 361), TrendPoint("11월 9일", 344),
+        TrendPoint("11월 10일", 352),
     )
 
     data class MonthRow(val month: String, val trips: Int, val compliance: Int, val reactionMs: Int, val warnings: Int)
